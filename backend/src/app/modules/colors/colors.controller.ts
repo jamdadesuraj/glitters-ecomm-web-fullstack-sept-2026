@@ -9,34 +9,43 @@ export const createColors = async (
   next: NextFunction,
 ) => {
   try {
+    if (!req.body) {
+      return next(new appError("Request body is required", 400));
+    }
+
     const { colorName, hexCode, status } = req.body;
 
-    // existing
-    const existingData = await Colors.findOne({
+    // Validate
+    const validateData = colorsSchema.parse({
       colorName,
       hexCode,
       status,
+    });
+
+    // Duplicate check
+    const existingData = await Colors.findOne({
+      $or: [
+        {
+          colorName: validateData.colorName,
+        },
+        {
+          hexCode: validateData.hexCode,
+        },
+      ],
     });
 
     if (existingData) {
-      return next(new appError("Colors already exists", 400));
+      return next(new appError("Color already exists", 400));
     }
-    // validate data
 
-    const validateData = await colorsSchema.parse({
-      colorName,
-      hexCode,
-      status,
-    });
+    // Create
+    const createdColor = await Colors.create(validateData);
 
-    // create
-    const createColors = await Colors.create(validateData);
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      statusCode: 200,
-      message: "Colors created successfully",
-      data: createColors,
+      statusCode: 201,
+      message: "Color created successfully",
+      data: createdColor,
     });
   } catch (error) {
     next(error);

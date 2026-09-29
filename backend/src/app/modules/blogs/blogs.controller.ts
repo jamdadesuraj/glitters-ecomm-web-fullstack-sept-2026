@@ -3,7 +3,6 @@ import { appError } from "../../errors/appError";
 import { cloudinary } from "../../config/cloudinary";
 import { BlogsModel } from "./blogs.model";
 import { blogsSchemaSchema, blogsSchemaUpdateSchema } from "./blogs.validation";
-import { BlogsCategoryModel } from "../blogCategory/blogsCategory.model";
 
 export const createBlogs = async (
   req: Request,
@@ -26,6 +25,7 @@ export const createBlogs = async (
       metaTitle,
       metaDesc,
       metaTags,
+      status,
       isDeleted,
     } = req.body;
 
@@ -72,6 +72,7 @@ export const createBlogs = async (
       metaTitle,
       metaDesc,
       metaTags,
+      status,
       isDeleted,
     });
 
@@ -119,7 +120,13 @@ export const getAllBlogs = async (
   next: NextFunction,
 ) => {
   try {
-    const Blogs = await BlogsModel.find().sort({ createdAt: -1 });
+    const Blogs = await BlogsModel.find({
+      isDeleted: false,
+    })
+      .populate("category", "_id categoryName")
+      .sort({
+        createdAt: -1,
+      });
 
     res.status(200).json({
       success: true,

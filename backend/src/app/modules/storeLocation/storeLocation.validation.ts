@@ -28,7 +28,7 @@ export const storeLocationSchema = z.object({
   twitter: z.string().optional(),
 
   youtube: z.string().optional(),
-
+  status: z.enum(["active", "inactive"]).optional(),
   isDeleted: z.boolean().optional(),
 });
 
@@ -63,6 +63,6 @@ export const updateStoreLocationSchema = z.object({
   twitter: z.string().optional(),
 
   youtube: z.string().optional(),
-
+  status: z.enum(["active", "inactive"]).optional(),
   isDeleted: z.boolean().optional(),
 });

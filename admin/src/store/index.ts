@@ -29,6 +29,13 @@ import { careerInfoApi } from './careerinfoApi'
 import { returnRefundApi } from './returnRefundApi'
 import { returnRequestApi } from './returnRequestApi'
 import { blogCategoryApi } from './blogCategoryApi'
+import { storeLocatorApi } from './storeLocatorApi'
+import { storeEnquiryApi } from './storeEnquiryApi'
+import { colorsApi } from './colorsApi'
+import { sizeApi } from './sizeApi'
+import { brandApi } from './brandApi'
+import { materialApi } from './materialApi'
+import { couponApi } from './couponApi'
 
 export const store = configureStore({
   reducer: {
@@ -41,6 +48,12 @@ export const store = configureStore({
     [homeBannerApi.reducerPath]: homeBannerApi.reducer,
     [aboutUsApi.reducerPath]: aboutUsApi.reducer,
     [counterApi.reducerPath]: counterApi.reducer,
+
+    [colorsApi.reducerPath]: colorsApi.reducer,
+    [sizeApi.reducerPath]: sizeApi.reducer,
+    [brandApi.reducerPath]: brandApi.reducer,
+    [materialApi.reducerPath]: materialApi.reducer,
+    [couponApi.reducerPath]: couponApi.reducer,
 
     [careerInfoApi.reducerPath]: careerInfoApi.reducer,
     [currentOpeningsApi.reducerPath]: currentOpeningsApi.reducer,
@@ -57,6 +70,9 @@ export const store = configureStore({
 
     [blogCategoryApi.reducerPath]: blogCategoryApi.reducer,
     [blogApi.reducerPath]: blogApi.reducer,
+
+    [storeLocatorApi.reducerPath]: storeLocatorApi.reducer,
+    [storeEnquiryApi.reducerPath]: storeEnquiryApi.reducer,
 
     [termsApi.reducerPath]: termsApi.reducer,
     [productsApi.reducerPath]: productsApi.reducer,
@@ -76,6 +92,12 @@ export const store = configureStore({
       aboutUsApi.middleware,
       counterApi.middleware,
 
+      colorsApi.middleware,
+      sizeApi.middleware,
+      brandApi.middleware,
+      materialApi.middleware,
+      couponApi.middleware,
+
       currentOpeningsApi.middleware,
       careerInfoApi.middleware,
 
@@ -91,6 +113,9 @@ export const store = configureStore({
 
       blogCategoryApi.middleware,
       blogApi.middleware,
+
+      storeLocatorApi.middleware,
+      storeEnquiryApi.middleware,
 
       termsApi.middleware,
       productsApi.middleware,

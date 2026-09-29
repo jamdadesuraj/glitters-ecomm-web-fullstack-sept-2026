@@ -86,7 +86,11 @@ const blogsSchema: Schema = new Schema(
       type: String,
       default: "",
     },
-
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
+    },
     isDeleted: {
       type: Boolean,
       default: false,

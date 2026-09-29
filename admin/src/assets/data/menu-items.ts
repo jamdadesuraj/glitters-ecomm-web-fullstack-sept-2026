@@ -121,6 +121,13 @@ export const MENU_ITEMS: MenuItemType[] = [
     url: '/Job-enquires',
   },
 
+  {
+    key: 'store-enquires',
+    label: 'Store Enquires',
+    icon: 'solar:case-round-bold-duotone',
+    url: '/store-enquires',
+  },
+
   // =========================
   // VENDOR MANAGEMENT
   // =========================
@@ -220,6 +227,12 @@ export const MENU_ITEMS: MenuItemType[] = [
     url: '/faq',
   },
   {
+    key: 'store-locator',
+    label: 'Store Locator',
+    icon: 'solar:question-circle-bold-duotone',
+    url: '/store-locator',
+  },
+  {
     key: 'blog-category',
     label: 'Blog Category',
     icon: 'solar:document-add-bold-duotone',
@@ -229,7 +242,7 @@ export const MENU_ITEMS: MenuItemType[] = [
     key: 'blog',
     label: 'Blogs',
     icon: 'solar:document-add-bold-duotone',
-    url: '/blog',
+    url: '/blogs',
   },
   {
     key: 'career-info',

@@ -3,11 +3,14 @@ import { RootState } from '@/store'
 
 export interface IContact {
   _id: string
-  fullName: string
+  firstName: string
+  lastName: string
   emailAddress: string
-  subject: string
   phone: string
+  subject: string
+  orderNo: string
   message: string
+  status: string
   isDeleted: boolean
   createdAt: string
   updatedAt: string

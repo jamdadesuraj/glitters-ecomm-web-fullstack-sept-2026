@@ -38,7 +38,7 @@ export const blogsSchemaSchema = z.object({
   metaDesc: z.string().trim().optional(),
 
   metaTags: z.string().trim().optional(),
-
+  status: z.enum(["active", "inactive"]).optional(),
   isDeleted: z
     .union([z.boolean(), z.string()])
     .transform((value) => {

@@ -25,6 +25,8 @@ export interface IBlogs extends Document {
   metaDesc: string;
   metaTags: string;
 
+  status: "active" | "inactive";
+
   isDeleted: boolean;
 
   createdAt: Date;

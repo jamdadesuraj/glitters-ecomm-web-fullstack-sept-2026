@@ -3,12 +3,25 @@ import { RootState } from '@/store'
 
 export interface ICareer {
   _id: string
-  fullName: string
+
+  firstName: string
+  lastName: string
+
   emailAddress: string
   phone: string
+
+  currentPosition: string
+  experience: string
+  currentLocation: string
+  expectedSalary: string
+
+  linkedIn: string
+
   resume: string
+
+  coverLetter: string
   message: string
-  isDeleted: boolean
+
   createdAt: string
   updatedAt: string
 }

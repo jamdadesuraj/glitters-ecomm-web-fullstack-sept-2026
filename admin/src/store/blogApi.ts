@@ -3,15 +3,36 @@ import { RootState } from '@/store'
 
 export interface IBlog {
   _id: string
+
+  category: string
+
   title: string
   shortDesc: string
-  description: string
+
+  author: string
+
+  featured: boolean
+
   image: string
+
+  description: string
+
+  QuickTips: string
+
+  blackQuote: string
+
   tags: string
+
+  writtenBy: string
+  writtenByImage: string
+  writtenByDesc: string
+
   metaTitle: string
   metaDesc: string
   metaTags: string
+  status: string
   isDeleted: boolean
+
   createdAt: string
   updatedAt: string
 }

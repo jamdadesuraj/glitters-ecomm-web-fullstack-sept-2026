@@ -55,15 +55,21 @@ export const getAllStoreEnquiry = async (
   next: NextFunction,
 ) => {
   try {
-    const storeEnquiry = await StoreEnquiry.find().sort({ createdAt: -1 });
+    const storeEnquiry = await StoreEnquiry.find({
+      isDeleted: false,
+    })
+      .populate("storeName", "_id storeName")
+      .sort({
+        createdAt: -1,
+      });
 
     res.status(200).json({
       success: true,
       statusCode: 200,
       message:
         storeEnquiry.length > 0
-          ? "store Enquiry retrieved successfully"
-          : "No banner found",
+          ? "Store enquiries retrieved successfully"
+          : "No store enquiry found",
       data: storeEnquiry,
     });
   } catch (error) {

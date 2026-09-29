@@ -4,8 +4,10 @@ import { RootState as IRootState } from '@/store'
 export interface ISetting {
   _id?: string
   id?: string
+
   logo?: string
   favicon?: string
+  footerImg?: string
 
   mobileNo?: string
   alternateMobileNo?: string
@@ -19,17 +21,23 @@ export interface ISetting {
 
   facebook?: string
   instagram?: string
+  youtube?: string
   linkedin?: string
   twitter?: string
-  youtube?: string
   whatsApp?: string
 
-  homeIntroVideo?: string
-  homeSlidingTitle?: string
+  topHeaderTitle?: string
+  footerInfo?: string
   footerCopyrights?: string
+
+  googlePlayUrl?: string
+  appStoreUrl?: string
 
   username?: string
   password?: string
+
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface ISettingResponse {
@@ -43,7 +51,7 @@ export const settingApi = createApi({
   reducerPath: 'settingApi',
 
   baseQuery: fetchBaseQuery({
-   baseUrl: process.env.NEXT_PUBLIC_API_URL,
+    baseUrl: process.env.NEXT_PUBLIC_API_URL,
 
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as IRootState)?.auth?.token
