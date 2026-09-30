@@ -1,224 +1,184 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+
 import Image from 'next/image'
+
 import { Card, CardBody, CardHeader, CardTitle, Col, Row } from 'react-bootstrap'
+
 import { toast } from 'react-toastify'
+
 import { useCreateSEOPagesMutation, useGetSEOPagesQuery, useUpdateSEOPagesMutation } from '@/store/seoPages'
 
+type Status = 'active' | 'inactive'
+
 const Seo = () => {
-  const { data: seoPagesData, isLoading, refetch } = useGetSEOPagesQuery()
-  const [createSeoPages, { isLoading: creating }] = useCreateSEOPagesMutation()
-  const [updateSeoPages, { isLoading: updating }] = useUpdateSEOPagesMutation()
+  // ============================================
+  // API
+  // ============================================
 
-  // @ts-ignore
-  const SeoPage = seoPagesData?.data || seoPagesData?.[0]
+  const { data: seoPagesData = [], isLoading, isError, refetch } = useGetSEOPagesQuery()
 
-  const [formData, setFormData] = useState({
-    aboutTitle: '',
-    aboutSubTitle: '',
+  const [createSeoPages, { isLoading: isCreating }] = useCreateSEOPagesMutation()
 
-    servicesTitle: '',
-    servicesSubTitle: '',
+  const [updateSeoPages, { isLoading: isUpdating }] = useUpdateSEOPagesMutation()
 
-    servicesDetailsTitle: '',
-    servicesDetailsSubTitle: '',
+  // ============================================
+  // EXISTING DATA
+  // ============================================
 
-    productTitle: '',
-    productSubTitle: '',
+  const seoPage = seoPagesData?.[0]
 
-    productDetailsTitle: '',
-    productDetailsSubTitle: '',
+  // ============================================
+  // STATUS
+  // ============================================
 
-    newsTitle: '',
-    newsSubTitle: '',
+  const [status, setStatus] = useState<Status>('active')
 
-    newsDetailsTitle: '',
-    newsDetailsSubTitle: '',
+  // ============================================
+  // NEW FILES
+  // ============================================
 
-    careerTitle: '',
-    careerSubTitle: '',
+  const [productListImages, setProductListImages] = useState<File[]>([])
 
-    contactTitle: '',
-    contactSubTitle: '',
+  const [wishListImages, setWishListImages] = useState<File[]>([])
 
-    awardTitle: '',
-    awardSubTitle: '',
+  // ============================================
+  // NEW FILE PREVIEWS
+  // ============================================
 
-    ourPartnerTitle: '',
-    ourPartnerSubTitle: '',
+  const [productListPreviews, setProductListPreviews] = useState<string[]>([])
 
-    mediaCoverageTitle: '',
-    mediaCoverageSubTitle: '',
+  const [wishListPreviews, setWishListPreviews] = useState<string[]>([])
 
-    galleryTitle: '',
-    gallerySubTitle: '',
+  // ============================================
+  // EXISTING IMAGES
+  // ============================================
 
-    faqTitle: '',
-    faqSubTitle: '',
+  const [existingProductImages, setExistingProductImages] = useState<string[]>([])
 
-    privacyTitle: '',
-    privacySubTitle: '',
+  const [existingWishListImages, setExistingWishListImages] = useState<string[]>([])
 
-    termsTitle: '',
-    termsSubTitle: '',
-  })
-
-  const [files, setFiles] = useState<Record<string, File | null>>({
-    aboutBgImage: null,
-    servicesBgImage: null,
-    servicesDetailsBgImage: null,
-    productBgImage: null,
-    productDetailsBgImage: null,
-    newsBgImage: null,
-    newsDetailsBgImage: null,
-    careerBgImage: null,
-    contactBgImage: null,
-    awardBgImage: null,
-    ourPartnerBgImage: null,
-    mediaCoverageBgImage: null,
-    galleryBgImage: null,
-    faqBgImage: null,
-    privacyBgImage: null,
-    termsBgImage: null,
-  })
-
-  const [previews, setPreviews] = useState<Record<string, string>>({
-    aboutBgImage: '',
-    servicesBgImage: '',
-    servicesDetailsBgImage: '',
-    productBgImage: '',
-    productDetailsBgImage: '',
-    newsBgImage: '',
-    newsDetailsBgImage: '',
-    careerBgImage: '',
-    contactBgImage: '',
-    awardBgImage: '',
-    ourPartnerBgImage: '',
-    mediaCoverageBgImage: '',
-    galleryBgImage: '',
-    faqBgImage: '',
-    privacyBgImage: '',
-    termsBgImage: '',
-  })
+  // ============================================
+  // SET EXISTING DATA
+  // ============================================
 
   useEffect(() => {
-    if (SeoPage) {
-      setFormData({
-        aboutTitle: SeoPage.aboutTitle || '',
-        aboutSubTitle: SeoPage.aboutSubTitle || '',
-
-        servicesTitle: SeoPage.servicesTitle || '',
-        servicesSubTitle: SeoPage.servicesSubTitle || '',
-
-        servicesDetailsTitle: SeoPage.servicesDetailsTitle || '',
-        servicesDetailsSubTitle: SeoPage.servicesDetailsSubTitle || '',
-
-        productTitle: SeoPage.productTitle || '',
-        productSubTitle: SeoPage.productSubTitle || '',
-
-        productDetailsTitle: SeoPage.productDetailsTitle || '',
-        productDetailsSubTitle: SeoPage.productDetailsSubTitle || '',
-
-        newsTitle: SeoPage.newsTitle || '',
-        newsSubTitle: SeoPage.newsSubTitle || '',
-
-        newsDetailsTitle: SeoPage.newsDetailsTitle || '',
-        newsDetailsSubTitle: SeoPage.newsDetailsSubTitle || '',
-
-        careerTitle: SeoPage.careerTitle || '',
-        careerSubTitle: SeoPage.careerSubTitle || '',
-
-        contactTitle: SeoPage.contactTitle || '',
-        contactSubTitle: SeoPage.contactSubTitle || '',
-
-        awardTitle: SeoPage.awardTitle || '',
-        awardSubTitle: SeoPage.awardSubTitle || '',
-
-        ourPartnerTitle: SeoPage.ourPartnerTitle || '',
-        ourPartnerSubTitle: SeoPage.ourPartnerSubTitle || '',
-
-        mediaCoverageTitle: SeoPage.mediaCoverageTitle || '',
-        mediaCoverageSubTitle: SeoPage.mediaCoverageSubTitle || '',
-
-        galleryTitle: SeoPage.galleryTitle || '',
-        gallerySubTitle: SeoPage.gallerySubTitle || '',
-
-        faqTitle: SeoPage.faqTitle || '',
-        faqSubTitle: SeoPage.faqSubTitle || '',
-
-        privacyTitle: SeoPage.privacyTitle || '',
-        privacySubTitle: SeoPage.privacySubTitle || '',
-
-        termsTitle: SeoPage.termsTitle || '',
-        termsSubTitle: SeoPage.termsSubTitle || '',
-      })
-
-      setPreviews({
-        aboutBgImage: SeoPage.aboutBgImage || '',
-        servicesBgImage: SeoPage.servicesBgImage || '',
-        servicesDetailsBgImage: SeoPage.servicesDetailsBgImage || '',
-        productBgImage: SeoPage.productBgImage || '',
-        productDetailsBgImage: SeoPage.productDetailsBgImage || '',
-        newsBgImage: SeoPage.newsBgImage || '',
-        newsDetailsBgImage: SeoPage.newsDetailsBgImage || '',
-        careerBgImage: SeoPage.careerBgImage || '',
-        contactBgImage: SeoPage.contactBgImage || '',
-        awardBgImage: SeoPage.awardBgImage || '',
-        ourPartnerBgImage: SeoPage.ourPartnerBgImage || '',
-        mediaCoverageBgImage: SeoPage.mediaCoverageBgImage || '',
-        galleryBgImage: SeoPage.galleryBgImage || '',
-        faqBgImage: SeoPage.faqBgImage || '',
-        privacyBgImage: SeoPage.privacyBgImage || '',
-        termsBgImage: SeoPage.termsBgImage || '',
-      })
+    if (!seoPage) {
+      return
     }
-  }, [SeoPage])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }))
+    setStatus(seoPage.status === 'inactive' ? 'inactive' : 'active')
+
+    setExistingProductImages(seoPage.productListBgImages || [])
+
+    setExistingWishListImages(seoPage.wishListBgImages || [])
+  }, [seoPage])
+
+  // ============================================
+  // PRODUCT IMAGES
+  // ============================================
+
+  const handleProductImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || [])
+
+    if (!selectedFiles.length) {
+      return
+    }
+
+    const invalid = selectedFiles.find((file) => !file.type.startsWith('image/'))
+
+    if (invalid) {
+      toast.error('Please select only image files')
+
+      return
+    }
+
+    setProductListImages(selectedFiles)
+
+    const previews = selectedFiles.map((file) => URL.createObjectURL(file))
+
+    setProductListPreviews(previews)
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  // ============================================
+  // WISHLIST IMAGES
+  // ============================================
 
-    if (!file) return
+  const handleWishListImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || [])
 
-    const { name } = e.target
+    if (!selectedFiles.length) {
+      return
+    }
 
-    setFiles((prev) => ({
-      ...prev,
-      [name]: file,
-    }))
+    const invalid = selectedFiles.find((file) => !file.type.startsWith('image/'))
 
-    setPreviews((prev) => ({
-      ...prev,
-      [name]: URL.createObjectURL(file),
-    }))
+    if (invalid) {
+      toast.error('Please select only image files')
+
+      return
+    }
+
+    setWishListImages(selectedFiles)
+
+    const previews = selectedFiles.map((file) => URL.createObjectURL(file))
+
+    setWishListPreviews(previews)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ============================================
+  // REMOVE NEW PRODUCT IMAGE
+  // ============================================
+
+  const removeProductImage = (index: number) => {
+    setProductListImages((prev) => prev.filter((_, i) => i !== index))
+
+    setProductListPreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // ============================================
+  // REMOVE NEW WISHLIST IMAGE
+  // ============================================
+
+  const removeWishListImage = (index: number) => {
+    setWishListImages((prev) => prev.filter((_, i) => i !== index))
+
+    setWishListPreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // ============================================
+  // STATUS
+  // ============================================
+
+  const handleStatus = () => {
+    setStatus((prev) => (prev === 'active' ? 'inactive' : 'active'))
+  }
+
+  // ============================================
+  // SUBMIT
+  // ============================================
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     try {
       const form = new FormData()
 
-      Object.entries(formData).forEach(([key, value]) => {
-        form.append(key, value)
+      // SAME KEY MULTIPLE TIMES
+      productListImages.forEach((file) => {
+        form.append('productListBgImages', file)
       })
 
-      Object.entries(files).forEach(([key, file]) => {
-        if (file) {
-          form.append(key, file)
-        }
+      wishListImages.forEach((file) => {
+        form.append('wishListBgImages', file)
       })
 
-      if (SeoPage?._id) {
+      form.append('status', status)
+
+      if (seoPage?._id) {
         await updateSeoPages({
-          id: SeoPage._id,
+          id: seoPage._id,
           data: form,
         }).unwrap()
 
@@ -229,175 +189,253 @@ const Seo = () => {
         toast.success('SEO Pages created successfully')
       }
 
-      refetch()
+      // CLEAR ONLY NEW FILES
+
+      setProductListImages([])
+
+      setWishListImages([])
+
+      setProductListPreviews([])
+
+      setWishListPreviews([])
+
+      await refetch()
     } catch (error: any) {
+      console.error(error)
+
       toast.error(error?.data?.message || 'Something went wrong')
     }
   }
 
+  // ============================================
+  // LOADING
+  // ============================================
+
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="py-5 text-center">
+        <div className="spinner-border text-primary" />
+
+        <div className="mt-2">Loading SEO Pages...</div>
+      </div>
+    )
   }
 
-  const seoSections = [
-    {
-      title: 'About Us',
-      titleField: 'aboutTitle',
-      subTitleField: 'aboutSubTitle',
-      imageField: 'aboutBgImage',
-    },
-    {
-      title: 'Services',
-      titleField: 'servicesTitle',
-      subTitleField: 'servicesSubTitle',
-      imageField: 'servicesBgImage',
-    },
-    {
-      title: 'Services Details',
-      titleField: 'servicesDetailsTitle',
-      subTitleField: 'servicesDetailsSubTitle',
-      imageField: 'servicesDetailsBgImage',
-    },
-    {
-      title: 'Product',
-      titleField: 'productTitle',
-      subTitleField: 'productSubTitle',
-      imageField: 'productBgImage',
-    },
-    {
-      title: 'Product Details',
-      titleField: 'productDetailsTitle',
-      subTitleField: 'productDetailsSubTitle',
-      imageField: 'productDetailsBgImage',
-    },
-    {
-      title: 'News & Media',
-      titleField: 'newsTitle',
-      subTitleField: 'newsSubTitle',
-      imageField: 'newsBgImage',
-    },
-    {
-      title: 'News & Media Details',
-      titleField: 'newsDetailsTitle',
-      subTitleField: 'newsDetailsSubTitle',
-      imageField: 'newsDetailsBgImage',
-    },
-    {
-      title: 'Careers',
-      titleField: 'careerTitle',
-      subTitleField: 'careerSubTitle',
-      imageField: 'careerBgImage',
-    },
-    {
-      title: 'Contact Us',
-      titleField: 'contactTitle',
-      subTitleField: 'contactSubTitle',
-      imageField: 'contactBgImage',
-    },
-    {
-      title: 'Awards',
-      titleField: 'awardTitle',
-      subTitleField: 'awardSubTitle',
-      imageField: 'awardBgImage',
-    },
-    {
-      title: 'Our Partners',
-      titleField: 'ourPartnerTitle',
-      subTitleField: 'ourPartnerSubTitle',
-      imageField: 'ourPartnerBgImage',
-    },
-    {
-      title: 'Media Coverage',
-      titleField: 'mediaCoverageTitle',
-      subTitleField: 'mediaCoverageSubTitle',
-      imageField: 'mediaCoverageBgImage',
-    },
-    {
-      title: 'Gallery',
-      titleField: 'galleryTitle',
-      subTitleField: 'gallerySubTitle',
-      imageField: 'galleryBgImage',
-    },
-    {
-      title: 'FAQs',
-      titleField: 'faqTitle',
-      subTitleField: 'faqSubTitle',
-      imageField: 'faqBgImage',
-    },
-    {
-      title: 'Privacy Policy',
-      titleField: 'privacyTitle',
-      subTitleField: 'privacySubTitle',
-      imageField: 'privacyBgImage',
-    },
-    {
-      title: 'Terms & Conditions',
-      titleField: 'termsTitle',
-      subTitleField: 'termsSubTitle',
-      imageField: 'termsBgImage',
-    },
-  ]
+  if (isError) {
+    return <div className="alert alert-danger">Unable to load SEO Pages</div>
+  }
+
+  const isSaving = isCreating || isUpdating
 
   return (
     <form onSubmit={handleSubmit}>
-      {seoSections.map((section) => (
-        <Card key={section.imageField} className="mb-3">
-          <CardHeader>
-            <CardTitle as="h4">{section.title}</CardTitle>
-          </CardHeader>
+      <Row>
+        {/* ========================================
+            PRODUCT LIST BACKGROUND IMAGES
+        ======================================== */}
 
-          <CardBody>
-            <Row>
-              <Col md={4}>
-                <div className="mb-3">
-                  <label className="form-label">Title</label>
+        <Col xl={12}>
+          <Card className="mb-3">
+            <CardHeader>
+              <CardTitle as="h4" className="mb-0">
+                Product List Background Images
+              </CardTitle>
+            </CardHeader>
+
+            <CardBody>
+              <div className="mb-3">
+                <label className="form-label">Upload Multiple Images</label>
+
+                <input type="file" className="form-control" accept="image/*" multiple onChange={handleProductImages} />
+
+                <small className="text-muted">You can select multiple images at once.</small>
+              </div>
+
+              {/* EXISTING */}
+
+              {existingProductImages.length > 0 && (
+                <>
+                  <h6 className="mb-3">Existing Images</h6>
+
+                  <Row>
+                    {existingProductImages.map((image, index) => (
+                      <Col md={3} sm={6} key={`${image}-${index}`}>
+                        <div className="border rounded p-2 mb-3">
+                          <Image
+                            src={image}
+                            alt={`Product ${index + 1}`}
+                            width={300}
+                            height={150}
+                            className="w-100 rounded object-fit-contain"
+                            unoptimized
+                          />
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                </>
+              )}
+
+              {/* NEW */}
+
+              {productListPreviews.length > 0 && (
+                <>
+                  <h6 className="mb-3 mt-2">New Images</h6>
+
+                  <Row>
+                    {productListPreviews.map((image, index) => (
+                      <Col md={3} sm={6} key={`${image}-${index}`}>
+                        <div className="position-relative border rounded p-2 mb-3">
+                          <Image
+                            src={image}
+                            alt={`New Product ${index + 1}`}
+                            width={300}
+                            height={150}
+                            className="w-100 rounded object-fit-contain"
+                            unoptimized
+                          />
+
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm position-absolute top-0 end-0 m-2"
+                            onClick={() => removeProductImage(index)}>
+                            ×
+                          </button>
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        </Col>
+
+        {/* ========================================
+            WISHLIST BACKGROUND IMAGES
+        ======================================== */}
+
+        <Col xl={12}>
+          <Card className="mb-3">
+            <CardHeader>
+              <CardTitle as="h4" className="mb-0">
+                Wishlist Background Images
+              </CardTitle>
+            </CardHeader>
+
+            <CardBody>
+              <div className="mb-3">
+                <label className="form-label">Upload Multiple Images</label>
+
+                <input type="file" className="form-control" accept="image/*" multiple onChange={handleWishListImages} />
+
+                <small className="text-muted">You can select multiple images at once.</small>
+              </div>
+
+              {/* EXISTING */}
+
+              {existingWishListImages.length > 0 && (
+                <>
+                  <h6 className="mb-3">Existing Images</h6>
+
+                  <Row>
+                    {existingWishListImages.map((image, index) => (
+                      <Col md={3} sm={6} key={`${image}-${index}`}>
+                        <div className="border rounded p-2 mb-3">
+                          <Image
+                            src={image}
+                            alt={`Wishlist ${index + 1}`}
+                            width={300}
+                            height={150}
+                            className="w-100 rounded object-fit-contain"
+                            unoptimized
+                          />
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                </>
+              )}
+
+              {/* NEW */}
+
+              {wishListPreviews.length > 0 && (
+                <>
+                  <h6 className="mb-3 mt-2">New Images</h6>
+
+                  <Row>
+                    {wishListPreviews.map((image, index) => (
+                      <Col md={3} sm={6} key={`${image}-${index}`}>
+                        <div className="position-relative border rounded p-2 mb-3">
+                          <Image
+                            src={image}
+                            alt={`New Wishlist ${index + 1}`}
+                            width={300}
+                            height={150}
+                            className="w-100 rounded object-fit-contain"
+                            unoptimized
+                          />
+
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm position-absolute top-0 end-0 m-2"
+                            onClick={() => removeWishListImage(index)}>
+                            ×
+                          </button>
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        </Col>
+
+        {/* ========================================
+            STATUS
+        ======================================== */}
+
+        <Col xl={12}>
+          <Card className="mb-3">
+            <CardHeader>
+              <CardTitle as="h4" className="mb-0">
+                Status
+              </CardTitle>
+            </CardHeader>
+
+            <CardBody>
+              <div className="d-flex align-items-center gap-3">
+                <div className="form-check form-switch mb-0">
                   <input
-                    type="text"
-                    className="form-control"
-                    name={section.titleField}
-                    value={formData[section.titleField as keyof typeof formData]}
-                    onChange={handleChange}
+                    type="checkbox"
+                    className="form-check-input"
+                    checked={status === 'active'}
+                    onChange={handleStatus}
+                    style={{
+                      width: '46px',
+
+                      height: '24px',
+                    }}
                   />
                 </div>
-              </Col>
 
-              <Col md={4}>
-                <div className="mb-3">
-                  <label className="form-label">Sub Title</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name={section.subTitleField}
-                    value={formData[section.subTitleField as keyof typeof formData]}
-                    onChange={handleChange}
-                  />
-                </div>
-              </Col>
+                <span className={`badge ${status === 'active' ? 'bg-success' : 'bg-danger'}`}>{status === 'active' ? 'Active' : 'Inactive'}</span>
+              </div>
+            </CardBody>
+          </Card>
+        </Col>
 
-              <Col md={4}>
-                <label className="form-label">Background Image</label>
+        {/* ========================================
+            SAVE
+        ======================================== */}
 
-                <input type="file" className="form-control" name={section.imageField} accept="image/*" onChange={handleFileChange} />
-
-                {previews[section.imageField as keyof typeof previews] && (
-                  <Image
-                    src={previews[section.imageField as keyof typeof previews]}
-                    alt={section.title}
-                    width={250}
-                    height={100}
-                    className="mt-2 rounded border"
-                    unoptimized
-                  />
-                )}
-              </Col>
-            </Row>
-          </CardBody>
-        </Card>
-      ))}
-
-      <button type="submit" className="btn btn-primary w-100" disabled={creating || updating}>
-        {creating || updating ? 'Saving...' : 'Save SEO Pages'}
-      </button>
+        <Col xl={12}>
+          <button type="submit" className="btn btn-primary w-100" disabled={isSaving}>
+            {isSaving ? 'Saving...' : seoPage?._id ? 'Update SEO Pages' : 'Create SEO Pages'}
+          </button>
+        </Col>
+      </Row>
     </form>
   )
 }

@@ -1,61 +1,56 @@
 'use client'
 
-import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react'
-
-import Image from 'next/image'
+import React, { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
-
 import Select, { SingleValue, StylesConfig } from 'react-select'
-
 import CreatableSelect from 'react-select/creatable'
+import Swal from 'sweetalert2'
 
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
-
+// @ts-ignore
 import 'react-quill-new/dist/quill.snow.css'
 
-/* ======================================================
-   REACT QUILL
-====================================================== */
+import { useCreateProductsMutation } from '@/store/productsApi'
+import { useGetcategoryQuery } from '@/store/categoriesApi'
+import { useGetSubCategoryQuery } from '@/store/subCategoryApi'
+import { useGetMaterialQuery } from '@/store/materialApi'
+import { useGetBrandQuery } from '@/store/brandApi'
+import { useGetCouponQuery } from '@/store/couponApi'
+import { useGetSizeQuery } from '@/store/sizeApi'
+import { useGetColorsQuery } from '@/store/colorsApi'
+import Image from 'next/image'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
   ssr: false,
 })
 
-/* ======================================================
-   TYPES
-====================================================== */
+// =====================================================
+// TYPES
+// =====================================================
 
 type SelectOption = {
   value: string
   label: string
 }
 
-type TagOption = {
-  value: string
-  label: string
-}
+type TagOption = SelectOption
 
 type ProductFormData = {
-  product_name: string
-  image: File | null
-
+  productName: string
   category: string
-  sub_category: string
+  subCategory: string
   material: string
-  section: string
+  section: '' | 'New Offers' | 'Popular Products' | 'New Arrivals'
   brand: string
-
-  coupon_code: string
-  deal: string
-
+  coupon: string
+  dealOfTheDay: boolean
   tags: string[]
+  videoUrl: string
 
-  video_url: string
-
-  short_description: string
-  product_description: string
-  additional_information: string
-  shipping_return_policy: string
+  shortDescription: string
+  productDescription: string
+  additionalInformation: string
+  shippingReturnPolicy: string
 }
 
 type ProductVariant = {
@@ -64,199 +59,51 @@ type ProductVariant = {
   color: string
   stock: string
   price: string
-  del_price: string
+  delPrice: string
   discount: string
+  image: File | null
+  imagePreview: string
 }
 
-type VariantField = 'size' | 'color' | 'stock' | 'price' | 'del_price' | 'discount'
+type VariantField = 'size' | 'color' | 'stock' | 'price' | 'delPrice' | 'discount'
 
 type ProductSpecification = {
   id: number
-  name: string
+  specificationName: string
   value: string
 }
 
-type SpecificationField = 'name' | 'value'
+type SpecificationField = 'specificationName' | 'value'
 
-type SelectField = 'category' | 'sub_category' | 'material' | 'section' | 'brand' | 'coupon_code' | 'deal'
-
-type TextInputField = 'product_name' | 'video_url'
-
-/* ======================================================
-   STATIC DATA
-====================================================== */
-
-const categories: SelectOption[] = [
-  {
-    value: 'clothing',
-    label: 'Clothing',
-  },
-  {
-    value: 'footwear',
-    label: 'Footwear',
-  },
-  {
-    value: 'accessories',
-    label: 'Accessories',
-  },
-  {
-    value: 'electronics',
-    label: 'Electronics',
-  },
-  {
-    value: 'beauty',
-    label: 'Beauty',
-  },
-]
-
-const subCategories: SelectOption[] = [
-  {
-    value: 'tshirt',
-    label: 'T-Shirt',
-  },
-  {
-    value: 'shirt',
-    label: 'Shirt',
-  },
-  {
-    value: 'jeans',
-    label: 'Jeans',
-  },
-  {
-    value: 'shoes',
-    label: 'Shoes',
-  },
-  {
-    value: 'watch',
-    label: 'Watch',
-  },
-]
-
-const brands: SelectOption[] = [
-  {
-    value: 'nike',
-    label: 'Nike',
-  },
-  {
-    value: 'adidas',
-    label: 'Adidas',
-  },
-  {
-    value: 'puma',
-    label: 'Puma',
-  },
-  {
-    value: 'zara',
-    label: 'Zara',
-  },
-  {
-    value: 'hm',
-    label: 'H&M',
-  },
-  {
-    value: 'other',
-    label: 'Other',
-  },
-]
+// =====================================================
+// STATIC OPTIONS
+// =====================================================
 
 const sections: SelectOption[] = [
   {
-    value: 'men',
-    label: 'Men',
+    value: 'New Offers',
+    label: 'New Offers',
   },
   {
-    value: 'women',
-    label: 'Women',
+    value: 'Popular Products',
+    label: 'Popular Products',
   },
   {
-    value: 'kids',
-    label: 'Kids',
-  },
-  {
-    value: 'unisex',
-    label: 'Unisex',
-  },
-]
-
-const materials: SelectOption[] = [
-  {
-    value: 'cotton',
-    label: 'Cotton',
-  },
-  {
-    value: 'polyester',
-    label: 'Polyester',
-  },
-  {
-    value: 'denim',
-    label: 'Denim',
-  },
-  {
-    value: 'leather',
-    label: 'Leather',
-  },
-  {
-    value: 'silk',
-    label: 'Silk',
-  },
-  {
-    value: 'wool',
-    label: 'Wool',
-  },
-]
-
-const coupons: SelectOption[] = [
-  {
-    value: 'WELCOME10',
-    label: 'WELCOME10 - 10% Off',
-  },
-  {
-    value: 'SAVE20',
-    label: 'SAVE20 - 20% Off',
-  },
-  {
-    value: 'FESTIVE25',
-    label: 'FESTIVE25 - 25% Off',
-  },
-  {
-    value: 'NEWUSER',
-    label: 'NEWUSER - New User Offer',
+    value: 'New Arrivals',
+    label: 'New Arrivals',
   },
 ]
 
 const dealOptions: SelectOption[] = [
   {
-    value: 'yes',
+    value: 'true',
     label: 'Yes',
   },
   {
-    value: 'no',
+    value: 'false',
     label: 'No',
   },
 ]
-
-const sizeOptions: SelectOption[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', 'Free Size'].map((item) => ({
-  value: item,
-  label: item,
-}))
-
-const colorOptions: SelectOption[] = [
-  'Black',
-  'White',
-  'Red',
-  'Blue',
-  'Green',
-  'Yellow',
-  'Pink',
-  'Grey',
-  'Brown',
-  'Orange',
-  'Purple',
-  'Navy Blue',
-].map((item) => ({
-  value: item,
-  label: item,
-}))
 
 const defaultTagOptions: TagOption[] = [
   {
@@ -285,20 +132,16 @@ const defaultTagOptions: TagOption[] = [
   },
 ]
 
-/* ======================================================
-   REACT SELECT STYLES
-====================================================== */
+// =====================================================
+// SELECT STYLES
+// =====================================================
 
 const selectStyles: StylesConfig<SelectOption, false> = {
   control: (base, state) => ({
     ...base,
-
     minHeight: '38px',
-
     borderColor: state.isFocused ? '#86b7fe' : '#dee2e6',
-
     boxShadow: state.isFocused ? '0 0 0 0.15rem rgba(13, 110, 253, 0.15)' : 'none',
-
     '&:hover': {
       borderColor: state.isFocused ? '#86b7fe' : '#dee2e6',
     },
@@ -315,262 +158,344 @@ const selectStyles: StylesConfig<SelectOption, false> = {
   }),
 }
 
-/* ======================================================
-   REACT QUILL CONFIG
-====================================================== */
+// =====================================================
+// QUILL CONFIG
+// =====================================================
 
 const quillModules = {
   toolbar: [
-    [
-      {
-        header: [1, 2, 3, false],
-      },
-    ],
-
+    [{ header: [1, 2, 3, false] }],
     ['bold', 'italic', 'underline', 'strike'],
-
-    [
-      {
-        list: 'ordered',
-      },
-
-      {
-        list: 'bullet',
-      },
-    ],
-
+    [{ list: 'ordered' }, { list: 'bullet' }],
     ['blockquote', 'link'],
-
-    [
-      {
-        align: [],
-      },
-    ],
-
+    [{ align: [] }],
     ['clean'],
   ],
 }
 
 const quillFormats = ['header', 'bold', 'italic', 'underline', 'strike', 'list', 'blockquote', 'link', 'align']
 
-/* ======================================================
-   CREATE EMPTY VARIANT
-====================================================== */
+// =====================================================
+// HELPERS
+// =====================================================
 
 const createEmptyVariant = (): ProductVariant => ({
   id: Date.now() + Math.random(),
-
   size: '',
   color: '',
-
   stock: '',
   price: '',
-  del_price: '',
+  delPrice: '',
   discount: '',
+  image: null,
+  imagePreview: '',
 })
-
-/* ======================================================
-   CREATE EMPTY SPECIFICATION
-====================================================== */
 
 const createEmptySpecification = (): ProductSpecification => ({
   id: Date.now() + Math.random(),
-
-  name: '',
+  specificationName: '',
   value: '',
 })
 
-/* ======================================================
-   CHECK QUILL EMPTY
-====================================================== */
-
 const hasRichTextContent = (value: string): boolean => {
-  const cleanText = value
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim()
-
-  return cleanText.length > 0
+  return (
+    value
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim().length > 0
+  )
 }
 
-/* ======================================================
-   COMPONENT
-====================================================== */
-
 const AddProductsDrawer = () => {
-  /* ======================================================
-       STATES
-    ====================================================== */
+  // =====================================================
+  // API
+  // =====================================================
+
+  const [createProduct, { isLoading: createLoading }] = useCreateProductsMutation()
+
+  const { data: categoryData = [], isLoading: categoryLoading } = useGetcategoryQuery()
+
+  const { data: subCategoryData = [], isLoading: subCategoryLoading } = useGetSubCategoryQuery()
+
+  const { data: materialData = [], isLoading: materialLoading } = useGetMaterialQuery()
+
+  const { data: brandData = [], isLoading: brandLoading } = useGetBrandQuery()
+
+  const { data: couponData = [], isLoading: couponLoading } = useGetCouponQuery()
+
+  const { data: sizeData = [], isLoading: sizeLoading } = useGetSizeQuery()
+
+  const { data: colorData = [], isLoading: colorLoading } = useGetColorsQuery()
+
+  console.log('COLOR DATA:', colorData)
+
+  // =====================================================
+  // STATE
+  // =====================================================
 
   const [open, setOpen] = useState<boolean>(false)
 
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-
   const [error, setError] = useState<string>('')
 
+  const [productImages, setProductImages] = useState<File[]>([])
+
+  const [productImagePreviews, setProductImagePreviews] = useState<string[]>([])
+
   const [formData, setFormData] = useState<ProductFormData>({
-    product_name: '',
-
-    image: null,
-
+    productName: '',
     category: '',
-    sub_category: '',
-
+    subCategory: '',
     material: '',
     section: '',
     brand: '',
-
-    coupon_code: '',
-
-    deal: 'no',
-
+    coupon: '',
+    dealOfTheDay: false,
     tags: [],
-
-    video_url: '',
-
-    short_description: '',
-
-    product_description: '',
-
-    additional_information: '',
-
-    shipping_return_policy: '',
+    videoUrl: '',
+    shortDescription: '',
+    productDescription: '',
+    additionalInformation: '',
+    shippingReturnPolicy: '',
   })
 
   const [variants, setVariants] = useState<ProductVariant[]>([createEmptyVariant()])
 
   const [specifications, setSpecifications] = useState<ProductSpecification[]>([createEmptySpecification()])
 
-  /* ======================================================
-       IMAGE CLEANUP
-    ====================================================== */
+  // =====================================================
+  // DYNAMIC OPTIONS
+  // =====================================================
+
+  const categories = useMemo<SelectOption[]>(() => {
+    return categoryData
+      .filter((item: any) => item.status === 'active' && !item.isDeleted)
+      .map((item: any) => ({
+        value: item._id,
+        label: item.categoryName,
+      }))
+  }, [categoryData])
+
+  const subCategories = useMemo<SelectOption[]>(() => {
+    return subCategoryData
+      .filter((item: any) => {
+        if (item.status !== 'active' || item.isDeleted) {
+          return false
+        }
+
+        if (!formData.category) {
+          return true
+        }
+
+        const categoryId = typeof item.category === 'object' ? item.category?._id : item.category
+
+        return categoryId === formData.category
+      })
+      .map((item: any) => ({
+        value: item._id,
+        label: item.subCategoryName,
+      }))
+  }, [subCategoryData, formData.category])
+
+  const materials = useMemo<SelectOption[]>(() => {
+    return materialData
+      .filter((item: any) => item.status === 'active' && !item.isDeleted)
+      .map((item: any) => ({
+        value: item._id,
+        label: item.materialName || item.name,
+      }))
+  }, [materialData])
+
+  const brands = useMemo<SelectOption[]>(() => {
+    return brandData
+      .filter((item: any) => item.status === 'active' && !item.isDeleted)
+      .map((item: any) => ({
+        value: item._id,
+        label: item.brandName || item.name,
+      }))
+  }, [brandData])
+
+  const coupons = useMemo<SelectOption[]>(() => {
+    return couponData
+      .filter((item: any) => item.status === 'active' && !item.isDeleted)
+      .map((item: any) => ({
+        value: item._id,
+        label: item.couponCode || item.code || item.couponName,
+      }))
+  }, [couponData])
+
+  // =====================================================
+  // COLOR OPTIONS
+  // =====================================================
+
+  const colorOptions = useMemo<SelectOption[]>(() => {
+    const list = Array.isArray(colorData) ? colorData : Array.isArray((colorData as any)?.data) ? (colorData as any).data : []
+
+    return list
+      .filter((item: any) => item.status === 'active' && item.isDeleted !== true)
+      .map((item: any) => ({
+        value: item._id,
+        label: item.colorName,
+      }))
+  }, [colorData])
+
+  // =====================================================
+  // SIZE OPTIONS
+  // =====================================================
+
+  const sizeOptions = useMemo<SelectOption[]>(() => {
+    const list = Array.isArray(sizeData) ? sizeData : Array.isArray((sizeData as any)?.data) ? (sizeData as any).data : []
+
+    return list
+      .filter((item: any) => item.status === 'active' && item.isDeleted !== true)
+      .map((item: any) => ({
+        value: item._id,
+        label: item.size,
+      }))
+  }, [sizeData])
+
+  // =====================================================
+  // SELECTED TAGS
+  // =====================================================
+
+  const selectedTags = useMemo<TagOption[]>(() => {
+    return formData.tags.map((tag) => {
+      const found = defaultTagOptions.find((option) => option.value === tag)
+
+      return (
+        found || {
+          value: tag,
+          label: tag,
+        }
+      )
+    })
+  }, [formData.tags])
+
+  // =====================================================
+  // PORTAL
+  // =====================================================
+
+  const portalTarget = typeof document !== 'undefined' ? document.body : undefined
+
+  // =====================================================
+  // CLEANUP
+  // =====================================================
 
   useEffect(() => {
     return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview)
-      }
+      productImagePreviews.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [imagePreview])
+  }, [productImagePreviews])
 
-  /* ======================================================
-       GET SELECTED OPTION
-    ====================================================== */
+  // =====================================================
+  // GET SELECTED OPTION
+  // =====================================================
 
   const getSelectedOption = (options: SelectOption[], value: string): SelectOption | null => {
     return options.find((option) => option.value === value) ?? null
   }
 
-  /* ======================================================
-       TEXT INPUT CHANGE
-    ====================================================== */
+  // =====================================================
+  // TEXT CHANGE
+  // =====================================================
 
   const handleTextChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const field = e.target.name as TextInputField
-
-    const value = e.target.value
+    const { name, value } = e.target
 
     setFormData((prev) => ({
       ...prev,
-
-      [field]: value,
+      [name]: value,
     }))
   }
 
-  /* ======================================================
-       SELECT CHANGE
-    ====================================================== */
+  // =====================================================
+  // SELECT CHANGE
+  // =====================================================
 
-  const handleSelectChange = (field: SelectField, option: SingleValue<SelectOption>) => {
+  const handleSelectChange = (field: 'category' | 'subCategory' | 'material' | 'section' | 'brand' | 'coupon', option: SingleValue<SelectOption>) => {
     setFormData((prev) => ({
       ...prev,
-
       [field]: option?.value ?? '',
     }))
   }
 
-  /* ======================================================
-       TAG CHANGE
-    ====================================================== */
+  // =====================================================
+  // CATEGORY CHANGE
+  // =====================================================
+
+  const handleCategoryChange = (option: SingleValue<SelectOption>) => {
+    setFormData((prev) => ({
+      ...prev,
+      category: option?.value ?? '',
+      subCategory: '',
+    }))
+  }
+
+  // =====================================================
+  // DEAL CHANGE
+  // =====================================================
+
+  const handleDealChange = (option: SingleValue<SelectOption>) => {
+    setFormData((prev) => ({
+      ...prev,
+      dealOfTheDay: option?.value === 'true',
+    }))
+  }
+
+  // =====================================================
+  // TAG CHANGE
+  // =====================================================
 
   const handleTagChange = (options: readonly TagOption[]) => {
     setFormData((prev) => ({
       ...prev,
-
       tags: options.map((option) => option.value),
     }))
   }
 
-  /* ======================================================
-       SELECTED TAG VALUES
-    ====================================================== */
+  // =====================================================
+  // PRODUCT IMAGES
+  // =====================================================
 
-  const selectedTags: TagOption[] = formData.tags.map((tag) => {
-    const found = defaultTagOptions.find((option) => option.value === tag)
+  const handleProductImagesChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
 
-    if (found) {
-      return found
-    }
-
-    return {
-      value: tag,
-      label: tag,
-    }
-  })
-
-  /* ======================================================
-       IMAGE CHANGE
-    ====================================================== */
-
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-
-    if (!file) {
+    if (!files.length) {
       return
     }
 
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview)
+    const validFiles = files.filter((file) => file.type.startsWith('image/'))
+
+    if (!validFiles.length) {
+      setError('Please select valid image files.')
+      return
     }
 
-    setFormData((prev) => ({
-      ...prev,
+    productImagePreviews.forEach((url) => URL.revokeObjectURL(url))
 
-      image: file,
-    }))
+    setProductImages(validFiles)
 
-    const previewUrl = URL.createObjectURL(file)
+    setProductImagePreviews(validFiles.map((file) => URL.createObjectURL(file)))
 
-    setImagePreview(previewUrl)
+    setError('')
   }
 
-  /* ======================================================
-       REMOVE IMAGE
-    ====================================================== */
+  const removeProductImage = (index: number) => {
+    setProductImages((prev) => prev.filter((_, i) => i !== index))
 
-  const removeImage = () => {
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview)
-    }
+    setProductImagePreviews((prev) => {
+      const target = prev[index]
 
-    setImagePreview(null)
+      if (target) {
+        URL.revokeObjectURL(target)
+      }
 
-    setFormData((prev) => ({
-      ...prev,
-
-      image: null,
-    }))
-
-    const fileInput = document.getElementById('productImage') as HTMLInputElement | null
-
-    if (fileInput) {
-      fileInput.value = ''
-    }
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
-  /* ======================================================
-       VARIANT CHANGE
-    ====================================================== */
+  // =====================================================
+  // VARIANT
+  // =====================================================
 
   const handleVariantChange = (id: number, field: VariantField, value: string) => {
     setVariants((prev) =>
@@ -578,7 +503,6 @@ const AddProductsDrawer = () => {
         variant.id === id
           ? {
               ...variant,
-
               [field]: value,
             }
           : variant,
@@ -586,112 +510,128 @@ const AddProductsDrawer = () => {
     )
   }
 
-  /* ======================================================
-       ADD VARIANT
-    ====================================================== */
+  const handleVariantImageChange = (id: number, file: File | null) => {
+    setVariants((prev) =>
+      prev.map((variant) => {
+        if (variant.id !== id) {
+          return variant
+        }
+
+        if (variant.imagePreview) {
+          URL.revokeObjectURL(variant.imagePreview)
+        }
+
+        return {
+          ...variant,
+          image: file,
+          imagePreview: file ? URL.createObjectURL(file) : '',
+        }
+      }),
+    )
+  }
+
+  const removeVariantImage = (id: number) => {
+    setVariants((prev) =>
+      prev.map((variant) => {
+        if (variant.id !== id) {
+          return variant
+        }
+
+        if (variant.imagePreview) {
+          URL.revokeObjectURL(variant.imagePreview)
+        }
+
+        return {
+          ...variant,
+          image: null,
+          imagePreview: '',
+        }
+      }),
+    )
+  }
 
   const addVariant = () => {
     setVariants((prev) => [...prev, createEmptyVariant()])
   }
-
-  /* ======================================================
-       REMOVE VARIANT
-    ====================================================== */
 
   const removeVariant = (id: number) => {
     if (variants.length <= 1) {
       return
     }
 
-    setVariants((prev) => prev.filter((variant) => variant.id !== id))
+    setVariants((prev) => {
+      const target = prev.find((variant) => variant.id === id)
+
+      if (target?.imagePreview) {
+        URL.revokeObjectURL(target.imagePreview)
+      }
+
+      return prev.filter((variant) => variant.id !== id)
+    })
   }
 
-  /* ======================================================
-       SPECIFICATION CHANGE
-    ====================================================== */
+  // =====================================================
+  // SPECIFICATION
+  // =====================================================
 
-  const handleSpecificationChange = (
-    id: number,
-
-    field: SpecificationField,
-
-    value: string,
-  ) => {
+  const handleSpecificationChange = (id: number, field: SpecificationField, value: string) => {
     setSpecifications((prev) =>
-      prev.map((specification) =>
-        specification.id === id
+      prev.map((item) =>
+        item.id === id
           ? {
-              ...specification,
-
+              ...item,
               [field]: value,
             }
-          : specification,
+          : item,
       ),
     )
   }
-
-  /* ======================================================
-       ADD SPECIFICATION
-    ====================================================== */
 
   const addSpecification = () => {
     setSpecifications((prev) => [...prev, createEmptySpecification()])
   }
 
-  /* ======================================================
-       REMOVE SPECIFICATION
-    ====================================================== */
-
   const removeSpecification = (id: number) => {
     if (specifications.length === 1) {
       setSpecifications([createEmptySpecification()])
-
       return
     }
 
-    setSpecifications((prev) => prev.filter((specification) => specification.id !== id))
+    setSpecifications((prev) => prev.filter((item) => item.id !== id))
   }
 
-  /* ======================================================
-       RESET FORM
-    ====================================================== */
+  // =====================================================
+  // RESET
+  // =====================================================
 
   const resetForm = () => {
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview)
-    }
+    productImagePreviews.forEach((url) => URL.revokeObjectURL(url))
 
-    setImagePreview(null)
-
+    setProductImages([])
+    setProductImagePreviews([])
     setError('')
 
     setFormData({
-      product_name: '',
-
-      image: null,
-
+      productName: '',
       category: '',
-      sub_category: '',
-
+      subCategory: '',
       material: '',
       section: '',
       brand: '',
-
-      coupon_code: '',
-
-      deal: 'no',
-
+      coupon: '',
+      dealOfTheDay: false,
       tags: [],
+      videoUrl: '',
+      shortDescription: '',
+      productDescription: '',
+      additionalInformation: '',
+      shippingReturnPolicy: '',
+    })
 
-      video_url: '',
-
-      short_description: '',
-
-      product_description: '',
-
-      additional_information: '',
-
-      shipping_return_policy: '',
+    variants.forEach((variant) => {
+      if (variant.imagePreview) {
+        URL.revokeObjectURL(variant.imagePreview)
+      }
     })
 
     setVariants([createEmptyVariant()])
@@ -699,48 +639,79 @@ const AddProductsDrawer = () => {
     setSpecifications([createEmptySpecification()])
   }
 
-  /* ======================================================
-       CLOSE DRAWER
-    ====================================================== */
+  // =====================================================
+  // CLOSE
+  // =====================================================
 
   const closeDrawer = () => {
+    if (createLoading) {
+      return
+    }
+
     setOpen(false)
   }
 
-  /* ======================================================
-       VALIDATION
-    ====================================================== */
+  // =====================================================
+  // VALIDATION
+  // =====================================================
 
   const validateForm = (): boolean => {
-    if (!formData.product_name.trim()) {
+    if (!formData.productName.trim()) {
       setError('Product name is required.')
-
       return false
     }
 
-    if (!hasRichTextContent(formData.short_description)) {
+    if (!formData.category) {
+      setError('Category is required.')
+      return false
+    }
+
+    if (!formData.section) {
+      setError('Section is required.')
+      return false
+    }
+
+    if (!hasRichTextContent(formData.shortDescription)) {
       setError('Short Description is required.')
-
       return false
     }
 
-    if (!hasRichTextContent(formData.product_description)) {
+    if (!hasRichTextContent(formData.productDescription)) {
       setError('Product Description is required.')
-
       return false
     }
 
-    if (!hasRichTextContent(formData.shipping_return_policy)) {
-      setError('Shipping & Return Policy is required.')
-
-      return false
-    }
-
-    const invalidVariant = variants.some((variant) => !variant.size || !variant.color || !variant.price || !variant.stock)
+    const invalidVariant = variants.some((variant) => !variant.size || !variant.color || variant.price === '' || variant.stock === '')
 
     if (invalidVariant) {
       setError('Please complete Size, Color, Price and Stock for all variants.')
+      return false
+    }
 
+    const invalidNumber = variants.some((variant) => {
+      const price = Number(variant.price)
+
+      const delPrice = variant.delPrice ? Number(variant.delPrice) : 0
+
+      const discount = variant.discount ? Number(variant.discount) : 0
+
+      const stock = Number(variant.stock)
+
+      return (
+        Number.isNaN(price) ||
+        price < 0 ||
+        Number.isNaN(delPrice) ||
+        delPrice < 0 ||
+        Number.isNaN(discount) ||
+        discount < 0 ||
+        discount > 100 ||
+        Number.isNaN(stock) ||
+        stock < 0
+      )
+    })
+
+    if (invalidNumber) {
+      setError('Please enter valid price, discount and stock values.')
       return false
     }
 
@@ -749,256 +720,147 @@ const AddProductsDrawer = () => {
     return true
   }
 
-  /* ======================================================
-       SUBMIT
-    ====================================================== */
+  // =====================================================
+  // SUBMIT
+  // =====================================================
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (!validateForm()) {
-      return
+    if (!validateForm()) return
+
+    const apiFormData = new FormData()
+
+    apiFormData.append('productName', formData.productName)
+
+    apiFormData.append('category', formData.category)
+
+    if (formData.subCategory) {
+      apiFormData.append('subCategory', formData.subCategory)
     }
 
-    const finalData = {
-      product_name: formData.product_name,
-
-      image: formData.image,
-
-      category: formData.category,
-
-      sub_category: formData.sub_category,
-
-      material: formData.material,
-
-      section: formData.section,
-
-      brand: formData.brand,
-
-      coupon_code: formData.coupon_code,
-
-      deal: formData.deal,
-
-      tags: formData.tags,
-
-      video_url: formData.video_url,
-
-      short_description: formData.short_description,
-
-      product_description: formData.product_description,
-
-      additional_information: formData.additional_information,
-
-      shipping_return_policy: formData.shipping_return_policy,
-
-      specifications: specifications
-        .filter((specification) => specification.name.trim() || specification.value.trim())
-        .map(
-          ({
-            id: _id,
-
-            ...specification
-          }) => specification,
-        ),
-
-      variants: variants.map(
-        ({
-          id: _id,
-
-          ...variant
-        }) => variant,
-      ),
+    if (formData.material) {
+      apiFormData.append('material', formData.material)
     }
 
-    console.log('FINAL PRODUCT DATA:', finalData)
+    apiFormData.append('section', formData.section)
 
-    /*
-        ================================================
-        API FORM DATA EXAMPLE
-        ================================================
+    if (formData.brand) {
+      apiFormData.append('brand', formData.brand)
+    }
 
-        const apiFormData =
-          new FormData()
+    apiFormData.append('dealOfTheDay', String(formData.dealOfTheDay))
 
-        apiFormData.append(
-          'product_name',
-          formData.product_name,
-        )
+    if (formData.coupon) {
+      apiFormData.append('coupon', formData.coupon)
+    }
 
-        apiFormData.append(
-          'category',
-          formData.category,
-        )
+    apiFormData.append('tags', JSON.stringify(formData.tags))
 
-        apiFormData.append(
-          'sub_category',
-          formData.sub_category,
-        )
+    if (formData.videoUrl.trim()) {
+      apiFormData.append('videoUrl', formData.videoUrl.trim())
+    }
 
-        apiFormData.append(
-          'material',
-          formData.material,
-        )
+    // REQUIRED BACKEND FIELDS
+    apiFormData.append('shortDesc', formData.shortDescription)
 
-        apiFormData.append(
-          'section',
-          formData.section,
-        )
+    apiFormData.append('desc', formData.productDescription)
 
-        apiFormData.append(
-          'brand',
-          formData.brand,
-        )
+    apiFormData.append('shippingReturnPolicy', formData.shippingReturnPolicy)
 
-        apiFormData.append(
-          'coupon_code',
-          formData.coupon_code,
-        )
+    if (formData.additionalInformation) {
+      apiFormData.append('additionalInformation', formData.additionalInformation)
+    }
 
-        apiFormData.append(
-          'deal',
-          formData.deal,
-        )
+    const cleanVariants = variants.map((variant) => ({
+      size: variant.size,
+      color: variant.color,
+      price: Number(variant.price),
+      delPrice: variant.delPrice ? Number(variant.delPrice) : 0,
+      discount: variant.discount ? Number(variant.discount) : 0,
+      stock: Number(variant.stock),
+    }))
 
-        apiFormData.append(
-          'tags',
-          JSON.stringify(
-            formData.tags,
-          ),
-        )
+    apiFormData.append('variants', JSON.stringify(cleanVariants))
 
-        apiFormData.append(
-          'video_url',
-          formData.video_url,
-        )
+    const cleanSpecifications = specifications
+      .filter((item) => item.specificationName.trim() || item.value.trim())
+      .map((item) => ({
+        specificationName: item.specificationName.trim(),
+        value: item.value.trim(),
+      }))
 
-        apiFormData.append(
-          'short_description',
-          formData.short_description,
-        )
+    apiFormData.append('specifications', JSON.stringify(cleanSpecifications))
 
-        apiFormData.append(
-          'product_description',
-          formData.product_description,
-        )
+    productImages.forEach((file) => {
+      apiFormData.append('productImages', file)
+    })
 
-        apiFormData.append(
-          'additional_information',
-          formData.additional_information,
-        )
+    variants.forEach((variant) => {
+      if (variant.image) {
+        apiFormData.append('variantImages', variant.image)
+      }
+    })
 
-        apiFormData.append(
-          'shipping_return_policy',
-          formData.shipping_return_policy,
-        )
+    try {
+      await createProduct(apiFormData).unwrap()
 
-        apiFormData.append(
-          'specifications',
-          JSON.stringify(
-            specifications
-              .filter(
-                (item) =>
-                  item.name.trim() ||
-                  item.value.trim(),
-              )
-              .map(
-                ({
-                  id,
-                  ...item
-                }) =>
-                  item,
-              ),
-          ),
-        )
+      await Swal.fire({
+        title: 'Success',
+        text: 'Product added successfully.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+      })
 
-        apiFormData.append(
-          'variants',
-          JSON.stringify(
-            variants.map(
-              ({
-                id,
-                ...item
-              }) =>
-                item,
-            ),
-          ),
-        )
+      resetForm()
+      setOpen(false)
+    } catch (err: any) {
+      const message = err?.data?.message || err?.error || err?.message || 'Unable to add product.'
 
-        if (
-          formData.image
-        ) {
-          apiFormData.append(
-            'image',
-            formData.image,
-          )
-        }
+      setError(message)
 
-        await axios.post(
-          '/api/products',
-          apiFormData,
-        )
-        */
+      await Swal.fire({
+        title: 'Error',
+        text: message,
+        icon: 'error',
+      })
+    }
   }
 
-  /* ======================================================
-       PORTAL TARGET
-    ====================================================== */
-
-  const portalTarget = typeof document !== 'undefined' ? document.body : undefined
-
-  /* ======================================================
-       RETURN
-    ====================================================== */
+  // =====================================================
+  // UI
+  // =====================================================
 
   return (
     <>
-      {/* ==================================================
-            OPEN BUTTON
-        ================================================== */}
-
       <button type="button" className="btn btn-primary d-flex align-items-center gap-2" onClick={() => setOpen(true)}>
         <IconifyIcon icon="solar:add-circle-broken" />
-        Add Products
+        Add Product
       </button>
-
-      {/* ==================================================
-            OVERLAY
-        ================================================== */}
 
       {open && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100"
           style={{
             background: 'rgba(0,0,0,0.5)',
-
             zIndex: 1040,
           }}
           onClick={closeDrawer}
         />
       )}
 
-      {/* ==================================================
-            DRAWER
-        ================================================== */}
-
       <div
         className="position-fixed top-0 end-0 bg-white h-100 shadow-lg"
         style={{
           width: '1520px',
-
           maxWidth: '100%',
-
           zIndex: 1050,
-
           transform: open ? 'translateX(0)' : 'translateX(100%)',
-
           transition: 'transform 0.3s ease',
-
           overflowY: 'auto',
         }}>
-        {/* ==================================================
-              HEADER
-          ================================================== */}
+        {/* HEADER */}
 
         <div
           className="p-3 border-bottom bg-light d-flex justify-content-between align-items-center position-sticky top-0"
@@ -1006,7 +868,7 @@ const AddProductsDrawer = () => {
             zIndex: 50,
           }}>
           <div>
-            <h5 className="mb-1 fw-bold">Add Products</h5>
+            <h5 className="mb-1 fw-bold">Add Product</h5>
 
             <small className="text-muted">Add product information, variants and specifications</small>
           </div>
@@ -1018,32 +880,24 @@ const AddProductsDrawer = () => {
               width: 32,
               height: 32,
             }}
-            onClick={closeDrawer}>
+            onClick={closeDrawer}
+            disabled={createLoading}>
             ✕
           </button>
         </div>
 
-        {/* ==================================================
-              FORM
-          ================================================== */}
+        {/* FORM */}
 
         <form onSubmit={handleSubmit}>
           <div className="p-4">
-            {/* ==============================================
-                  ERROR
-              ============================================== */}
-
             {error && (
               <div className="alert alert-danger d-flex align-items-center gap-2" role="alert">
                 <IconifyIcon icon="solar:danger-triangle-broken" />
-
                 {error}
               </div>
             )}
 
-            {/* ==============================================
-                  PRODUCT INFORMATION
-              ============================================== */}
+            {/* PRODUCT INFO */}
 
             <div className="card border mb-4">
               <div className="card-header bg-light">
@@ -1062,8 +916,8 @@ const AddProductsDrawer = () => {
 
                     <input
                       type="text"
-                      name="product_name"
-                      value={formData.product_name}
+                      name="productName"
+                      value={formData.productName}
                       onChange={handleTextChange}
                       className="form-control"
                       placeholder="Enter product name"
@@ -1074,13 +928,18 @@ const AddProductsDrawer = () => {
                   {/* CATEGORY */}
 
                   <div className="col-xl-4 col-lg-4 col-md-6">
-                    <label className="form-label fw-semibold">Category</label>
+                    <label className="form-label fw-semibold">
+                      Category
+                      <span className="text-danger ms-1">*</span>
+                    </label>
 
                     <Select<SelectOption>
                       options={categories}
                       value={getSelectedOption(categories, formData.category)}
-                      onChange={(option) => handleSelectChange('category', option)}
-                      placeholder="Select Category"
+                      onChange={handleCategoryChange}
+                      placeholder={categoryLoading ? 'Loading Categories...' : 'Select Category'}
+                      isLoading={categoryLoading}
+                      isDisabled={categoryLoading}
                       isSearchable
                       isClearable
                       styles={selectStyles}
@@ -1096,9 +955,13 @@ const AddProductsDrawer = () => {
 
                     <Select<SelectOption>
                       options={subCategories}
-                      value={getSelectedOption(subCategories, formData.sub_category)}
-                      onChange={(option) => handleSelectChange('sub_category', option)}
-                      placeholder="Select Sub-Category"
+                      value={getSelectedOption(subCategories, formData.subCategory)}
+                      onChange={(option) => handleSelectChange('subCategory', option)}
+                      placeholder={
+                        !formData.category ? 'Select Category First' : subCategoryLoading ? 'Loading Sub-Categories...' : 'Select Sub-Category'
+                      }
+                      isLoading={subCategoryLoading}
+                      isDisabled={!formData.category || subCategoryLoading}
                       isSearchable
                       isClearable
                       styles={selectStyles}
@@ -1116,7 +979,9 @@ const AddProductsDrawer = () => {
                       options={materials}
                       value={getSelectedOption(materials, formData.material)}
                       onChange={(option) => handleSelectChange('material', option)}
-                      placeholder="Select Material"
+                      placeholder={materialLoading ? 'Loading Materials...' : 'Select Material'}
+                      isLoading={materialLoading}
+                      isDisabled={materialLoading}
                       isSearchable
                       isClearable
                       styles={selectStyles}
@@ -1128,7 +993,10 @@ const AddProductsDrawer = () => {
                   {/* SECTION */}
 
                   <div className="col-xl-3 col-lg-4 col-md-6">
-                    <label className="form-label fw-semibold">Section</label>
+                    <label className="form-label fw-semibold">
+                      Section
+                      <span className="text-danger ms-1">*</span>
+                    </label>
 
                     <Select<SelectOption>
                       options={sections}
@@ -1152,7 +1020,9 @@ const AddProductsDrawer = () => {
                       options={brands}
                       value={getSelectedOption(brands, formData.brand)}
                       onChange={(option) => handleSelectChange('brand', option)}
-                      placeholder="Select Brand"
+                      placeholder={brandLoading ? 'Loading Brands...' : 'Select Brand'}
+                      isLoading={brandLoading}
+                      isDisabled={brandLoading}
                       isSearchable
                       isClearable
                       styles={selectStyles}
@@ -1161,17 +1031,17 @@ const AddProductsDrawer = () => {
                     />
                   </div>
 
-                  {/* DEAL OF THE DAY */}
+                  {/* DEAL */}
 
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Deal of the Day</label>
 
                     <Select<SelectOption>
                       options={dealOptions}
-                      value={getSelectedOption(dealOptions, formData.deal)}
-                      onChange={(option) => handleSelectChange('deal', option)}
+                      value={getSelectedOption(dealOptions, String(formData.dealOfTheDay))}
+                      onChange={handleDealChange}
                       placeholder="Select"
-                      isSearchable
+                      isSearchable={false}
                       isClearable={false}
                       styles={selectStyles}
                       menuPortalTarget={portalTarget}
@@ -1182,13 +1052,15 @@ const AddProductsDrawer = () => {
                   {/* COUPON */}
 
                   <div className="col-xl-4 col-lg-4 col-md-6">
-                    <label className="form-label fw-semibold">Coupon Code</label>
+                    <label className="form-label fw-semibold">Coupon</label>
 
                     <Select<SelectOption>
                       options={coupons}
-                      value={getSelectedOption(coupons, formData.coupon_code)}
-                      onChange={(option) => handleSelectChange('coupon_code', option)}
-                      placeholder="Select Coupon"
+                      value={getSelectedOption(coupons, formData.coupon)}
+                      onChange={(option) => handleSelectChange('coupon', option)}
+                      placeholder={couponLoading ? 'Loading Coupons...' : 'Select Coupon'}
+                      isLoading={couponLoading}
+                      isDisabled={couponLoading}
                       isSearchable
                       isClearable
                       styles={selectStyles}
@@ -1212,59 +1084,77 @@ const AddProductsDrawer = () => {
                       placeholder="Select or create tags..."
                       menuPortalTarget={portalTarget}
                       menuPosition="fixed"
-                      styles={{
-                        ...selectStyles,
-
-                        control: (base, state) => ({
-                          ...base,
-
-                          minHeight: '38px',
-
-                          borderColor: state.isFocused ? '#86b7fe' : '#dee2e6',
-
-                          boxShadow: state.isFocused ? '0 0 0 0.15rem rgba(13, 110, 253, 0.15)' : 'none',
-                        }),
-
-                        menuPortal: (base) => ({
-                          ...base,
-
-                          zIndex: 99999,
-                        }),
-                      }}
                     />
-
-                    <small className="text-muted">Search existing tags or type a new tag and press Enter.</small>
                   </div>
 
                   {/* VIDEO URL */}
 
-                  <div className="col-12">
+                  <div className="col-md-6">
                     <label className="form-label fw-semibold">Video URL</label>
 
-                    <div className="input-group">
-                      <span className="input-group-text">
-                        <IconifyIcon icon="solar:video-frame-play-horizontal-broken" />
-                      </span>
-
-                      <input
-                        type="url"
-                        name="video_url"
-                        className="form-control"
-                        value={formData.video_url}
-                        onChange={handleTextChange}
-                        placeholder="https://www.youtube.com/watch?v=..."
-                      />
-                    </div>
+                    <input
+                      type="url"
+                      name="videoUrl"
+                      className="form-control"
+                      value={formData.videoUrl}
+                      onChange={handleTextChange}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                    />
                   </div>
+
+                  {/* PRODUCT IMAGES */}
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Product Images</label>
+
+                    <input type="file" className="form-control" accept="image/*" multiple onChange={handleProductImagesChange} />
+                  </div>
+
+                  {productImagePreviews.length > 0 && (
+                    <div className="col-12">
+                      <div className="d-flex gap-2 flex-wrap">
+                        {productImagePreviews.map((preview, index) => (
+                          <div
+                            key={preview}
+                            className="position-relative border rounded overflow-hidden"
+                            style={{
+                              width: 90,
+                              height: 90,
+                            }}>
+                            <Image
+                              src={preview}
+                              alt={`Product ${index + 1}`}
+                              width={90}
+                              height={90}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                              }}
+                            />
+
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 rounded-circle"
+                              style={{
+                                width: 22,
+                                height: 22,
+                              }}
+                              onClick={() => removeProductImage(index)}>
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* ==============================================
-                  PRODUCT VARIANTS
-              ============================================== */}
+            {/* VARIANTS */}
 
-            <div className="card border">
+            <div className="card border mb-4">
               <div className="card-header bg-light d-flex align-items-center justify-content-between gap-3 flex-wrap">
                 <div>
                   <h6 className="mb-1 fw-bold">Product Variants</h6>
@@ -1287,80 +1177,44 @@ const AddProductsDrawer = () => {
                     }}>
                     <thead className="table-light">
                       <tr>
-                        <th
-                          className="text-center"
-                          style={{
-                            width: 60,
-                          }}>
-                          #
-                        </th>
-                        <th
-                          style={{
-                            minWidth: 180,
-                          }}>
-                          Size
-                        </th>
-                        <th
-                          style={{
-                            minWidth: 190,
-                          }}>
-                          Color
-                        </th>
-                        <th
-                          style={{
-                            minWidth: 150,
-                          }}>
-                          Price
-                        </th>
-                        <th
-                          style={{
-                            minWidth: 150,
-                          }}>
-                          Del-Price
-                        </th>
-                        <th
-                          style={{
-                            minWidth: 140,
-                          }}>
-                          Discount
-                        </th>
-                        <th
-                          style={{
-                            minWidth: 120,
-                          }}>
-                          Stock
-                        </th>{' '}
-                        <th
-                          style={{
-                            minWidth: 140,
-                          }}>
-                          Image
-                        </th>
-                        <th
-                          className="text-center"
-                          style={{
-                            width: 90,
-                          }}>
-                          Action
-                        </th>
+                        <th className="text-center">#</th>
+
+                        <th>Size</th>
+
+                        <th>Color</th>
+
+                        <th>Price</th>
+
+                        <th>Del Price</th>
+
+                        <th>Discount</th>
+
+                        <th>Stock</th>
+
+                        <th>Image</th>
+
+                        <th className="text-center">Action</th>
                       </tr>
                     </thead>
 
                     <tbody>
                       {variants.map((variant, index) => (
                         <tr key={variant.id}>
-                          {/* NUMBER */}
-
                           <td className="text-center fw-semibold">{index + 1}</td>
 
                           {/* SIZE */}
 
-                          <td>
+                          <td
+                            style={{
+                              minWidth: 170,
+                            }}>
                             <Select<SelectOption>
                               options={sizeOptions}
                               value={getSelectedOption(sizeOptions, variant.size)}
                               onChange={(option) => handleVariantChange(variant.id, 'size', option?.value ?? '')}
-                              placeholder="Select Size"
+                              placeholder={sizeLoading ? 'Loading Sizes...' : 'Select Size'}
+                              isLoading={sizeLoading}
+                              isDisabled={sizeLoading}
                               isSearchable
                               isClearable
                               styles={selectStyles}
@@ -1371,12 +1225,17 @@ const AddProductsDrawer = () => {
 
                           {/* COLOR */}
 
-                          <td>
+                          <td
+                            style={{
+                              minWidth: 180,
+                            }}>
                             <Select<SelectOption>
                               options={colorOptions}
                               value={getSelectedOption(colorOptions, variant.color)}
                               onChange={(option) => handleVariantChange(variant.id, 'color', option?.value ?? '')}
-                              placeholder="Select Color"
+                              placeholder={colorLoading ? 'Loading Colors...' : 'Select Color'}
+                              isLoading={colorLoading}
+                              isDisabled={colorLoading}
                               isSearchable
                               isClearable
                               styles={selectStyles}
@@ -1388,57 +1247,42 @@ const AddProductsDrawer = () => {
                           {/* PRICE */}
 
                           <td>
-                            <div className="input-group">
-                              <span className="input-group-text">₹</span>
-
-                              <input
-                                type="number"
-                                className="form-control"
-                                placeholder="0.00"
-                                min="0"
-                                step="0.01"
-                                value={variant.price}
-                                onChange={(e) => handleVariantChange(variant.id, 'price', e.target.value)}
-                                required
-                              />
-                            </div>
+                            <input
+                              type="number"
+                              className="form-control"
+                              min="0"
+                              step="0.01"
+                              value={variant.price}
+                              onChange={(e) => handleVariantChange(variant.id, 'price', e.target.value)}
+                              required
+                            />
                           </td>
 
                           {/* DEL PRICE */}
 
                           <td>
-                            <div className="input-group">
-                              <span className="input-group-text">₹</span>
-
-                              <input
-                                type="number"
-                                className="form-control"
-                                placeholder="0.00"
-                                min="0"
-                                step="0.01"
-                                value={variant.del_price}
-                                onChange={(e) => handleVariantChange(variant.id, 'del_price', e.target.value)}
-                              />
-                            </div>
+                            <input
+                              type="number"
+                              className="form-control"
+                              min="0"
+                              step="0.01"
+                              value={variant.delPrice}
+                              onChange={(e) => handleVariantChange(variant.id, 'delPrice', e.target.value)}
+                            />
                           </td>
 
                           {/* DISCOUNT */}
 
                           <td>
-                            <div className="input-group">
-                              <input
-                                type="number"
-                                className="form-control"
-                                placeholder="0"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={variant.discount}
-                                onChange={(e) => handleVariantChange(variant.id, 'discount', e.target.value)}
-                              />
-
-                              <span className="input-group-text">%</span>
-                            </div>
+                            <input
+                              type="number"
+                              className="form-control"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={variant.discount}
+                              onChange={(e) => handleVariantChange(variant.id, 'discount', e.target.value)}
+                            />
                           </td>
 
                           {/* STOCK */}
@@ -1447,7 +1291,6 @@ const AddProductsDrawer = () => {
                             <input
                               type="number"
                               className="form-control"
-                              placeholder="0"
                               min="0"
                               step="1"
                               value={variant.stock}
@@ -1456,14 +1299,57 @@ const AddProductsDrawer = () => {
                             />
                           </td>
 
-                          {/* image */}
+                          {/* IMAGE */}
 
-                          <td>
-                            <input
-                              type="file"
-                              className="form-control"
-                              onChange={(e) => handleVariantChange(variant.id, 'image', e.target.files?.[0])}
-                            />
+                          <td
+                            style={{
+                              minWidth: 220,
+                            }}>
+                            {variant.imagePreview ? (
+                              <div className="d-flex align-items-center gap-2">
+                                <div
+                                  className="position-relative border rounded overflow-hidden flex-shrink-0"
+                                  style={{
+                                    width: 58,
+                                    height: 58,
+                                  }}>
+                                  <Image
+                                    src={variant.imagePreview}
+                                    alt="Variant"
+                                    width={58}
+                                    height={58}
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      objectFit: 'cover',
+                                    }}
+                                  />
+                                </div>
+
+                                <div className="d-flex flex-column gap-1">
+                                  <label className="btn btn-soft-primary btn-sm mb-0" style={{ cursor: 'pointer' }}>
+                                    Change
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      hidden
+                                      onChange={(e) => handleVariantImageChange(variant.id, e.target.files?.[0] || null)}
+                                    />
+                                  </label>
+
+                                  <button type="button" className="btn btn-soft-danger btn-sm" onClick={() => removeVariantImage(variant.id)}>
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="form-control"
+                                onChange={(e) => handleVariantImageChange(variant.id, e.target.files?.[0] || null)}
+                              />
+                            )}
                           </td>
 
                           {/* ACTION */}
@@ -1473,8 +1359,7 @@ const AddProductsDrawer = () => {
                               type="button"
                               className="btn btn-soft-danger btn-sm"
                               disabled={variants.length === 1}
-                              onClick={() => removeVariant(variant.id)}
-                              title="Remove Variant">
+                              onClick={() => removeVariant(variant.id)}>
                               <IconifyIcon icon="solar:trash-bin-trash-broken" width={18} />
                             </button>
                           </td>
@@ -1483,19 +1368,10 @@ const AddProductsDrawer = () => {
                     </tbody>
                   </table>
                 </div>
-
-                <div className="p-3 border-top bg-light">
-                  <button type="button" className="btn btn-outline-primary d-flex align-items-center gap-2" onClick={addVariant}>
-                    <IconifyIcon icon="solar:add-circle-broken" />
-                    Add Another Variant
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* ==============================================
-                  DESCRIPTIONS
-              ============================================== */}
+            {/* DESCRIPTIONS */}
 
             <div className="card border mb-4">
               <div className="card-header bg-light">
@@ -1515,12 +1391,11 @@ const AddProductsDrawer = () => {
                     <div className="product-quill-editor">
                       <ReactQuill
                         theme="snow"
-                        value={formData.short_description}
+                        value={formData.shortDescription}
                         onChange={(value) =>
                           setFormData((prev) => ({
                             ...prev,
-
-                            short_description: value,
+                            shortDescription: value,
                           }))
                         }
                         modules={quillModules}
@@ -1541,12 +1416,11 @@ const AddProductsDrawer = () => {
                     <div className="product-quill-editor product-quill-large">
                       <ReactQuill
                         theme="snow"
-                        value={formData.product_description}
+                        value={formData.productDescription}
                         onChange={(value) =>
                           setFormData((prev) => ({
                             ...prev,
-
-                            product_description: value,
+                            productDescription: value,
                           }))
                         }
                         modules={quillModules}
@@ -1556,7 +1430,7 @@ const AddProductsDrawer = () => {
                     </div>
                   </div>
 
-                  {/* ADDITIONAL INFORMATION */}
+                  {/* ADDITIONAL */}
 
                   <div className="col-xl-6 col-lg-6 col-md-12">
                     <label className="form-label fw-semibold">Additional Information</label>
@@ -1564,43 +1438,36 @@ const AddProductsDrawer = () => {
                     <div className="product-quill-editor">
                       <ReactQuill
                         theme="snow"
-                        value={formData.additional_information}
+                        value={formData.additionalInformation}
                         onChange={(value) =>
                           setFormData((prev) => ({
                             ...prev,
-
-                            additional_information: value,
+                            additionalInformation: value,
                           }))
                         }
                         modules={quillModules}
                         formats={quillFormats}
-                        placeholder="Enter additional information..."
                       />
                     </div>
                   </div>
 
-                  {/* SHIPPING RETURN POLICY */}
+                  {/* SHIPPING */}
 
                   <div className="col-xl-6 col-lg-6 col-md-12">
-                    <label className="form-label fw-semibold">
-                      Shipping & Return Policy
-                      <span className="text-danger ms-1">*</span>
-                    </label>
+                    <label className="form-label fw-semibold">Shipping & Return Policy</label>
 
                     <div className="product-quill-editor">
                       <ReactQuill
                         theme="snow"
-                        value={formData.shipping_return_policy}
+                        value={formData.shippingReturnPolicy}
                         onChange={(value) =>
                           setFormData((prev) => ({
                             ...prev,
-
-                            shipping_return_policy: value,
+                            shippingReturnPolicy: value,
                           }))
                         }
                         modules={quillModules}
                         formats={quillFormats}
-                        placeholder="Enter shipping and return policy..."
                       />
                     </div>
                   </div>
@@ -1608,9 +1475,7 @@ const AddProductsDrawer = () => {
               </div>
             </div>
 
-            {/* ==============================================
-                  SPECIFICATIONS
-              ============================================== */}
+            {/* SPECIFICATIONS */}
 
             <div className="card border mb-4">
               <div className="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -1629,15 +1494,11 @@ const AddProductsDrawer = () => {
               <div className="card-body">
                 {specifications.map((specification, index) => (
                   <div key={specification.id} className="row g-3 align-items-end mb-3">
-                    {/* NUMBER */}
-
                     <div className="col-lg-1 col-md-2">
                       <label className="form-label fw-semibold">#</label>
 
                       <div className="form-control bg-light text-center">{index + 1}</div>
                     </div>
-
-                    {/* NAME */}
 
                     <div className="col-lg-5 col-md-5">
                       <label className="form-label fw-semibold">Specification Name</label>
@@ -1645,13 +1506,11 @@ const AddProductsDrawer = () => {
                       <input
                         type="text"
                         className="form-control"
-                        value={specification.name}
+                        value={specification.specificationName}
                         placeholder="e.g. Fabric"
-                        onChange={(e) => handleSpecificationChange(specification.id, 'name', e.target.value)}
+                        onChange={(e) => handleSpecificationChange(specification.id, 'specificationName', e.target.value)}
                       />
                     </div>
-
-                    {/* VALUE */}
 
                     <div className="col-lg-5 col-md-4">
                       <label className="form-label fw-semibold">Value</label>
@@ -1665,8 +1524,6 @@ const AddProductsDrawer = () => {
                       />
                     </div>
 
-                    {/* DELETE */}
-
                     <div className="col-lg-1 col-md-1">
                       <button
                         type="button"
@@ -1674,25 +1531,17 @@ const AddProductsDrawer = () => {
                         style={{
                           minHeight: 38,
                         }}
-                        onClick={() => removeSpecification(specification.id)}
-                        title="Remove Specification">
+                        onClick={() => removeSpecification(specification.id)}>
                         <IconifyIcon icon="solar:trash-bin-trash-broken" width={18} />
                       </button>
                     </div>
                   </div>
                 ))}
-
-                <button type="button" className="btn btn-outline-primary d-flex align-items-center gap-2" onClick={addSpecification}>
-                  <IconifyIcon icon="solar:add-circle-broken" />
-                  Add Another Specification
-                </button>
               </div>
             </div>
           </div>
 
-          {/* ==================================================
-                FOOTER
-            ================================================== */}
+          {/* FOOTER */}
 
           <div
             className="p-3 border-top bg-white d-flex justify-content-end gap-2 position-sticky bottom-0"
@@ -1702,6 +1551,7 @@ const AddProductsDrawer = () => {
             <button
               type="button"
               className="btn btn-light px-4"
+              disabled={createLoading}
               onClick={() => {
                 resetForm()
                 closeDrawer()
@@ -1709,17 +1559,24 @@ const AddProductsDrawer = () => {
               Cancel
             </button>
 
-            <button type="submit" className="btn btn-primary px-4 d-flex align-items-center justify-content-center gap-2">
-              <IconifyIcon icon="solar:diskette-broken" />
-              Add Products
+            <button type="submit" className="btn btn-primary px-4 d-flex align-items-center justify-content-center gap-2" disabled={createLoading}>
+              {createLoading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm" role="status" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <IconifyIcon icon="solar:diskette-broken" />
+                  Add Product
+                </>
+              )}
             </button>
           </div>
         </form>
       </div>
 
-      {/* ==================================================
-            GLOBAL CSS
-        ================================================== */}
+      {/* CSS */}
 
       <style jsx global>{`
         .product-quill-editor .ql-toolbar.ql-snow {
@@ -1748,15 +1605,6 @@ const AddProductsDrawer = () => {
         .product-quill-editor .ql-editor.ql-blank::before {
           color: #8c98a4;
           font-style: normal;
-        }
-
-        .product-quill-editor .ql-toolbar button {
-          width: 28px;
-          height: 28px;
-        }
-
-        .product-quill-editor .ql-toolbar .ql-picker-label {
-          height: 28px;
         }
       `}</style>
     </>

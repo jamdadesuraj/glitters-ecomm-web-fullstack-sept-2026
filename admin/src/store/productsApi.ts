@@ -1,75 +1,174 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import { RootState } from '@/store'
 
+// =====================================================
+// PRODUCT VARIANT
+// =====================================================
+
+export interface IProductVariant {
+  size: string
+  color: string
+
+  price: number
+  delPrice: number
+  discount: number
+  stock: number
+
+  image?: string
+}
+
+// =====================================================
+// PRODUCT SPECIFICATION
+// =====================================================
+
+export interface IProductSpecification {
+  specificationName: string
+  value: string
+}
+
+// =====================================================
+// BASIC INFO
+// =====================================================
+
 export interface IProductBasicInfo {
-  title: string
-  productImages: string[]
-  video: string
-  description: string
+  title?: string
+  shortDesc?: string
+  description?: string
 }
 
-export interface IProductOverview {
-  title: string
-  subTitle: string
-  description: string
-}
-
-export interface IProductTesting {
-  title: string
-  subTitle: string
-  shortDescription: string
-  testingParameters: string[]
-}
-
-export interface IProductFeatures {
-  icon: string
-  title: string
-  subTitle: string
-}
-
-export interface IProductAiFeatures {
-  title: string
-  subTitle: string
-  shortDescription: string
-  features: IProductFeatures[]
-}
-
-export interface IProductSystem {
-  title: string
-  subTitle: string
-  img: string
-}
+// =====================================================
+// TECHNICAL INFO
+// =====================================================
 
 export interface IProductTechnicalInfo {
-  title: string
-  subTitle: string
-  flightTime: string
-  range: string
-  speed: string
-  weight: string
-  battery: string
-  camera: string
+  title?: string
+  shortDesc?: string
+  description?: string
 }
 
-export interface IProducts {
+// =====================================================
+// PRODUCT OVERVIEW
+// =====================================================
+
+export interface IProductOverview {
+  title?: string
+  shortDesc?: string
+  description?: string
+}
+
+// =====================================================
+// PRODUCT TESTING
+// =====================================================
+
+export interface IProductTesting {
+  title?: string
+  shortDesc?: string
+  description?: string
+}
+
+// =====================================================
+// AI FEATURES
+// =====================================================
+
+export interface IProductAiFeatures {
+  title?: string
+  shortDesc?: string
+  description?: string
+}
+
+// =====================================================
+// PRODUCT SYSTEM
+// =====================================================
+
+export interface IProductSystem {
+  title?: string
+  shortDesc?: string
+  description?: string
+}
+
+// =====================================================
+// FEATURES
+// =====================================================
+
+export interface IProductFeature {
+  title?: string
+  shortDesc?: string
+  description?: string
+  icon?: string
+}
+
+// =====================================================
+// PRODUCT
+// =====================================================
+
+export interface IProduct {
   _id: string
-  basicInfo: IProductBasicInfo
-  technicalInfo: IProductTechnicalInfo
-  productOverview: IProductOverview
-  productTesting: IProductTesting
-  aiFeatures: IProductAiFeatures
-  system: IProductSystem
+
+  productName: string
+
+  category: string
+  subCategory?: string
+
+  material?: string
+
+  section?: 'New Offers' | 'Popular Products' | 'New Arrivals'
+
+  brand?: string
+
+  dealOfTheDay: boolean
+
+  coupon?: string
+
+  tags?: string[]
+
+  videoUrl?: string
+
+  productImages?: string[]
+  featureIcons?: string[]
+
+  systemImage?: string
+  video?: string
+
+  variants: IProductVariant[]
+
+  specifications?: IProductSpecification[]
+
+  basicInfo?: IProductBasicInfo
+
+  technicalInfo?: IProductTechnicalInfo
+
+  productOverview?: IProductOverview
+
+  productTesting?: IProductTesting
+
+  aiFeatures?: IProductAiFeatures
+
+  system?: IProductSystem
+
+  features?: IProductFeature[]
+
+  status: 'active' | 'inactive'
+
   isDeleted: boolean
+
   createdAt: string
   updatedAt: string
 }
 
-interface ProductsResponse {
+// =====================================================
+// API RESPONSE
+// =====================================================
+
+export interface ProductsResponse<T = IProduct | IProduct[]> {
   success: boolean
   statusCode: number
   message: string
-  data: IProducts | IProducts[]
+  data: T
 }
+
+// =====================================================
+// PRODUCTS API
+// =====================================================
 
 export const productsApi = createApi({
   reducerPath: 'productsApi',
@@ -84,8 +183,8 @@ export const productsApi = createApi({
         headers.set('authorization', `Bearer ${token}`)
       }
 
-      // ❌ DON'T SET CONTENT-TYPE HERE
-      // Browser automatically handles multipart/form-data
+      // Don't manually set Content-Type when using FormData.
+      // Browser automatically adds multipart/form-data boundary.
 
       return headers
     },
@@ -94,16 +193,17 @@ export const productsApi = createApi({
   tagTypes: ['Products'],
 
   endpoints: (builder) => ({
-    // ==========================
+    // =====================================================
     // GET ALL PRODUCTS
-    // ==========================
-    getProducts: builder.query<IProducts[], void>({
+    // =====================================================
+
+    getProducts: builder.query<IProduct[], void>({
       query: () => ({
         url: '/products',
         method: 'GET',
       }),
 
-      transformResponse: (response: ProductsResponse): IProducts[] => {
+      transformResponse: (response: ProductsResponse<IProduct | IProduct[]>): IProduct[] => {
         return Array.isArray(response.data) ? response.data : [response.data]
       },
 
@@ -114,21 +214,33 @@ export const productsApi = createApi({
                 type: 'Products' as const,
                 id: product._id,
               })),
-              { type: 'Products', id: 'LIST' },
+
+              {
+                type: 'Products' as const,
+                id: 'LIST',
+              },
             ]
-          : [{ type: 'Products', id: 'LIST' }],
+          : [
+              {
+                type: 'Products' as const,
+                id: 'LIST',
+              },
+            ],
     }),
 
-    // ==========================
-    // GET SINGLE PRODUCT
-    // ==========================
-    getProductsById: builder.query<IProducts, string>({
+    // =====================================================
+    // GET PRODUCT BY ID
+    // =====================================================
+
+    getProductsById: builder.query<IProduct, string>({
       query: (id) => ({
         url: `/products/${id}`,
         method: 'GET',
       }),
 
-      transformResponse: (response: ProductsResponse) => response.data as IProducts,
+      transformResponse: (response: ProductsResponse<IProduct>): IProduct => {
+        return response.data
+      },
 
       providesTags: (result, error, id) => [
         {
@@ -138,26 +250,35 @@ export const productsApi = createApi({
       ],
     }),
 
-    // ==========================
+    // =====================================================
     // CREATE PRODUCT
-    // ==========================
-    createProducts: builder.mutation<IProducts, FormData>({
+    // =====================================================
+
+    createProducts: builder.mutation<IProduct, FormData>({
       query: (formData) => ({
         url: '/products',
         method: 'POST',
         body: formData,
       }),
 
-      transformResponse: (response: ProductsResponse) => response.data as IProducts,
+      transformResponse: (response: ProductsResponse<IProduct>): IProduct => {
+        return response.data
+      },
 
-      invalidatesTags: [{ type: 'Products', id: 'LIST' }],
+      invalidatesTags: [
+        {
+          type: 'Products',
+          id: 'LIST',
+        },
+      ],
     }),
 
-    // ==========================
+    // =====================================================
     // UPDATE PRODUCT
-    // ==========================
+    // =====================================================
+
     updateProducts: builder.mutation<
-      IProducts,
+      IProduct,
       {
         id: string
         data: FormData
@@ -169,32 +290,53 @@ export const productsApi = createApi({
         body: data,
       }),
 
-      transformResponse: (response: ProductsResponse) => response.data as IProducts,
+      transformResponse: (response: ProductsResponse<IProduct>): IProduct => {
+        return response.data
+      },
 
       invalidatesTags: (result, error, { id }) => [
-        { type: 'Products', id },
-        { type: 'Products', id: 'LIST' },
+        {
+          type: 'Products',
+          id,
+        },
+        {
+          type: 'Products',
+          id: 'LIST',
+        },
       ],
     }),
 
-    // ==========================
+    // =====================================================
     // DELETE PRODUCT
-    // ==========================
-    deleteProducts: builder.mutation<IProducts, string>({
+    // =====================================================
+
+    deleteProducts: builder.mutation<IProduct, string>({
       query: (id) => ({
         url: `/products/${id}`,
         method: 'DELETE',
       }),
 
-      transformResponse: (response: ProductsResponse) => response.data as IProducts,
+      transformResponse: (response: ProductsResponse<IProduct>): IProduct => {
+        return response.data
+      },
 
       invalidatesTags: (result, error, id) => [
-        { type: 'Products', id },
-        { type: 'Products', id: 'LIST' },
+        {
+          type: 'Products',
+          id,
+        },
+        {
+          type: 'Products',
+          id: 'LIST',
+        },
       ],
     }),
   }),
 })
+
+// =====================================================
+// EXPORT HOOKS
+// =====================================================
 
 export const { useGetProductsQuery, useGetProductsByIdQuery, useCreateProductsMutation, useUpdateProductsMutation, useDeleteProductsMutation } =
   productsApi

@@ -30,22 +30,21 @@ export const MENU_ITEMS: MenuItemType[] = [
   {
     key: 'orders',
     label: 'Orders List',
-    icon: 'solar:document-text-bold-duotone',
+    icon: 'solar:clipboard-list-bold-duotone',
     url: '/orders-list',
   },
   {
     key: 'pending-list',
     label: 'Pending Orders',
-    icon: 'solar:clock-circle-bold-duotone',
+    icon: 'solar:hourglass-line-bold-duotone',
     url: '/pending-list',
   },
   {
     key: 'return-request',
     label: 'Return Request',
-    icon: 'solar:clock-circle-bold-duotone',
+    icon: 'solar:undo-left-round-bold-duotone',
     url: '/return-request',
   },
-
   // =========================
   // MASTERS
   // =========================
@@ -120,34 +119,32 @@ export const MENU_ITEMS: MenuItemType[] = [
     icon: 'solar:case-round-bold-duotone',
     url: '/Job-enquires',
   },
-
   {
     key: 'store-enquires',
     label: 'Store Enquires',
-    icon: 'solar:case-round-bold-duotone',
+    icon: 'solar:shop-2-bold-duotone',
     url: '/store-enquires',
   },
-
   // =========================
   // VENDOR MANAGEMENT
   // =========================
-  {
-    key: 'vendors',
-    label: 'Vendors Management',
-    isTitle: true,
-  },
-  {
-    key: 'all-vendors',
-    label: 'All Vendors',
-    icon: 'solar:users-group-rounded-bold-duotone',
-    url: '/all-vendors',
-  },
-  {
-    key: 'all-packages',
-    label: 'All Packages',
-    icon: 'solar:box-minimalistic-bold-duotone',
-    url: '/all-packages',
-  },
+  // {
+  //   key: 'vendors',
+  //   label: 'Vendors Management',
+  //   isTitle: true,
+  // },
+  // {
+  //   key: 'all-vendors',
+  //   label: 'All Vendors',
+  //   icon: 'solar:users-group-rounded-bold-duotone',
+  //   url: '/all-vendors',
+  // },
+  // {
+  //   key: 'all-packages',
+  //   label: 'All Packages',
+  //   icon: 'solar:box-minimalistic-bold-duotone',
+  //   url: '/all-packages',
+  // },
 
   // =========================
   // APP MANAGEMENT
@@ -162,6 +159,32 @@ export const MENU_ITEMS: MenuItemType[] = [
     label: 'App Banners',
     icon: 'solar:gallery-wide-bold-duotone',
     url: '/app-banners',
+  },
+  {
+    key: 'app-settings',
+    label: 'App Settings',
+    icon: 'solar:smartphone-2-bold-duotone',
+    url: '/app-settings',
+  },
+  // =========================
+  // BLOG PAGES
+  // =========================
+  {
+    key: 'blog-pages',
+    label: 'Blogs',
+    isTitle: true,
+  },
+  {
+    key: 'blog-category',
+    label: 'Blog Category',
+    icon: 'solar:folder-with-files-bold-duotone',
+    url: '/blog-category',
+  },
+  {
+    key: 'blog',
+    label: 'Blogs',
+    icon: 'solar:document-text-bold-duotone',
+    url: '/blogs',
   },
 
   // =========================
@@ -181,7 +204,7 @@ export const MENU_ITEMS: MenuItemType[] = [
   {
     key: 'sub-categories',
     label: 'Sub Categories',
-    icon: 'solar:widget-3-bold-duotone',
+    icon: 'solar:layers-bold-duotone',
     url: '/sub-categories',
   },
   {
@@ -214,12 +237,12 @@ export const MENU_ITEMS: MenuItemType[] = [
     icon: 'solar:graph-up-bold-duotone',
     url: '/counter',
   },
-  {
-    key: 'our-team',
-    label: 'Our Team',
-    icon: 'solar:users-group-two-rounded-bold-duotone',
-    url: '/our-team',
-  },
+  // {
+  //   key: 'our-team',
+  //   label: 'Our Team',
+  //   icon: 'solar:users-group-two-rounded-bold-duotone',
+  //   url: '/our-team',
+  // },
   {
     key: 'faq',
     label: 'Faq',
@@ -229,31 +252,19 @@ export const MENU_ITEMS: MenuItemType[] = [
   {
     key: 'store-locator',
     label: 'Store Locator',
-    icon: 'solar:question-circle-bold-duotone',
+    icon: 'solar:map-point-bold-duotone',
     url: '/store-locator',
-  },
-  {
-    key: 'blog-category',
-    label: 'Blog Category',
-    icon: 'solar:document-add-bold-duotone',
-    url: '/blog-category',
-  },
-  {
-    key: 'blog',
-    label: 'Blogs',
-    icon: 'solar:document-add-bold-duotone',
-    url: '/blogs',
   },
   {
     key: 'career-info',
     label: 'Career Info',
-    icon: 'solar:case-round-bold-duotone',
+    icon: 'solar:case-minimalistic-bold-duotone',
     url: '/career-info',
   },
   {
     key: 'current-openings',
     label: 'Current Openings',
-    icon: 'solar:case-round-bold-duotone',
+    icon: 'solar:user-check-rounded-bold-duotone',
     url: '/current-openings',
   },
   {
@@ -265,13 +276,13 @@ export const MENU_ITEMS: MenuItemType[] = [
   {
     key: 'return-refunds',
     label: 'Return Refunds',
-    icon: 'solar:shield-user-bold-duotone',
+    icon: 'solar:restart-circle-bold-duotone',
     url: '/return-refunds',
   },
   {
     key: 'vendor-policy',
     label: 'Vendor Policy',
-    icon: 'solar:shield-user-bold-duotone',
+    icon: 'solar:shop-bold-duotone',
     url: '/vendor-policy',
   },
   {
@@ -296,15 +307,15 @@ export const MENU_ITEMS: MenuItemType[] = [
     url: '/seo-pages',
   },
   {
-    key: 'app-settings',
-    label: 'App Settings',
-    icon: 'solar:smartphone-2-bold-duotone',
-    url: '/app-settings',
-  },
-  {
     key: 'settings',
     label: 'General Settings',
     icon: 'solar:settings-bold-duotone',
     url: '/settings',
+  },
+  {
+    key: 'user-settings',
+    label: 'User Settings',
+    icon: 'solar:user-id-bold-duotone',
+    url: '/user-settings',
   },
 ]

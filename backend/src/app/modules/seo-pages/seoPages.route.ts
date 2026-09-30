@@ -1,4 +1,5 @@
 import express from "express";
+
 import {
   createSeoPages,
   deleteSeoPages,
@@ -6,41 +7,55 @@ import {
   getByIdSeoPages,
   updateSeoPages,
 } from "./seoPages.controller";
+
 import { upload } from "../../config/cloudinary";
 
 const router = express.Router();
 
+// =====================================================
+// MULTIPLE IMAGE UPLOAD
+// =====================================================
+
 const uploadFields = upload.fields([
-  { name: "aboutBgImage", maxCount: 1 },
-  { name: "servicesBgImage", maxCount: 1 },
-  { name: "servicesDetailsBgImage", maxCount: 1 },
-  { name: "productBgImage", maxCount: 1 },
-  { name: "productDetailsBgImage", maxCount: 1 },
-  { name: "newsBgImage", maxCount: 1 },
-  { name: "newsDetailsBgImage", maxCount: 1 },
-  { name: "careerBgImage", maxCount: 1 },
-  { name: "contactBgImage", maxCount: 1 },
-  { name: "awardBgImage", maxCount: 1 },
-  { name: "ourPartnerBgImage", maxCount: 1 },
-  { name: "mediaCoverageBgImage", maxCount: 1 },
-  { name: "galleryBgImage", maxCount: 1 },
-  { name: "faqBgImage", maxCount: 1 },
-  { name: "privacyBgImage", maxCount: 1 },
-  { name: "termsBgImage", maxCount: 1 },
+  {
+    name: "productListBgImages",
+    maxCount: 10,
+  },
+
+  {
+    name: "wishListBgImages",
+    maxCount: 10,
+  },
 ]);
+
+// =====================================================
+// CREATE
+// =====================================================
 
 router.post("/", uploadFields, createSeoPages);
 
-// get all
+// =====================================================
+// GET ALL
+// =====================================================
+
 router.get("/", getAllSeoPages);
 
-// single get
+// =====================================================
+// GET BY ID
+// =====================================================
+
 router.get("/:id", getByIdSeoPages);
 
-// update
+// =====================================================
+// UPDATE
+// =====================================================
+
 router.put("/:id", uploadFields, updateSeoPages);
 
-// delete
+// =====================================================
+// DELETE
+// =====================================================
+
 router.delete("/:id", deleteSeoPages);
 
 export const seoPagesRouter = router;

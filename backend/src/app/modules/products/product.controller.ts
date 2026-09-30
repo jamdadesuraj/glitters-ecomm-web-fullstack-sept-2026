@@ -137,14 +137,46 @@ export const getAllProducts = async (
   next: NextFunction,
 ) => {
   try {
-    const getAllProducts = await Product.find().sort({
-      createdAt: -1,
-    });
+    const products = await Product.find({
+      isDeleted: false,
+    })
+      .populate({
+        path: "category",
+        select: "_id categoryName status",
+      })
+      .populate({
+        path: "subCategory",
+        select: "_id subCategoryName category status",
+      })
+      .populate({
+        path: "material",
+        select: "_id name status",
+      })
+      .populate({
+        path: "brand",
+        select: "_id name status",
+      })
+      .populate({
+        path: "coupon",
+        select: "_id couponCode discount status",
+      })
+      .populate({
+        path: "variants.size",
+        select: "_id size status",
+      })
+      .populate({
+        path: "variants.color",
+        select: "_id colorName hexCode status",
+      })
+      .sort({
+        createdAt: -1,
+      });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       statusCode: 200,
-      data: getAllProducts,
+      message: "Products fetched successfully",
+      data: products,
     });
   } catch (error) {
     next(error);
@@ -157,7 +189,35 @@ export const getAllProductsById = async (
   next: NextFunction,
 ) => {
   try {
-    const getAllproductById = await Product.findOne({ _id: req.params.id });
+    const getAllproductById = await Product.findOne({ _id: req.params.id })
+      .populate({
+        path: "category",
+        select: "_id categoryName status",
+      })
+      .populate({
+        path: "subCategory",
+        select: "_id subCategoryName category status",
+      })
+      .populate({
+        path: "material",
+        select: "_id name status",
+      })
+      .populate({
+        path: "brand",
+        select: "_id name status",
+      })
+      .populate({
+        path: "coupon",
+        select: "_id couponCode discount status",
+      })
+      .populate({
+        path: "variants.size",
+        select: "_id size status",
+      })
+      .populate({
+        path: "variants.color",
+        select: "_id colorName hexCode status",
+      });
 
     if (!getAllproductById) {
       return next(new appError("Product not found", 404));

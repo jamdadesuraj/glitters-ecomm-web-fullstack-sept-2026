@@ -1,7 +1,14 @@
 import { NextFunction, Request, Response } from "express";
+
 import { SEOPages } from "./seopages.model";
-import { SEOPagesSchema } from "./seoPages.validation";
+
+import { SEOPagesSchema, updateSEOPagesSchema } from "./seoPages.validation";
+
 import { appError } from "../../errors/appError";
+
+// =====================================================
+// CREATE SEO PAGES
+// =====================================================
 
 export const createSeoPages = async (
   req: Request,
@@ -9,168 +16,71 @@ export const createSeoPages = async (
   next: NextFunction,
 ) => {
   try {
-    const {
-      aboutTitle,
-      aboutSubTitle,
-      servicesTitle,
-      servicesSubTitle,
-      servicesDetailsTitle,
-      servicesDetailsSubTitle,
-      productTitle,
-      productSubTitle,
-      productDetailsTitle,
-      productDetailsSubTitle,
-      newsTitle,
-      newsSubTitle,
-      newsDetailsTitle,
-      newsDetailsSubTitle,
-      careerTitle,
-      careerSubTitle,
-      contactTitle,
-      contactSubTitle,
-      awardTitle,
-      awardSubTitle,
-      ourPartnerTitle,
-      ourPartnerSubTitle,
-      mediaCoverageTitle,
-      mediaCoverageSubTitle,
-      galleryTitle,
-      gallerySubTitle,
-      faqTitle,
-      faqSubTitle,
-      privacyTitle,
-      privacySubTitle,
-      termsTitle,
-      termsSubTitle,
-    } = req.body;
+    const { status } = req.body || {};
+
+    // ===============================================
+    // FILES
+    // ===============================================
 
     const files = req.files as {
       [fieldname: string]: Express.Multer.File[];
     };
 
-    const aboutBgImage = files?.aboutBgImage?.[0]?.path;
-    const servicesBgImage = files?.servicesBgImage?.[0]?.path;
-    const servicesDetailsBgImage = files?.servicesDetailsBgImage?.[0]?.path;
-    const productBgImage = files?.productBgImage?.[0]?.path;
-    const productDetailsBgImage = files?.productDetailsBgImage?.[0]?.path;
-    const newsBgImage = files?.newsBgImage?.[0]?.path;
-    const newsDetailsBgImage = files?.newsDetailsBgImage?.[0]?.path;
-    const careerBgImage = files?.careerBgImage?.[0]?.path;
-    const contactBgImage = files?.contactBgImage?.[0]?.path;
-    const awardBgImage = files?.awardBgImage?.[0]?.path;
-    const ourPartnerBgImage = files?.ourPartnerBgImage?.[0]?.path;
-    const mediaCoverageBgImage = files?.mediaCoverageBgImage?.[0]?.path;
-    const galleryBgImage = files?.galleryBgImage?.[0]?.path;
-    const faqBgImage = files?.faqBgImage?.[0]?.path;
-    const privacyBgImage = files?.privacyBgImage?.[0]?.path;
-    const termsBgImage = files?.termsBgImage?.[0]?.path;
+    const productListBgImages =
+      files?.productListBgImages?.map((file) => file.path) || [];
 
-    // existing
+    const wishListBgImages =
+      files?.wishListBgImages?.map((file) => file.path) || [];
+
+    // ===============================================
+    // EXISTING
+    // Only one SEO Pages document allowed
+    // ===============================================
+
     const existingData = await SEOPages.findOne({
-      aboutTitle,
-      aboutSubTitle,
-      servicesTitle,
-      servicesSubTitle,
-      servicesDetailsTitle,
-      servicesDetailsSubTitle,
-      productTitle,
-      productSubTitle,
-      productDetailsTitle,
-      productDetailsSubTitle,
-      newsTitle,
-      newsSubTitle,
-      newsDetailsTitle,
-      newsDetailsSubTitle,
-      careerTitle,
-      careerSubTitle,
-      contactTitle,
-      contactSubTitle,
-      awardTitle,
-      awardSubTitle,
-      ourPartnerTitle,
-      ourPartnerSubTitle,
-      mediaCoverageTitle,
-      mediaCoverageSubTitle,
-      galleryTitle,
-      gallerySubTitle,
-      faqTitle,
-      faqSubTitle,
-      privacyTitle,
-      privacySubTitle,
-      termsTitle,
-      termsSubTitle,
+      isDeleted: false,
     });
 
     if (existingData) {
-      return next(new Error("Data already exists"));
+      return next(new appError("SEO Pages data already exists", 400));
     }
 
-    // validate
-    const validateData = await SEOPagesSchema.parse({
-      aboutTitle,
-      aboutSubTitle,
-      servicesTitle,
-      servicesSubTitle,
-      servicesDetailsTitle,
-      servicesDetailsSubTitle,
-      productTitle,
-      productSubTitle,
-      productDetailsTitle,
-      productDetailsSubTitle,
-      newsTitle,
-      newsSubTitle,
-      newsDetailsTitle,
-      newsDetailsSubTitle,
-      careerTitle,
-      careerSubTitle,
-      contactTitle,
-      contactSubTitle,
-      awardTitle,
-      awardSubTitle,
-      ourPartnerTitle,
-      ourPartnerSubTitle,
-      mediaCoverageTitle,
-      mediaCoverageSubTitle,
-      galleryTitle,
-      gallerySubTitle,
-      faqTitle,
-      faqSubTitle,
-      privacyTitle,
-      privacySubTitle,
-      termsTitle,
-      termsSubTitle,
-      aboutBgImage,
-      servicesBgImage,
-      servicesDetailsBgImage,
-      productBgImage,
-      productDetailsBgImage,
-      newsBgImage,
-      newsDetailsBgImage,
-      careerBgImage,
-      contactBgImage,
-      awardBgImage,
-      ourPartnerBgImage,
-      mediaCoverageBgImage,
-      galleryBgImage,
-      faqBgImage,
-      privacyBgImage,
-      termsBgImage,
+    // ===============================================
+    // VALIDATE
+    // ===============================================
+
+    const validateData = SEOPagesSchema.parse({
+      productListBgImages,
+      wishListBgImages,
+
+      status: status || "active",
+
+      isDeleted: false,
     });
 
-    // /create
-    const createSeoPages = await SEOPages.create(validateData);
+    // ===============================================
+    // CREATE
+    // ===============================================
 
-    res.status(200).json({
+    const createdSeoPages = await SEOPages.create(validateData);
+
+    return res.status(201).json({
       success: true,
-      statusCode: 200,
-      message: "SeoPages created successfully",
-      data: createSeoPages,
+
+      statusCode: 201,
+
+      message: "SEO Pages created successfully",
+
+      data: createdSeoPages,
     });
-    return;
   } catch (error) {
     next(error);
   }
 };
+
+// =====================================================
+// GET ALL SEO PAGES
+// =====================================================
 
 export const getAllSeoPages = async (
   req: Request,
@@ -178,18 +88,29 @@ export const getAllSeoPages = async (
   next: NextFunction,
 ) => {
   try {
-    const getAllSeoPages = await SEOPages.find().sort({ createdAt: -1 });
+    const seoPages = await SEOPages.find({
+      isDeleted: false,
+    }).sort({
+      createdAt: -1,
+    });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
+
       statusCode: 200,
-      message: "SeoPages retrieved successfully",
-      data: getAllSeoPages,
+
+      message: "SEO Pages retrieved successfully",
+
+      data: seoPages,
     });
   } catch (error) {
     next(error);
   }
 };
+
+// =====================================================
+// GET SEO PAGE BY ID
+// =====================================================
 
 export const getByIdSeoPages = async (
   req: Request,
@@ -197,22 +118,34 @@ export const getByIdSeoPages = async (
   next: NextFunction,
 ) => {
   try {
-    const getByIdSeoPages = await SEOPages.findOne({ _id: req.params.id });
+    const { id } = req.params;
 
-    if (!getByIdSeoPages) {
-      return next(new appError("SeoPages not found", 404));
+    const seoPages = await SEOPages.findOne({
+      _id: id,
+      isDeleted: false,
+    });
+
+    if (!seoPages) {
+      return next(new appError("SEO Pages not found", 404));
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
+
       statusCode: 200,
-      message: "SeoPages retrieved successfully",
-      data: getByIdSeoPages,
+
+      message: "SEO Pages retrieved successfully",
+
+      data: seoPages,
     });
   } catch (error) {
     next(error);
   }
 };
+
+// =====================================================
+// UPDATE SEO PAGES
+// =====================================================
 
 export const updateSeoPages = async (
   req: Request,
@@ -220,83 +153,89 @@ export const updateSeoPages = async (
   next: NextFunction,
 ) => {
   try {
-    const seoPagesById = req.params.id;
+    const { id } = req.params;
 
-    const validatedData = SEOPagesSchema.parse(req.body);
+    // ===============================================
+    // FIND EXISTING
+    // ===============================================
 
-    const existingSeoPages = await SEOPages.findById(seoPagesById);
+    const existingSeoPages = await SEOPages.findOne({
+      _id: id,
+      isDeleted: false,
+    });
 
     if (!existingSeoPages) {
-      return next(new appError("SeoPages not found", 404));
+      return next(new appError("SEO Pages not found", 404));
     }
+
+    // ===============================================
+    // FILES
+    // ===============================================
 
     const files = req.files as {
       [fieldname: string]: Express.Multer.File[];
     };
 
-    if (files?.aboutBgImage?.[0]) {
-      validatedData.aboutBgImage = files.aboutBgImage[0].path;
+    const newProductListImages =
+      files?.productListBgImages?.map((file) => file.path) || [];
+
+    const newWishListImages =
+      files?.wishListBgImages?.map((file) => file.path) || [];
+
+    // ===============================================
+    // UPDATE DATA
+    // ===============================================
+
+    const updateData: {
+      productListBgImages?: string[];
+      wishListBgImages?: string[];
+      status?: "active" | "inactive";
+    } = {};
+
+    // ===============================================
+    // APPEND PRODUCT LIST IMAGES
+    // ===============================================
+
+    if (newProductListImages.length > 0) {
+      updateData.productListBgImages = [
+        ...(existingSeoPages.productListBgImages || []),
+
+        ...newProductListImages,
+      ];
     }
 
-    if (files?.servicesBgImage?.[0]) {
-      validatedData.servicesBgImage = files.servicesBgImage[0].path;
+    // ===============================================
+    // APPEND WISHLIST IMAGES
+    // ===============================================
+
+    if (newWishListImages.length > 0) {
+      updateData.wishListBgImages = [
+        ...(existingSeoPages.wishListBgImages || []),
+
+        ...newWishListImages,
+      ];
     }
 
-    if (files?.servicesDetailsBgImage?.[0]) {
-      validatedData.servicesDetailsBgImage =
-        files.servicesDetailsBgImage[0].path;
+    // ===============================================
+    // STATUS
+    // ===============================================
+
+    if (req.body?.status !== undefined) {
+      updateData.status = req.body.status;
     }
 
-    if (files?.productBgImage?.[0]) {
-      validatedData.productBgImage = files.productBgImage[0].path;
-    }
+    // ===============================================
+    // VALIDATE
+    // ===============================================
 
-    if (files?.productDetailsBgImage?.[0]) {
-      validatedData.productDetailsBgImage = files.productDetailsBgImage[0].path;
-    }
+    const validatedData = updateSEOPagesSchema.parse(updateData);
 
-    if (files?.newsBgImage?.[0]) {
-      validatedData.newsBgImage = files.newsBgImage[0].path;
-    }
-
-    if (files?.newsDetailsBgImage?.[0]) {
-      validatedData.newsDetailsBgImage = files.newsDetailsBgImage[0].path;
-    }
-
-    if (files?.careerBgImage?.[0]) {
-      validatedData.careerBgImage = files.careerBgImage[0].path;
-    }
-
-    if (files?.contactBgImage?.[0]) {
-      validatedData.contactBgImage = files.contactBgImage[0].path;
-    }
-
-    if (files?.awardBgImage?.[0]) {
-      validatedData.awardBgImage = files.awardBgImage[0].path;
-    }
-
-    if (files?.ourPartnerBgImage?.[0]) {
-      validatedData.ourPartnerBgImage = files.ourPartnerBgImage[0].path;
-    }
-
-    if (files?.mediaCoverageBgImage?.[0]) {
-      validatedData.mediaCoverageBgImage = files.mediaCoverageBgImage[0].path;
-    }
-
-    if (files?.galleryBgImage?.[0]) {
-      validatedData.galleryBgImage = files.galleryBgImage[0].path;
-    }
-
-    if (files?.privacyBgImage?.[0]) {
-      validatedData.privacyBgImage = files.privacyBgImage[0].path;
-    }
-
-    if (files?.termsBgImage?.[0]) {
-      validatedData.termsBgImage = files.termsBgImage[0].path;
-    }
+    // ===============================================
+    // UPDATE
+    // ===============================================
 
     const updatedSeoPages = await SEOPages.findByIdAndUpdate(
-      seoPagesById,
+      id,
       validatedData,
       {
         new: true,
@@ -305,15 +244,16 @@ export const updateSeoPages = async (
     );
 
     if (!updatedSeoPages) {
-      return next(new appError("SeoPages not found", 404));
+      return next(new appError("SEO Pages not found", 404));
     }
 
-    await updatedSeoPages.save();
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
+
       statusCode: 200,
-      message: "SeoPages updated successfully",
+
+      message: "SEO Pages updated successfully",
+
       data: updatedSeoPages,
     });
   } catch (error) {
@@ -321,28 +261,39 @@ export const updateSeoPages = async (
   }
 };
 
+// =====================================================
+// DELETE SEO PAGES
+// =====================================================
+
 export const deleteSeoPages = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const deleteSeoPages = await SEOPages.findOneAndDelete({
-      _id: req.params.id,
-    });
+    const { id } = req.params;
 
-    if (!deleteSeoPages) {
-      return next(new appError("SeoPages not found", 404));
+    const seoPages = await SEOPages.findById(id);
+
+    if (!seoPages) {
+      return next(new appError("SEO Pages not found", 404));
     }
 
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message: "SeoPages deleted successfully",
-      data: deleteSeoPages,
-    });
+    // SOFT DELETE
 
-    return;
+    seoPages.isDeleted = true;
+
+    await seoPages.save();
+
+    return res.status(200).json({
+      success: true,
+
+      statusCode: 200,
+
+      message: "SEO Pages deleted successfully",
+
+      data: seoPages,
+    });
   } catch (error) {
     next(error);
   }

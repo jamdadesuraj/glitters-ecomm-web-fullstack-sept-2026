@@ -12,362 +12,414 @@ import IconifyIcon from '@/components/wrappers/IconifyIcon'
 
 import AddProductsDrawer from './AddProductsDrawer'
 
-/* ======================================================
-   TYPES
-====================================================== */
+import { IProduct, useDeleteProductsMutation, useGetProductsQuery } from '@/store/productsApi'
+import EditProductsDrawer from './ProductsEdit'
+import ProductsDetails from './ProductsDetails'
+import Link from 'next/link'
 
-type ProductStatus = 'Active' | 'Inactive'
+type RefValue =
+  | string
+  | {
+      _id?: string
 
-type Product = {
-  id: number
-  name: string
-  image: string
+      categoryName?: string
 
-  category: string
-  subCategory: string
+      subCategoryName?: string
 
-  size: string
-  color: string
+      brandName?: string
 
-  stock: number
+      materialName?: string
 
-  price: number
-  delPrice: number
+      size?: string
 
-  couponCode: string
-  discount: number
+      sizeName?: string
 
-  material: string
-  section: string
-  brand: string
+      colorName?: string
 
-  status: ProductStatus
+      couponCode?: string
+
+      name?: string
+
+      title?: string
+
+      hexCode?: string
+    }
+  | null
+  | undefined
+
+const getRefLabel = (value: RefValue, fallback = 'N/A') => {
+  if (!value) return fallback
+
+  if (typeof value === 'string') return value
+
+  return (
+    value.categoryName ||
+    value.subCategoryName ||
+    value.brandName ||
+    value.materialName ||
+    value.size ||
+    value.sizeName ||
+    value.colorName ||
+    value.couponCode ||
+    value.name ||
+    value.title ||
+    fallback
+  )
 }
 
-/* ======================================================
-   DUMMY DATA
-====================================================== */
-
-const dummyProducts: Product[] = [
-  {
-    id: 1,
-
-    name: 'Premium Cotton T-Shirt',
-
-    image: '',
-
-    category: 'Men',
-
-    subCategory: 'T-Shirts',
-
-    size: 'M, L, XL',
-
-    color: 'Black',
-
-    stock: 120,
-
-    price: 1299,
-
-    delPrice: 1699,
-
-    couponCode: 'FLAT20',
-
-    discount: 24,
-
-    material: 'Cotton',
-
-    section: 'New Arrival',
-
-    brand: 'Urban Fit',
-
-    status: 'Active',
-  },
-
-  {
-    id: 2,
-
-    name: 'Slim Fit Denim Jeans',
-
-    image: '',
-
-    category: 'Men',
-
-    subCategory: 'Jeans',
-
-    size: '30, 32, 34',
-
-    color: 'Blue',
-
-    stock: 85,
-
-    price: 1899,
-
-    delPrice: 2499,
-
-    couponCode: 'FLAT20',
-
-    discount: 24,
-
-    material: 'Denim',
-
-    section: 'Best Seller',
-
-    brand: 'Denim Hub',
-
-    status: 'Active',
-  },
-
-  {
-    id: 3,
-
-    name: 'Premium Casual Shoes',
-
-    image: '',
-
-    category: 'Footwear',
-
-    subCategory: 'Casual Shoes',
-
-    size: '7, 8, 9, 10',
-
-    color: 'White',
-
-    stock: 18,
-
-    price: 2199,
-
-    delPrice: 2999,
-
-    couponCode: 'SHOE15',
-
-    discount: 27,
-
-    material: 'Synthetic',
-
-    section: 'Trending',
-
-    brand: 'Urban Walk',
-
-    status: 'Inactive',
-  },
-
-  {
-    id: 4,
-
-    name: 'Classic Formal Shirt',
-
-    image: '',
-
-    category: 'Men',
-
-    subCategory: 'Shirts',
-
-    size: 'M, L, XL',
-
-    color: 'White',
-
-    stock: 42,
-
-    price: 1499,
-
-    delPrice: 1999,
-
-    couponCode: 'SAVE10',
-
-    discount: 25,
-
-    material: 'Cotton',
-
-    section: 'Featured',
-
-    brand: 'Style Hub',
-
-    status: 'Active',
-  },
-]
-
-/* ======================================================
-   PAGE SIZE
-====================================================== */
-
-const PAGE_SIZE = 6
-
-/* ======================================================
-   COMPONENT
-====================================================== */
-
 const Products = () => {
-  /* ======================================================
-     STATES
-  ====================================================== */
+  const { data: products = [], isLoading, isError } = useGetProductsQuery()
 
-  const [products, setProducts] = useState<Product[]>(dummyProducts)
+  const [deleteProduct] = useDeleteProductsMutation()
 
-  const [search, setSearch] = useState<string>('')
+  const [search, setSearch] = useState('')
 
-  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [currentPage, setCurrentPage] = useState(1)
 
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([])
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
 
-  /* ======================================================
-     SEARCH
-  ====================================================== */
+  const productsPerPage = 9
+
+  // =====================================================
+
+  // FILTER
+
+  // =====================================================
 
   const filteredProducts = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const keyword = search.trim().toLowerCase()
 
-    if (!query) {
-      return products
-    }
+    if (!keyword) return products
 
-    return products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query) ||
-        product.subCategory.toLowerCase().includes(query) ||
-        product.brand.toLowerCase().includes(query) ||
-        product.material.toLowerCase().includes(query) ||
-        product.section.toLowerCase().includes(query) ||
-        product.status.toLowerCase().includes(query) ||
-        product.couponCode.toLowerCase().includes(query),
-    )
-  }, [search, products])
+    return products.filter((product) => {
+      const firstVariant = product.variants?.[0]
 
-  /* ======================================================
-     PAGINATION
-  ====================================================== */
+      const searchableText = [
+        product.productName,
 
-  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE)
+        getRefLabel(product.category as RefValue, ''),
 
-  const startIndex = (currentPage - 1) * PAGE_SIZE
+        getRefLabel(product.subCategory as RefValue, ''),
 
-  const endIndex = startIndex + PAGE_SIZE
+        getRefLabel(product.brand as RefValue, ''),
+
+        getRefLabel(product.material as RefValue, ''),
+
+        product.section || '',
+
+        product.status || '',
+
+        getRefLabel(firstVariant?.size as unknown as RefValue, ''),
+
+        getRefLabel(firstVariant?.color as unknown as RefValue, ''),
+      ]
+
+        .join(' ')
+
+        .toLowerCase()
+
+      return searchableText.includes(keyword)
+    })
+  }, [products, search])
+
+  // =====================================================
+
+  // PAGINATION
+
+  // =====================================================
+
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
+
+  const safeCurrentPage = totalPages === 0 ? 1 : Math.min(currentPage, totalPages)
+
+  const startIndex = (safeCurrentPage - 1) * productsPerPage
+
+  const endIndex = startIndex + productsPerPage
 
   const currentProducts = filteredProducts.slice(startIndex, endIndex)
 
-  /* ======================================================
-     SELECT SINGLE
-  ====================================================== */
+  // =====================================================
 
-  const handleSelectProduct = (id: number) => {
+  // SELECT
+
+  // =====================================================
+
+  const isAllCurrentPageSelected = currentProducts.length > 0 && currentProducts.every((product) => selectedProducts.includes(product._id))
+
+  const handleSelectProduct = (id: string) => {
     setSelectedProducts((prev) => (prev.includes(id) ? prev.filter((productId) => productId !== id) : [...prev, id]))
   }
 
-  /* ======================================================
-     SELECT ALL CURRENT PAGE
-  ====================================================== */
-
-  const currentPageIds = currentProducts.map((product) => product.id)
-
-  const isAllCurrentPageSelected = currentPageIds.length > 0 && currentPageIds.every((id) => selectedProducts.includes(id))
-
   const handleSelectAll = () => {
-    if (isAllCurrentPageSelected) {
-      setSelectedProducts((prev) => prev.filter((id) => !currentPageIds.includes(id)))
+    const currentPageIds = currentProducts.map((product) => product._id)
 
-      return
-    }
+    setSelectedProducts((prev) => {
+      if (isAllCurrentPageSelected) {
+        return prev.filter((id) => !currentPageIds.includes(id))
+      }
 
-    setSelectedProducts((prev) => [...new Set([...prev, ...currentPageIds])])
+      return Array.from(new Set([...prev, ...currentPageIds]))
+    })
   }
 
-  /* ======================================================
-     DELETE
-  ====================================================== */
+  // =====================================================
 
-  const handleDelete = async (product: Product) => {
+  // PAGINATION CHANGE
+
+  // =====================================================
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return
+
+    setCurrentPage(page)
+  }
+
+  // =====================================================
+
+  // PRODUCT HELPERS
+
+  // =====================================================
+
+  const getProductImage = (product: IProduct) => {
+    if (product.productImages?.length) {
+      return product.productImages[0]
+    }
+
+    const variantWithImage = product.variants?.find((variant) => variant.image)
+
+    return variantWithImage?.image || ''
+  }
+
+  const getPriceData = (product: IProduct) => {
+    const variants = product.variants || []
+
+    if (!variants.length) {
+      return {
+        price: 0,
+
+        delPrice: 0,
+
+        discount: 0,
+      }
+    }
+
+    const prices = variants.map((variant) => Number(variant.price || 0)).filter((price) => price > 0)
+
+    const lowestPrice = prices.length ? Math.min(...prices) : 0
+
+    const selectedVariant = variants.find((variant) => Number(variant.price || 0) === lowestPrice) || variants[0]
+
+    return {
+      price: Number(selectedVariant?.price || 0),
+
+      delPrice: Number(selectedVariant?.delPrice || 0),
+
+      discount: Number(selectedVariant?.discount || 0),
+    }
+  }
+
+  const getTotalStock = (product: IProduct) => {
+    return (product.variants || []).reduce((total, variant) => total + Number(variant.stock || 0), 0)
+  }
+
+  const getVariantSizes = (product: IProduct) => {
+    const sizes = (product.variants || []).map((variant) => getRefLabel(variant.size as unknown as RefValue, '')).filter(Boolean)
+
+    return [...new Set(sizes)].join(', ') || 'N/A'
+  }
+
+  const getVariantColors = (product: IProduct) => {
+    const colors = (product.variants || []).map((variant) => getRefLabel(variant.color as unknown as RefValue, '')).filter(Boolean)
+
+    return [...new Set(colors)].join(', ') || 'N/A'
+  }
+
+  const getStockClass = (stock: number) => {
+    if (stock <= 0) return 'bg-danger-subtle text-danger'
+
+    if (stock <= 10) return 'bg-warning-subtle text-warning'
+
+    return 'bg-success-subtle text-success'
+  }
+
+  const getStockText = (stock: number) => {
+    if (stock <= 0) return 'Out of Stock'
+
+    if (stock <= 10) return 'Low Stock'
+
+    return 'In Stock'
+  }
+
+  const getCouponCode = (product: IProduct) => {
+    return getRefLabel(product.coupon as unknown as RefValue, '')
+  }
+
+  // =====================================================
+
+  // DELETE
+
+  // =====================================================
+
+  const handleDelete = async (product: IProduct) => {
     const result = await Swal.fire({
-      title: 'Are you sure?',
+      title: 'Delete Product?',
 
-      text: `Do you want to delete "${product.name}"?`,
+      text: `Are you sure you want to delete "${product.productName}"?`,
 
       icon: 'warning',
 
       showCancelButton: true,
 
-      confirmButtonText: 'Yes, Delete',
+      confirmButtonText: 'Yes, delete it',
 
       cancelButtonText: 'Cancel',
 
-      confirmButtonColor: '#d33',
+      reverseButtons: true,
     })
 
-    if (!result.isConfirmed) {
-      return
+    if (!result.isConfirmed) return
+
+    try {
+      await deleteProduct(product._id).unwrap()
+
+      setSelectedProducts((prev) => prev.filter((id) => id !== product._id))
+
+      await Swal.fire({
+        title: 'Deleted!',
+
+        text: 'Product deleted successfully.',
+
+        icon: 'success',
+
+        timer: 1600,
+
+        showConfirmButton: false,
+      })
+    } catch (error: any) {
+      await Swal.fire({
+        title: 'Delete Failed',
+
+        text: error?.data?.message || error?.message || 'Unable to delete product.',
+
+        icon: 'error',
+      })
     }
+  }
 
-    setProducts((prev) => prev.filter((item) => item.id !== product.id))
+  // =====================================================
 
-    setSelectedProducts((prev) => prev.filter((id) => id !== product.id))
+  // BULK DELETE
 
-    await Swal.fire({
-      title: 'Deleted!',
+  // =====================================================
 
-      text: 'Product deleted successfully.',
+  const handleBulkDelete = async () => {
+    if (selectedProducts.length === 0) return
 
-      icon: 'success',
+    const result = await Swal.fire({
+      title: 'Delete Selected Products?',
 
-      timer: 1400,
+      html: `You are about to delete <strong>${selectedProducts.length}</strong> selected product${selectedProducts.length > 1 ? 's' : ''}.`,
 
-      showConfirmButton: false,
+      icon: 'warning',
+
+      showCancelButton: true,
+
+      confirmButtonText: `Yes, delete ${selectedProducts.length}`,
+
+      cancelButtonText: 'Cancel',
+
+      reverseButtons: true,
+
+      focusCancel: true,
     })
+
+    if (!result.isConfirmed) return
+
+    setIsBulkDeleting(true)
+
+    try {
+      const results = await Promise.allSettled(selectedProducts.map((id) => deleteProduct(id).unwrap()))
+
+      const successCount = results.filter((item) => item.status === 'fulfilled').length
+
+      const failedCount = results.length - successCount
+
+      if (successCount > 0) {
+        setSelectedProducts([])
+      }
+
+      if (failedCount === 0) {
+        await Swal.fire({
+          title: 'Deleted!',
+
+          text: `${successCount} product${successCount > 1 ? 's' : ''} deleted successfully.`,
+
+          icon: 'success',
+
+          timer: 1800,
+
+          showConfirmButton: false,
+        })
+      } else {
+        await Swal.fire({
+          title: 'Bulk Delete Completed',
+
+          html: `
+
+            <div class="text-start">
+
+              <p class="mb-1"><strong>${successCount}</strong> deleted successfully.</p>
+
+              <p class="mb-0 text-danger"><strong>${failedCount}</strong> failed to delete.</p>
+
+            </div>
+
+          `,
+
+          icon: successCount > 0 ? 'warning' : 'error',
+        })
+      }
+    } catch (error: any) {
+      await Swal.fire({
+        title: 'Bulk Delete Failed',
+
+        text: error?.data?.message || error?.message || 'Unable to delete selected products.',
+
+        icon: 'error',
+      })
+    } finally {
+      setIsBulkDeleting(false)
+    }
   }
 
-  /* ======================================================
-     PAGE CHANGE
-  ====================================================== */
+  // =====================================================
 
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages) {
-      return
-    }
+  // LOADING / ERROR
 
-    setCurrentPage(page)
+  // IMPORTANT: all hooks are above these returns
+
+  // =====================================================
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary" role="status" />
+
+        <div className="text-muted mt-2">Loading products...</div>
+      </div>
+    )
   }
 
-  /* ======================================================
-     STOCK CLASS
-  ====================================================== */
-
-  const getStockClass = (stock: number) => {
-    if (stock > 50) {
-      return 'bg-success-subtle text-success'
-    }
-
-    if (stock > 20) {
-      return 'bg-warning-subtle text-warning'
-    }
-
-    return 'bg-danger-subtle text-danger'
+  if (isError) {
+    return <div className="alert alert-danger">Unable to load products. Please try again.</div>
   }
-
-  /* ======================================================
-     STOCK TEXT
-  ====================================================== */
-
-  const getStockText = (stock: number) => {
-    if (stock <= 0) {
-      return 'Out of Stock'
-    }
-
-    if (stock <= 20) {
-      return 'Low Stock'
-    }
-
-    return 'In Stock'
-  }
-
-  /* ======================================================
-     RETURN
-  ====================================================== */
 
   return (
     <Row>
       <Col xl={12}>
         <Card className="border-0 shadow-sm">
-          {/* ==================================================
-              HEADER
-          ================================================== */}
+          {/* HEADER */}
 
           <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
@@ -379,13 +431,32 @@ const Products = () => {
             </div>
 
             <div className="d-flex align-items-center gap-2 flex-wrap">
-              {/* SELECTED */}
-
               {selectedProducts.length > 0 && (
                 <span className="badge bg-primary-subtle text-primary px-3 py-2">{selectedProducts.length} Selected</span>
               )}
 
-              {/* SEARCH */}
+              <button
+                type="button"
+                className="btn btn-danger btn-sm d-flex align-items-center gap-2"
+                onClick={handleBulkDelete}
+                disabled={selectedProducts.length === 0 || isBulkDeleting}
+                title={
+                  selectedProducts.length === 0
+                    ? 'Select products to bulk delete'
+                    : `Delete ${selectedProducts.length} selected product${selectedProducts.length > 1 ? 's' : ''}`
+                }>
+                {isBulkDeleting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <IconifyIcon icon="solar:trash-bin-minimalistic-2-bold-duotone" width={17} />
+                    Bulk Delete
+                  </>
+                )}
+              </button>
 
               <div
                 className="position-relative"
@@ -412,20 +483,12 @@ const Products = () => {
                 />
               </div>
 
-              {/* ADD */}
-
               <AddProductsDrawer />
             </div>
           </div>
 
-          {/* ==================================================
-              BODY
-          ================================================== */}
-
           <CardBody>
-            {/* ==================================================
-                TOP CONTROLS
-            ================================================== */}
+            {/* TOP CONTROLS */}
 
             <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
               <div className="d-flex align-items-center gap-2">
@@ -434,6 +497,7 @@ const Products = () => {
                   type="checkbox"
                   className="form-check-input mt-0"
                   checked={isAllCurrentPageSelected}
+                  disabled={isBulkDeleting}
                   onChange={handleSelectAll}
                 />
 
@@ -452,56 +516,58 @@ const Products = () => {
               </div>
             </div>
 
-            {/* ==================================================
-                PRODUCT CARDS
-            ================================================== */}
+            {/* PRODUCT CARDS */}
 
             <Row className="g-4">
               {currentProducts.length > 0 ? (
                 currentProducts.map((product, index) => {
-                  const isSelected = selectedProducts.includes(product.id)
+                  const isSelected = selectedProducts.includes(product._id)
+
+                  const productImage = getProductImage(product)
+
+                  const { price, delPrice, discount } = getPriceData(product)
+
+                  const stock = getTotalStock(product)
+
+                  const categoryName = getRefLabel(product.category as unknown as RefValue)
+
+                  const subCategoryName = getRefLabel(product.subCategory as unknown as RefValue)
+
+                  const brandName = getRefLabel(product.brand as unknown as RefValue)
+
+                  const materialName = getRefLabel(product.material as unknown as RefValue)
+
+                  const couponCode = getCouponCode(product)
+
+                  const isActive = String(product.status).toLowerCase() === 'active'
 
                   return (
-                    <Col key={product.id} xxl={4} xl={4} lg={6} md={6} sm={12}>
+                    <Col key={product._id} xxl={4} xl={4} lg={6} md={6} sm={12}>
                       <Card className={`product-modern-card h-100 ${isSelected ? 'product-card-selected' : ''}`}>
-                        {/* ==================================
-                              IMAGE AREA
-                          ================================== */}
+                        {/* IMAGE AREA */}
 
                         <div className="product-card-image-area">
-                          {/* CHECKBOX */}
-
                           <div className="product-card-checkbox">
                             <input
                               type="checkbox"
                               className="form-check-input mt-0"
                               checked={isSelected}
-                              onChange={() => handleSelectProduct(product.id)}
+                              onChange={() => handleSelectProduct(product._id)}
                             />
                           </div>
 
-                          {/* STATUS */}
-
                           <div className="product-card-status">
-                            <span
-                              className={`badge ${product.status === 'Active' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`}>
-                              <IconifyIcon
-                                icon={product.status === 'Active' ? 'solar:check-circle-bold' : 'solar:close-circle-bold'}
-                                className="me-1"
-                              />
+                            <span className={`badge ${isActive ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`}>
+                              <IconifyIcon icon={isActive ? 'solar:check-circle-bold' : 'solar:close-circle-bold'} className="me-1" />
 
-                              {product.status}
+                              {isActive ? 'Active' : 'Inactive'}
                             </span>
                           </div>
 
-                          {/* DISCOUNT */}
+                          {discount > 0 && <div className="product-discount-badge">-{discount}%</div>}
 
-                          {product.discount > 0 && <div className="product-discount-badge">-{product.discount}%</div>}
-
-                          {/* IMAGE */}
-
-                          {product.image ? (
-                            <Image src={product.image} alt={product.name} width={500} height={320} unoptimized className="product-card-image" />
+                          {productImage ? (
+                            <Image src={productImage} alt={product.productName} width={500} height={320} unoptimized className="product-card-image" />
                           ) : (
                             <div className="product-image-placeholder">
                               <div className="text-center">
@@ -513,52 +579,42 @@ const Products = () => {
                           )}
                         </div>
 
-                        {/* ==================================
-                              BODY
-                          ================================== */}
+                        {/* BODY */}
 
                         <CardBody className="p-3 d-flex flex-column">
-                          {/* CATEGORY */}
-
                           <div className="d-flex align-items-center gap-2 flex-wrap mb-2">
-                            <span className="product-category-badge">{product.category}</span>
+                            <span className="product-category-badge">{categoryName}</span>
 
                             <IconifyIcon icon="solar:alt-arrow-right-linear" width={12} className="text-muted" />
 
-                            <span className="text-muted small">{product.subCategory}</span>
+                            <span className="text-muted small">{subCategoryName}</span>
                           </div>
 
-                          {/* NAME */}
-
-                          <h5 className="product-card-name mb-2">{product.name}</h5>
-
-                          {/* BRAND */}
+                          <h5 className="product-card-name mb-2">{product.productName}</h5>
 
                           <div className="d-flex align-items-center gap-2 text-muted small mb-3">
                             <IconifyIcon icon="solar:tag-linear" width={15} />
 
                             <span>Brand:</span>
 
-                            <strong className="text-body">{product.brand}</strong>
+                            <strong className="text-body">{brandName}</strong>
                           </div>
-
-                          {/* PRICE */}
 
                           <div className="product-price-area mb-3">
                             <div className="d-flex align-items-end flex-wrap gap-2">
-                              <span className="product-current-price">₹{product.price.toLocaleString('en-IN')}</span>
+                              <span className="product-current-price">₹{price.toLocaleString('en-IN')}</span>
 
-                              <del className="product-old-price">₹{product.delPrice.toLocaleString('en-IN')}</del>
+                              {delPrice > price && <del className="product-old-price">₹{delPrice.toLocaleString('en-IN')}</del>}
 
-                              <span className="product-off-text">{product.discount}% OFF</span>
+                              {discount > 0 && <span className="product-off-text">{discount}% OFF</span>}
                             </div>
+
+                            {product.variants?.length > 1 && (
+                              <div className="text-muted small mt-1">Starting price • {product.variants.length} variants</div>
+                            )}
                           </div>
 
-                          {/* INFO GRID */}
-
                           <Row className="g-2">
-                            {/* SIZE */}
-
                             <Col xs={6}>
                               <div className="product-detail-box">
                                 <div className="product-detail-icon">
@@ -568,12 +624,10 @@ const Products = () => {
                                 <div className="min-w-0">
                                   <span>Size</span>
 
-                                  <strong>{product.size}</strong>
+                                  <strong>{getVariantSizes(product)}</strong>
                                 </div>
                               </div>
                             </Col>
-
-                            {/* COLOR */}
 
                             <Col xs={6}>
                               <div className="product-detail-box">
@@ -584,12 +638,10 @@ const Products = () => {
                                 <div className="min-w-0">
                                   <span>Color</span>
 
-                                  <strong>{product.color}</strong>
+                                  <strong>{getVariantColors(product)}</strong>
                                 </div>
                               </div>
                             </Col>
-
-                            {/* MATERIAL */}
 
                             <Col xs={6}>
                               <div className="product-detail-box">
@@ -600,12 +652,10 @@ const Products = () => {
                                 <div className="min-w-0">
                                   <span>Material</span>
 
-                                  <strong>{product.material}</strong>
+                                  <strong>{materialName}</strong>
                                 </div>
                               </div>
                             </Col>
-
-                            {/* SECTION */}
 
                             <Col xs={6}>
                               <div className="product-detail-box">
@@ -616,13 +666,11 @@ const Products = () => {
                                 <div className="min-w-0">
                                   <span>Section</span>
 
-                                  <strong>{product.section}</strong>
+                                  <strong>{product.section || 'N/A'}</strong>
                                 </div>
                               </div>
                             </Col>
                           </Row>
-
-                          {/* STOCK */}
 
                           <div className="d-flex justify-content-between align-items-center mt-3 product-stock-box">
                             <div className="d-flex align-items-center gap-2">
@@ -633,16 +681,14 @@ const Products = () => {
                               <div>
                                 <small className="text-muted d-block">Available Stock</small>
 
-                                <strong>{product.stock} Units</strong>
+                                <strong>{stock} Units</strong>
                               </div>
                             </div>
 
-                            <span className={`badge ${getStockClass(product.stock)}`}>{getStockText(product.stock)}</span>
+                            <span className={`badge ${getStockClass(stock)}`}>{getStockText(stock)}</span>
                           </div>
 
-                          {/* COUPON */}
-
-                          {product.couponCode && (
+                          {couponCode && (
                             <div className="product-coupon mt-3">
                               <div className="d-flex align-items-center gap-2">
                                 <IconifyIcon icon="solar:ticket-sale-bold-duotone" width={19} />
@@ -650,44 +696,31 @@ const Products = () => {
                                 <span className="small">Coupon</span>
                               </div>
 
-                              <strong>{product.couponCode}</strong>
+                              <strong>{couponCode}</strong>
                             </div>
                           )}
                         </CardBody>
 
-                        {/* ==================================
-                              FOOTER
-                          ================================== */}
+                        {/* FOOTER */}
 
                         <div className="product-card-footer border-top p-3">
                           <div className="d-flex align-items-center justify-content-between gap-2">
-                            {/* SERIAL */}
-
                             <span className="text-muted small">#{startIndex + index + 1}</span>
 
-                            {/* ACTIONS */}
-
                             <div className="d-flex align-items-center gap-2">
-                              {/* VIEW */}
-
-                              <button type="button" className="btn btn-soft-info btn-sm product-action-btn" title="View Product">
+                              <Link href={`/products/view/${product._id}`} className="btn btn-soft-info btn-sm product-action-btn">
                                 <IconifyIcon icon="solar:eye-bold-duotone" width={18} />
-                              </button>
-
-                              {/* EDIT */}
-
-                              <button type="button" className="btn btn-soft-primary btn-sm product-action-btn" title="Edit Product">
-                                <IconifyIcon icon="solar:pen-2-bold-duotone" width={18} />
-                              </button>
-
-                              {/* DELETE */}
+                              </Link>
+                              <Link href={`/products/edit/${product._id}`} className="btn btn-soft-primary btn-sm  product-action-btn">
+                                <IconifyIcon icon="solar:pen-2-broken" />
+                              </Link>
 
                               <button
                                 type="button"
                                 className="btn btn-soft-danger btn-sm product-action-btn"
                                 title="Delete Product"
                                 onClick={() => handleDelete(product)}>
-                                <IconifyIcon icon="solar:trash-bin-minimalistic-2-bold-duotone" width={18} />
+                                <IconifyIcon icon="solar:trash-bin-minimalistic-2-broken" />{' '}
                               </button>
                             </div>
                           </div>
@@ -697,10 +730,6 @@ const Products = () => {
                   )
                 })
               ) : (
-                /* ============================================
-                   EMPTY
-                ============================================ */
-
                 <Col xs={12}>
                   <div className="text-center py-5">
                     <div className="product-empty-icon mx-auto mb-3">
@@ -716,9 +745,7 @@ const Products = () => {
             </Row>
           </CardBody>
 
-          {/* ==================================================
-              PAGINATION
-          ================================================== */}
+          {/* PAGINATION */}
 
           <CardFooter className="bg-white border-top">
             <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
@@ -727,59 +754,51 @@ const Products = () => {
                 {filteredProducts.length} products
               </div>
 
-              <nav aria-label="Product pagination">
-                <ul className="pagination pagination-sm mb-0">
-                  {/* PREVIOUS */}
-
-                  <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                    <button type="button" className="page-link" onClick={() => handlePageChange(currentPage - 1)}>
-                      Previous
-                    </button>
-                  </li>
-
-                  {/* PAGE NUMBERS */}
-
-                  {Array.from(
-                    {
-                      length: totalPages,
-                    },
-
-                    (_, index) => index + 1,
-                  ).map((page) => (
-                    <li key={page} className={`page-item ${currentPage === page ? 'active' : ''}`}>
-                      <button type="button" className="page-link" onClick={() => handlePageChange(page)}>
-                        {page}
+              {totalPages > 1 && (
+                <nav aria-label="Product pagination">
+                  <ul className="pagination pagination-sm mb-0">
+                    <li className={`page-item ${safeCurrentPage === 1 ? 'disabled' : ''}`}>
+                      <button type="button" className="page-link" onClick={() => handlePageChange(safeCurrentPage - 1)}>
+                        Previous
                       </button>
                     </li>
-                  ))}
 
-                  {/* NEXT */}
+                    {Array.from(
+                      {
+                        length: totalPages,
+                      },
 
-                  <li className={`page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`}>
-                    <button type="button" className="page-link" onClick={() => handlePageChange(currentPage + 1)}>
-                      Next
-                    </button>
-                  </li>
-                </ul>
-              </nav>
+                      (_, index) => index + 1,
+                    ).map((page) => (
+                      <li key={page} className={`page-item ${safeCurrentPage === page ? 'active' : ''}`}>
+                        <button type="button" className="page-link" onClick={() => handlePageChange(page)}>
+                          {page}
+                        </button>
+                      </li>
+                    ))}
+
+                    <li className={`page-item ${safeCurrentPage === totalPages ? 'disabled' : ''}`}>
+                      <button type="button" className="page-link" onClick={() => handlePageChange(safeCurrentPage + 1)}>
+                        Next
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+              )}
             </div>
           </CardFooter>
         </Card>
 
-        {/* ==================================================
-            CSS
-        ================================================== */}
-
         <style jsx global>{`
-          /* ================================================
-             PRODUCT CARD
-          ================================================ */
-
           .product-modern-card {
             position: relative;
+
             overflow: hidden;
+
             border: 1px solid #e7ebf0;
+
             border-radius: 16px;
+
             background: #ffffff;
 
             transition:
@@ -802,21 +821,23 @@ const Products = () => {
             box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.08);
           }
 
-          /* ================================================
-             IMAGE
-          ================================================ */
-
           .product-card-image-area {
             position: relative;
+
             width: 100%;
+
             height: 220px;
+
             overflow: hidden;
+
             background: #f7f8fa;
           }
 
           .product-card-image {
             width: 100%;
+
             height: 100%;
+
             object-fit: cover;
 
             transition: transform 0.3s ease;
@@ -828,10 +849,13 @@ const Products = () => {
 
           .product-image-placeholder {
             width: 100%;
+
             height: 100%;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             color: #a1a9b7;
@@ -839,21 +863,23 @@ const Products = () => {
             background: linear-gradient(135deg, #f8fafc, #f1f4f8);
           }
 
-          /* ================================================
-             CHECKBOX
-          ================================================ */
-
           .product-card-checkbox {
             position: absolute;
+
             top: 13px;
+
             left: 13px;
+
             z-index: 5;
 
             width: 34px;
+
             height: 34px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             border-radius: 9px;
@@ -863,25 +889,23 @@ const Products = () => {
             box-shadow: 0 4px 12px rgba(15, 23, 42, 0.09);
           }
 
-          /* ================================================
-             STATUS
-          ================================================ */
-
           .product-card-status {
             position: absolute;
+
             top: 13px;
+
             right: 13px;
+
             z-index: 5;
           }
 
-          /* ================================================
-             DISCOUNT
-          ================================================ */
-
           .product-discount-badge {
             position: absolute;
+
             left: 13px;
+
             bottom: 13px;
+
             z-index: 5;
 
             padding: 5px 9px;
@@ -889,20 +913,19 @@ const Products = () => {
             border-radius: 7px;
 
             color: #ffffff;
+
             background: #dc3545;
 
             font-size: 12px;
+
             font-weight: 700;
 
             box-shadow: 0 4px 12px rgba(220, 53, 69, 0.18);
           }
 
-          /* ================================================
-             CATEGORY
-          ================================================ */
-
           .product-category-badge {
             display: inline-flex;
+
             align-items: center;
 
             padding: 4px 8px;
@@ -914,12 +937,9 @@ const Products = () => {
             background: rgba(var(--bs-primary-rgb), 0.08);
 
             font-size: 11px;
+
             font-weight: 600;
           }
-
-          /* ================================================
-             NAME
-          ================================================ */
 
           .product-card-name {
             min-height: 28px;
@@ -927,13 +947,11 @@ const Products = () => {
             color: #263244;
 
             font-size: 16px;
+
             line-height: 1.4;
+
             font-weight: 700;
           }
-
-          /* ================================================
-             PRICE
-          ================================================ */
 
           .product-price-area {
             padding-bottom: 13px;
@@ -945,6 +963,7 @@ const Products = () => {
             color: #1e293b;
 
             font-size: 21px;
+
             font-weight: 700;
           }
 
@@ -958,17 +977,15 @@ const Products = () => {
             color: #198754;
 
             font-size: 11px;
+
             font-weight: 700;
           }
-
-          /* ================================================
-             DETAILS
-          ================================================ */
 
           .product-detail-box {
             height: 100%;
 
             display: flex;
+
             align-items: center;
 
             gap: 8px;
@@ -984,11 +1001,15 @@ const Products = () => {
 
           .product-detail-icon {
             width: 31px;
+
             height: 31px;
+
             min-width: 31px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             border-radius: 7px;
@@ -1014,15 +1035,13 @@ const Products = () => {
             color: #3b4657;
 
             font-size: 12px;
+
             font-weight: 600;
 
             white-space: nowrap;
+
             text-overflow: ellipsis;
           }
-
-          /* ================================================
-             STOCK
-          ================================================ */
 
           .product-stock-box {
             padding: 10px;
@@ -1036,11 +1055,15 @@ const Products = () => {
 
           .product-stock-icon {
             width: 34px;
+
             height: 34px;
+
             min-width: 34px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             border-radius: 8px;
@@ -1052,13 +1075,11 @@ const Products = () => {
             border: 1px solid #e6eaf0;
           }
 
-          /* ================================================
-             COUPON
-          ================================================ */
-
           .product-coupon {
             display: flex;
+
             align-items: center;
+
             justify-content: space-between;
 
             gap: 10px;
@@ -1076,12 +1097,9 @@ const Products = () => {
 
           .product-coupon strong {
             font-size: 12px;
+
             letter-spacing: 0.3px;
           }
-
-          /* ================================================
-             FOOTER
-          ================================================ */
 
           .product-card-footer {
             background: #fafbfc;
@@ -1089,25 +1107,27 @@ const Products = () => {
 
           .product-action-btn {
             width: 34px;
+
             height: 34px;
 
             padding: 0;
 
             display: inline-flex;
+
             align-items: center;
+
             justify-content: center;
           }
 
-          /* ================================================
-             EMPTY
-          ================================================ */
-
           .product-empty-icon {
             width: 72px;
+
             height: 72px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             border-radius: 50%;
@@ -1120,10 +1140,6 @@ const Products = () => {
           .min-w-0 {
             min-width: 0;
           }
-
-          /* ================================================
-             MOBILE
-          ================================================ */
 
           @media (max-width: 575.98px) {
             .product-card-image-area {
