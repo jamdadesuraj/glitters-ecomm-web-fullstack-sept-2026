@@ -565,7 +565,7 @@ const EditBlogDrawer = ({ item }: any) => {
           OPEN BUTTON
       ============================================== */}
 
-      <button type="button" className="btn btn-soft-primary d-flex align-items-center gap-2" onClick={handleOpen}>
+      <button type="button" className="btn btn-soft-dark d-flex align-items-center gap-2" onClick={handleOpen}>
         <IconifyIcon icon="solar:pen-2-broken" />
       </button>
 

@@ -175,7 +175,7 @@ const EditMaterialDrawer = ({ item }: EditBrandsDrawerProps) => {
     <>
       {/* OPEN BUTTON */}
 
-      <button type="button" className="btn btn-soft-primary d-flex align-items-center gap-2" onClick={handleOpen} title="Edit">
+      <button type="button" className="btn btn-soft-dark d-flex align-items-center gap-2" onClick={handleOpen} title="Edit">
         <IconifyIcon icon="solar:pen-2-broken" />
       </button>
 

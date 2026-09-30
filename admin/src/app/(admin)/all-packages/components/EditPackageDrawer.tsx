@@ -164,7 +164,7 @@ const EditPackageDrawer = ({ onAdd }: EditPackageDrawerProps) => {
 
       <button
         type="button"
-        className="btn btn-soft-primary d-flex align-items-center justify-content-center gap-2"
+        className="btn btn-soft-dark d-flex align-items-center justify-content-center gap-2"
         onClick={() => setOpen(true)}
         title="Edit Package">
         <IconifyIcon icon="solar:pen-2-broken" width={18} />

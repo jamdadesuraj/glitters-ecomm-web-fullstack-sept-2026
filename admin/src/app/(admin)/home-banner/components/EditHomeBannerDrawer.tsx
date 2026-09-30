@@ -146,7 +146,7 @@ const EditHomeBannerDrawer = ({ item }: any) => {
   return (
     <>
       {/* OPEN BUTTON */}
-      <button className="btn btn-soft-primary d-flex align-items-center gap-2" onClick={() => setOpen(true)}>
+      <button className="btn btn-soft-dark d-flex align-items-center gap-2" onClick={() => setOpen(true)}>
         <IconifyIcon icon="solar:pen-2-broken" />
       </button>
 

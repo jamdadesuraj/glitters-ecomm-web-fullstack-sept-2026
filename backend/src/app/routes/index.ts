@@ -40,6 +40,8 @@ import { materialRouter } from "../modules/material/material.route";
 import { couponsRouter } from "../modules/coupons/coupons.route";
 import { offerBannerRouter } from "../modules/offerBanner/offerBanner.route";
 import { topSaleBannerRouter } from "../modules/topSaleBanner/topSaleBanner.route";
+import { appBannerRouter } from "../modules/appBanner/appBanner.route";
+import { appSettingsRouter } from "../modules/appSettings/app-settings.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -91,6 +93,14 @@ const moduleRoutes = [
   {
     path: "/blogs",
     route: blogRouter,
+  },
+  {
+    path: "/app-banner",
+    route: appBannerRouter,
+  },
+  {
+    path: "/app-settings",
+    route: appSettingsRouter,
   },
 
   {

@@ -83,7 +83,7 @@ const CareersEnquiries = () => {
                         <td>{item.phone}</td>
                         <td>
                           {item.resume && (
-                            <Link href={item.resume} target="_blank" rel="noopener noreferrer" className="btn btn-soft-primary btn-sm">
+                            <Link href={item.resume} target="_blank" rel="noopener noreferrer" className="btn btn-soft-dark btn-sm">
                               <i className="solar:document-text-bold-duotone"></i> View
                             </Link>
                           )}

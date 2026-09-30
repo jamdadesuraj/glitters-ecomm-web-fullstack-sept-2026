@@ -1327,7 +1327,7 @@ const AddProductsDrawer = () => {
                                 </div>
 
                                 <div className="d-flex flex-column gap-1">
-                                  <label className="btn btn-soft-primary btn-sm mb-0" style={{ cursor: 'pointer' }}>
+                                  <label className="btn btn-soft-dark btn-sm mb-0" style={{ cursor: 'pointer' }}>
                                     Change
                                     <input
                                       type="file"

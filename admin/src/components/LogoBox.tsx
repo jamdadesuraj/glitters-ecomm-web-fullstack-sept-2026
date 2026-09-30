@@ -1,19 +1,78 @@
-import logoDark from '@/assets/images/logo.webp'
-import logoLight from '@/assets/images/logo.webp'
-import logoSm from '@/assets/images/logo.webp'
+'use client'
+
+import { useGetSettingsQuery } from '@/store/settingApi'
 import Image from 'next/image'
 import Link from 'next/link'
 
 const LogoBox = () => {
+  const { data: settingsResponse, isLoading } = useGetSettingsQuery()
+
+  const settings = Array.isArray(settingsResponse) ? settingsResponse[0] : ((settingsResponse as any)?.data ?? settingsResponse)
+
+  const logoUrl = settings?.logo || ''
+
   return (
     <div className="logo-box">
+      {/* DARK LOGO */}
       <Link href="/" className="logo-dark">
-        <Image src={logoSm} width={28} height={26} className="logo-sm" alt="logo sm" />
-        <Image src={logoDark} height={100} width={150} className="logo-lg" alt="logo dark" />
+        {!isLoading && logoUrl && (
+          <>
+            <Image
+              src={logoUrl}
+              width={32}
+              height={32}
+              className="logo-sm"
+              alt="Logo"
+              unoptimized
+              style={{
+                objectFit: 'contain',
+              }}
+            />
+
+            <Image
+              src={logoUrl}
+              width={150}
+              height={50}
+              className="logo-lg"
+              alt="Logo"
+              unoptimized
+              style={{
+                objectFit: 'contain',
+              }}
+            />
+          </>
+        )}
       </Link>
+
+      {/* LIGHT LOGO */}
       <Link href="/" className="logo-light">
-        <Image src={logoSm} width={28} height={26} className="logo-sm" alt="logo sm" />
-        <Image src={logoLight} height={10} width={50} className="logo-lg" alt="logo light" />
+        {!isLoading && logoUrl && (
+          <>
+            <Image
+              src={logoUrl}
+              width={32}
+              height={32}
+              className="logo-sm"
+              alt="Logo"
+              unoptimized
+              style={{
+                objectFit: 'contain',
+              }}
+            />
+
+            <Image
+              src={logoUrl}
+              width={150}
+              height={50}
+              className="logo-lg"
+              alt="Logo"
+              unoptimized
+              style={{
+                objectFit: 'contain',
+              }}
+            />
+          </>
+        )}
       </Link>
     </div>
   )

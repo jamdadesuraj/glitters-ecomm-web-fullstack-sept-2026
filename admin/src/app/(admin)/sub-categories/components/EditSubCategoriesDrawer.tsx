@@ -300,7 +300,7 @@ const EditSubCategoriesDrawer = ({ item }: any) => {
     <>
       {/* OPEN */}
 
-      <button type="button" className="btn btn-soft-primary d-flex align-items-center gap-2" onClick={() => setOpen(true)}>
+      <button type="button" className="btn btn-soft-dark d-flex align-items-center gap-2" onClick={() => setOpen(true)}>
         <IconifyIcon icon="solar:pen-2-broken" />
       </button>
 

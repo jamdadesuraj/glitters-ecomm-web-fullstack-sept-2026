@@ -33,7 +33,7 @@ const SignUp = () => {
                       <Link href="" className="btn btn-soft-dark">
                         <IconifyIcon icon="bxl:google" className="fs-20 me-1" /> Sign Up with Google
                       </Link>
-                      <Link href="" className="btn btn-soft-primary">
+                      <Link href="" className="btn btn-soft-dark">
                         <IconifyIcon icon="bxl:facebook" className="fs-20 me-1" /> Sign Up with Facebook
                       </Link>
                     </div>

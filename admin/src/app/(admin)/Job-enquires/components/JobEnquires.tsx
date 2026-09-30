@@ -495,7 +495,7 @@ const JobEnquires = () => {
                               href={item.resume}
                               target="_blank"
                               rel="noreferrer"
-                              className="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-1">
+                              className="btn btn-sm btn-soft-dark d-inline-flex align-items-center gap-1">
                               <IconifyIcon icon="solar:document-text-broken" />
                               View Resume
                             </a>

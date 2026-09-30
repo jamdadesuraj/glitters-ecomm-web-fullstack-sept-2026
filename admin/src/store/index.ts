@@ -36,6 +36,8 @@ import { sizeApi } from './sizeApi'
 import { brandApi } from './brandApi'
 import { materialApi } from './materialApi'
 import { couponApi } from './couponApi'
+import { appBannerApi } from './appBannerApi'
+import { appSettingApi } from './appSettingsApi'
 
 export const store = configureStore({
   reducer: {
@@ -71,6 +73,9 @@ export const store = configureStore({
     [blogCategoryApi.reducerPath]: blogCategoryApi.reducer,
     [blogApi.reducerPath]: blogApi.reducer,
 
+    [appBannerApi.reducerPath]: appBannerApi.reducer,
+    [appSettingApi.reducerPath]: appSettingApi.reducer,
+
     [storeLocatorApi.reducerPath]: storeLocatorApi.reducer,
     [storeEnquiryApi.reducerPath]: storeEnquiryApi.reducer,
 
@@ -100,6 +105,9 @@ export const store = configureStore({
 
       currentOpeningsApi.middleware,
       careerInfoApi.middleware,
+
+      appBannerApi.middleware,
+      appSettingApi.middleware,
 
       testimonialsApi.middleware,
       faqApi.middleware,

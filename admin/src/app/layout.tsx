@@ -68,7 +68,7 @@ export default function RootLayout({
         <div id="splash-screen">
           <Image alt="Logo" width={112} height={24} src={logoDark} style={{ height: '7%', width: 'auto' }} priority />
         </div>
-        <NextTopLoader color="#2d26c2" showSpinner={false} />
+        <NextTopLoader color="#ffd83d" showSpinner={false} />
         <div id="__next_splash">
           <ReduxProviders>
             <AppProvidersWrapper>{children}</AppProvidersWrapper>

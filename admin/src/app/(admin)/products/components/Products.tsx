@@ -711,7 +711,7 @@ const Products = () => {
                               <Link href={`/products/view/${product._id}`} className="btn btn-soft-info btn-sm product-action-btn">
                                 <IconifyIcon icon="solar:eye-bold-duotone" width={18} />
                               </Link>
-                              <Link href={`/products/edit/${product._id}`} className="btn btn-soft-primary btn-sm  product-action-btn">
+                              <Link href={`/products/edit/${product._id}`} className="btn btn-soft-dark btn-sm  product-action-btn">
                                 <IconifyIcon icon="solar:pen-2-broken" />
                               </Link>
 
