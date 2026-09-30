@@ -3,6 +3,9 @@ import { Jura } from "next/font/google";
 
 import "./globals.css";
 import LayoutShell from "./components/LayoutShell";
+import { ReduxProviders } from "@/providers/ReduxProviders";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const jura = Jura({
   weight: ["300", "400", "500", "600", "700"],
@@ -22,7 +25,20 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${jura.className} bg-white`}>
       <body className="flex min-h-screen flex-col bg-white">
-        <LayoutShell>{children}</LayoutShell>
+        <ReduxProviders>
+          <LayoutShell>{children}</LayoutShell>
+
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            pauseOnHover
+            draggable
+            theme="light"
+          />
+        </ReduxProviders>
       </body>
     </html>
   );

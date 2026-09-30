@@ -3,40 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const menuItems = [
-  {
-    name: "Mobile Phones",
-    href: "/product-list",
-  },
-  {
-    name: "Accessories",
-    href: "/product-list",
-  },
-  {
-    name: "Smart Watches",
-    href: "/product-list",
-  },
-  {
-    name: "Audio",
-    href: "/product-list",
-  },
-  {
-    name: "Chargers",
-    href: "/product-list",
-  },
-  {
-    name: "Cases & Protection",
-    href: "/product-list",
-  },
-  {
-    name: "Power & Cables",
-    href: "/product-list",
-  },
-];
+import { useGetcategoryQuery } from "@/store/categoriesApi";
 
 const MainMenu = () => {
   const pathname = usePathname();
+
+  // apis
+  const { data: menuItems } = useGetcategoryQuery();
 
   return (
     <div
@@ -59,14 +32,15 @@ const MainMenu = () => {
           dark:bg-[#181818] md:hidden lg:flex
         "
       >
-        {menuItems.map((item) => {
+        {menuItems?.map((item) => {
           const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+            pathname === item.categoryName ||
+            pathname.startsWith(`${item.categoryName}/`);
 
           return (
             <Link
-              key={item.name}
-              href={item.href}
+              key={item.categoryName}
+              href={`/product-list`}
               className={`
                 relative shrink-0
                 rounded-lg
@@ -94,7 +68,7 @@ const MainMenu = () => {
                 }
               `}
             >
-              {item.name}
+              {item.categoryName}
 
               {active && (
                 <span
