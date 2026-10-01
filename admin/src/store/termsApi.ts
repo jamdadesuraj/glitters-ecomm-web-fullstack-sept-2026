@@ -1,7 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import { RootState as IRootState } from '@/store'
 
-export interface IPrivacy {
+export interface ITerms {
   _id: string
   badgeTitle: string
   title: string
@@ -9,6 +9,8 @@ export interface IPrivacy {
   content: string
   userId: string
 }
+
+export type TermsPayload = Pick<ITerms, 'badgeTitle' | 'title' | 'shortDesc' | 'content'>
 
 interface ITermsResponse {
   success: boolean
@@ -30,8 +32,6 @@ export const termsApi = createApi({
         headers.set('Authorization', `Bearer ${token}`)
       }
 
-      headers.set('Content-Type', 'application/json')
-
       return headers
     },
   }),
@@ -39,17 +39,11 @@ export const termsApi = createApi({
   tagTypes: ['Terms'],
 
   endpoints: (builder) => ({
-    // GET Terms
     getTerms: builder.query<ITerms[], void>({
-      query: () => ({
-        url: '/terms-and-conditions',
-        method: 'GET',
-      }),
+      query: () => '/terms-and-conditions',
 
       transformResponse: (response: ITermsResponse) => {
-        if (Array.isArray(response.data)) {
-          return response.data
-        }
+        if (Array.isArray(response.data)) return response.data
 
         return response.data ? [response.data] : []
       },
@@ -57,13 +51,7 @@ export const termsApi = createApi({
       providesTags: ['Terms'],
     }),
 
-    // CREATE Terms
-    createTerms: builder.mutation<
-      ITerms,
-      {
-        content: string
-      }
-    >({
+    createTerms: builder.mutation<ITerms, TermsPayload>({
       query: (body) => ({
         url: '/terms-and-conditions',
         method: 'POST',
@@ -75,20 +63,11 @@ export const termsApi = createApi({
       invalidatesTags: ['Terms'],
     }),
 
-    // UPDATE Terms
-    updateTerms: builder.mutation<
-      ITerms,
-      {
-        _id: string
-        content: string
-      }
-    >({
-      query: ({ _id, content }) => ({
+    updateTerms: builder.mutation<ITerms, { _id: string } & TermsPayload>({
+      query: ({ _id, ...body }) => ({
         url: `/terms-and-conditions/${_id}`,
         method: 'PUT',
-        body: {
-          content,
-        },
+        body,
       }),
 
       transformResponse: (response: ITermsResponse) => response.data as ITerms,

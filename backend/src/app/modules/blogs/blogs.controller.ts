@@ -120,21 +120,18 @@ export const getAllBlogs = async (
   next: NextFunction,
 ) => {
   try {
-    const Blogs = await BlogsModel.find({
-      isDeleted: false,
-    })
-      .populate("category", "_id categoryName")
-      .sort({
-        createdAt: -1,
+    const Blogs = await BlogsModel.find({ isDeleted: false })
+      .populate("category", "_id categoryName createdAt updatedAt")
+      .sort({ createdAt: -1 });
+    res
+      .status(200)
+      .json({
+        success: true,
+        statusCode: 200,
+        message:
+          Blogs.length > 0 ? "Blogs retrieved successfully" : "No Blogs found",
+        data: Blogs,
       });
-
-    res.status(200).json({
-      success: true,
-      statusCode: 200,
-      message:
-        Blogs.length > 0 ? "Blogs retrieved successfully" : "No Blogs found",
-      data: Blogs,
-    });
   } catch (error) {
     next(error);
   }
@@ -148,13 +145,13 @@ export const BlogsById = async (
   try {
     const Blogs = await BlogsModel.findOne({
       _id: req.params.id,
-    });
-
+      isDeleted: false,
+    }).populate("category", "_id categoryName createdAt updatedAt");
     if (!Blogs) {
       next(new appError("Blogs not found", 404));
       return;
     }
-    res.json({
+    res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Blogs retrieved successfully",

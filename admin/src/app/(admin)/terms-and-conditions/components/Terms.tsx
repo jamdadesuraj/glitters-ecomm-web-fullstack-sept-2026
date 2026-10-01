@@ -8,245 +8,146 @@ import { Card, CardBody, CardHeader, CardTitle, Col, Row } from 'react-bootstrap
 
 import { toast } from 'react-toastify'
 
-import { useCreatePrivacyMutation, useGetPrivacyQuery, useUpdatePrivacyMutation } from '@/store/privacyPolicyApi'
+import { useCreateTermsMutation, useGetTermsQuery, useUpdateTermsMutation } from '@/store/termsApi'
 
 // @ts-ignore
-import 'react-quill/dist/quill.snow.css'
+import 'react-quill-new/dist/quill.snow.css'
 
-// =====================================================
-// REACT QUILL SSR FIX
-// =====================================================
+// Quill touches `document`, so it must only render on the client.
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 
-const ReactQuill = dynamic(() => import('react-quill'), {
-  ssr: false,
-})
-
-// =====================================================
-// TYPE
-// =====================================================
-
-type PrivacyFormData = {
+type TermsFormData = {
   badgeTitle: string
   title: string
   shortDesc: string
   content: string
 }
 
-// =====================================================
-// INITIAL DATA
-// =====================================================
-
-const initialFormData: PrivacyFormData = {
+const initialFormData: TermsFormData = {
   badgeTitle: '',
   title: '',
   shortDesc: '',
   content: '',
 }
 
-// =====================================================
-// COMPONENT
-// =====================================================
+// Accepts { data: [...] }, { data: {...} }, [...] or {...} and returns one document (or null).
+const normalizeResponse = (response: any) => {
+  if (!response) return null
+
+  const payload = response.data ?? response
+
+  return Array.isArray(payload) ? (payload[0] ?? null) : payload
+}
+
+// Quill reports "<p><br></p>" for an empty editor, so strip tags before checking.
+// Content that only contains media (image, video, iframe) still counts as filled.
+const isQuillEmpty = (value: string) => {
+  if (/<(img|iframe|video)/i.test(value)) return false
+
+  const text = value
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim()
+
+  return !text
+}
 
 const Terms = () => {
-  // ===================================================
-  // API
-  // ===================================================
+  const { data: termsResponse, isLoading, isError, error, refetch } = useGetTermsQuery()
 
-  const { data: privacyResponse, isLoading, isError, refetch } = useGetPrivacyQuery()
+  const [createTerms, { isLoading: creating }] = useCreateTermsMutation()
+  const [updateTerms, { isLoading: updating }] = useUpdateTermsMutation()
 
-  const [createPrivacy, { isLoading: creating }] = useCreatePrivacyMutation()
+  const [formData, setFormData] = useState<TermsFormData>(initialFormData)
 
-  const [updatePrivacy, { isLoading: updating }] = useUpdatePrivacyMutation()
+  const terms = useMemo(() => normalizeResponse(termsResponse), [termsResponse])
 
-  // ===================================================
-  // NORMALIZE RESPONSE
-  // ===================================================
+  // A 404 just means nothing has been created yet, so the empty form should still show.
+  const notFound = isError && (error as any)?.status === 404
 
-  const privacy = useMemo(() => {
-    const response: any = privacyResponse
-
-    if (!response) {
-      return null
-    }
-
-    // { data: [...] }
-    if (Array.isArray(response?.data)) {
-      return response.data[0] || null
-    }
-
-    // { data: {...} }
-    if (response?.data && typeof response.data === 'object') {
-      return response.data
-    }
-
-    // direct array
-    if (Array.isArray(response)) {
-      return response[0] || null
-    }
-
-    // direct object
-    return response
-  }, [privacyResponse])
-
-  // ===================================================
-  // FORM
-  // ===================================================
-
-  const [formData, setFormData] = useState<PrivacyFormData>(initialFormData)
-
-  // ===================================================
-  // LOAD EXISTING DATA
-  // ===================================================
+  const isSaving = creating || updating
 
   useEffect(() => {
-    if (!privacy) {
-      return
-    }
+    if (!terms) return
 
     setFormData({
-      badgeTitle: privacy.badgeTitle || '',
-
-      title: privacy.title || '',
-
-      shortDesc: privacy.shortDesc || '',
-
-      content: privacy.content || '',
+      badgeTitle: terms.badgeTitle || '',
+      title: terms.title || '',
+      shortDesc: terms.shortDesc || '',
+      content: terms.content || '',
     })
-  }, [privacy])
-
-  // ===================================================
-  // INPUT CHANGE
-  // ===================================================
+  }, [terms])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  // ===================================================
-  // CHECK QUILL EMPTY
-  // ===================================================
-
-  const isQuillEmpty = (value: string) => {
-    const text = value
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim()
-
-    return !text
+  const handleContentChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, content: value }))
   }
 
-  // ===================================================
-  // SUBMIT
-  // ===================================================
+  const validate = () => {
+    if (!formData.badgeTitle.trim()) return 'Badge title is required'
+    if (!formData.title.trim()) return 'Title is required'
+    if (!formData.shortDesc.trim()) return 'Short description is required'
+    if (isQuillEmpty(formData.content)) return 'Terms & Conditions content is required'
+
+    return null
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    // ===============================================
-    // VALIDATION
-    // ===============================================
+    const validationError = validate()
 
-    if (!formData.badgeTitle.trim()) {
-      toast.error('Badge title is required')
+    if (validationError) {
+      toast.error(validationError)
       return
     }
-
-    if (!formData.title.trim()) {
-      toast.error('Title is required')
-      return
-    }
-
-    if (!formData.shortDesc.trim()) {
-      toast.error('Short description is required')
-      return
-    }
-
-    if (isQuillEmpty(formData.content)) {
-      toast.error('Terms & Conditions content is required')
-      return
-    }
-
-    // ===============================================
-    // PAYLOAD
-    // ===============================================
 
     const payload = {
       badgeTitle: formData.badgeTitle.trim(),
-
       title: formData.title.trim(),
-
       shortDesc: formData.shortDesc.trim(),
-
       content: formData.content,
     }
 
     try {
-      // =============================================
-      // UPDATE
-      // =============================================
-
-      if (privacy?._id) {
-        await updatePrivacy({
-          _id: privacy._id,
-          ...payload,
-        }).unwrap()
-
+      if (terms?._id) {
+        await updateTerms({ _id: terms._id, ...payload }).unwrap()
         toast.success('Terms & Conditions updated successfully')
-      }
-
-      // =============================================
-      // CREATE
-      // =============================================
-      else {
-        await createPrivacy(payload).unwrap()
-
+      } else {
+        await createTerms(payload).unwrap()
         toast.success('Terms & Conditions created successfully')
       }
 
       await refetch()
-    } catch (error: any) {
-      console.error('Terms & Conditions Error:', error)
-
-      toast.error(error?.data?.message || 'Something went wrong')
+    } catch (err: any) {
+      console.error('Terms & Conditions error:', err)
+      toast.error(err?.data?.message || 'Something went wrong')
     }
   }
-
-  // ===================================================
-  // LOADING
-  // ===================================================
 
   if (isLoading) {
     return (
       <div className="py-5 text-center">
         <div className="spinner-border text-primary" role="status" />
-
         <div className="mt-2">Loading Terms & Conditions...</div>
       </div>
     )
   }
 
-  // ===================================================
-  // ERROR
-  // ===================================================
-
-  if (isError) {
+  if (isError && !notFound) {
     return <div className="alert alert-danger">Unable to load Terms & Conditions.</div>
   }
 
-  // ===================================================
-  // UI
-  // ===================================================
+  const buttonLabel = isSaving ? (terms?._id ? 'Updating...' : 'Creating...') : terms?._id ? 'Update Terms & Conditions' : 'Create Terms & Conditions'
 
   return (
     <form onSubmit={handleSubmit}>
-      {/* =============================================
-          BASIC INFORMATION
-      ============================================= */}
+      <style>{`.terms-editor .ql-editor { min-height: 300px; }`}</style>
 
       <Card className="mb-4">
         <CardHeader>
@@ -257,36 +158,34 @@ const Terms = () => {
 
         <CardBody>
           <Row>
-            {/* BADGE TITLE */}
-
             <Col md={6}>
               <div className="mb-3">
-                <label className="form-label">
+                <label htmlFor="badgeTitle" className="form-label">
                   Badge Title
                   <span className="text-danger ms-1">*</span>
                 </label>
 
                 <input
+                  id="badgeTitle"
                   type="text"
                   className="form-control"
                   name="badgeTitle"
                   value={formData.badgeTitle}
                   onChange={handleChange}
-                  placeholder="e.g. Privacy & Security"
+                  placeholder="e.g. Legal"
                 />
               </div>
             </Col>
 
-            {/* TITLE */}
-
             <Col md={6}>
               <div className="mb-3">
-                <label className="form-label">
+                <label htmlFor="title" className="form-label">
                   Title
                   <span className="text-danger ms-1">*</span>
                 </label>
 
                 <input
+                  id="title"
                   type="text"
                   className="form-control"
                   name="title"
@@ -297,16 +196,15 @@ const Terms = () => {
               </div>
             </Col>
 
-            {/* SHORT DESCRIPTION */}
-
             <Col md={12}>
               <div className="mb-3">
-                <label className="form-label">
+                <label htmlFor="shortDesc" className="form-label">
                   Short Description
                   <span className="text-danger ms-1">*</span>
                 </label>
 
                 <textarea
+                  id="shortDesc"
                   rows={4}
                   className="form-control"
                   name="shortDesc"
@@ -320,10 +218,6 @@ const Terms = () => {
         </CardBody>
       </Card>
 
-      {/* =============================================
-          CONTENT
-      ============================================= */}
-
       <Card className="mb-4">
         <CardHeader>
           <CardTitle as="h4" className="mb-0">
@@ -332,43 +226,19 @@ const Terms = () => {
         </CardHeader>
 
         <CardBody>
-          <div className="mb-3">
+          <div className="mb-3 terms-editor">
             <label className="form-label">
               Content
               <span className="text-danger ms-1">*</span>
             </label>
 
-            <ReactQuill
-              theme="snow"
-              value={formData.content}
-              onChange={(value) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  content: value,
-                }))
-              }
-              placeholder="Enter Terms & Conditions content..."
-              style={{
-                minHeight: '350px',
-                marginBottom: '45px',
-              }}
-            />
+            <ReactQuill theme="snow" value={formData.content} onChange={handleContentChange} placeholder="Enter Terms & Conditions content..." />
           </div>
         </CardBody>
       </Card>
 
-      {/* =============================================
-          SAVE
-      ============================================= */}
-
-      <button type="submit" className="btn btn-primary w-100 mb-4" disabled={creating || updating}>
-        {creating || updating
-          ? privacy?._id
-            ? 'Updating...'
-            : 'Creating...'
-          : privacy?._id
-            ? 'Update Terms & Conditions'
-            : 'Create Terms & Conditions'}
+      <button type="submit" className="btn btn-primary w-100 mb-4" disabled={isSaving}>
+        {buttonLabel}
       </button>
     </form>
   )

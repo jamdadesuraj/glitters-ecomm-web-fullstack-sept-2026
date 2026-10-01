@@ -1,7 +1,12 @@
 import { NextFunction, Request, Response } from "express";
+import { isValidObjectId } from "mongoose";
 import { appError } from "../../errors/appError";
 import { Terms } from "./terms.model";
 import { termsSchema, updateTermsSchema } from "./terms.validation";
+
+/* ============================================================
+   CREATE
+============================================================ */
 
 export const createTerms = async (
   req: Request,
@@ -9,41 +14,35 @@ export const createTerms = async (
   next: NextFunction,
 ) => {
   try {
-    const { badgeTitle, title, shortDesc, content } = req.body;
+    // validate first, so only clean data reaches the database
+    const validateData = termsSchema.parse(req.body);
 
-    // existing
+    // check duplicate
     const existingData = await Terms.findOne({
-      badgeTitle,
-      title,
-      shortDesc,
-      content,
+      ...validateData,
+      isDeleted: { $ne: true },
     });
 
     if (existingData) {
       return next(new appError("Terms already exists", 400));
     }
-    // validate data
 
-    const validateData = await termsSchema.parse({
-      badgeTitle,
-      title,
-      shortDesc,
-      content,
-    });
-
-    // create
-    const createTerms = await Terms.create(validateData);
+    const newTerms = await Terms.create(validateData);
 
     res.status(201).json({
       success: true,
-      statusCode: 200,
+      statusCode: 201,
       message: "Terms created successfully",
-      data: createTerms,
+      data: newTerms,
     });
   } catch (error) {
     next(error);
   }
 };
+
+/* ============================================================
+   GET ALL
+============================================================ */
 
 export const getAllTerms = async (
   req: Request,
@@ -51,7 +50,7 @@ export const getAllTerms = async (
   next: NextFunction,
 ) => {
   try {
-    const getAllTermsData = await Terms.find().sort({
+    const allTerms = await Terms.find({ isDeleted: { $ne: true } }).sort({
       createdAt: -1,
     });
 
@@ -59,15 +58,17 @@ export const getAllTerms = async (
       success: true,
       statusCode: 200,
       message:
-        getAllTermsData.length > 0
-          ? "Terms retrieved successfully"
-          : "No Terms found",
-      data: getAllTermsData,
+        allTerms.length > 0 ? "Terms retrieved successfully" : "No Terms found",
+      data: allTerms,
     });
   } catch (error) {
     next(error);
   }
 };
+
+/* ============================================================
+   GET BY ID
+============================================================ */
 
 export const getTermsById = async (
   req: Request,
@@ -75,24 +76,35 @@ export const getTermsById = async (
   next: NextFunction,
 ) => {
   try {
-    const TermsId = await Terms.findOne({
-      _id: req.params.id,
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return next(new appError("Invalid Terms id", 400));
+    }
+
+    const terms = await Terms.findOne({
+      _id: id,
+      isDeleted: { $ne: true },
     });
 
-    if (!TermsId) {
+    if (!terms) {
       return next(new appError("Terms not found", 404));
     }
+
     res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Terms retrieved successfully",
-      data: TermsId,
+      data: terms,
     });
-    return;
   } catch (error) {
     next(error);
   }
 };
+
+/* ============================================================
+   UPDATE
+============================================================ */
 
 export const updateTerms = async (
   req: Request,
@@ -100,13 +112,16 @@ export const updateTerms = async (
   next: NextFunction,
 ) => {
   try {
-    const TermsId = req.params.id;
+    const { id } = req.params;
 
-    // validate
-    const validateData = await updateTermsSchema.parse(req.body);
+    if (!isValidObjectId(id)) {
+      return next(new appError("Invalid Terms id", 400));
+    }
 
-    const UpdateTerms = await Terms.findOneAndUpdate(
-      { _id: TermsId },
+    const validateData = updateTermsSchema.parse(req.body);
+
+    const updatedTerms = await Terms.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true } },
       validateData,
       {
         new: true,
@@ -114,17 +129,15 @@ export const updateTerms = async (
       },
     );
 
-    if (!UpdateTerms) {
-      return next(new appError("Termsnot found", 404));
+    if (!updatedTerms) {
+      return next(new appError("Terms not found", 404));
     }
-
-    await UpdateTerms.save();
 
     res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Terms updated successfully",
-      data: UpdateTerms,
+      data: updatedTerms,
     });
   } catch (error) {
     next(error);

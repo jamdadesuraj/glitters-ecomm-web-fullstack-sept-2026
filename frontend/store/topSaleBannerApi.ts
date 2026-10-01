@@ -12,6 +12,9 @@ export interface ISubCategoryRef {
 }
 
 export interface ITopSaleBanner {
+  offerBannerImg3: string;
+  offerBannerImg2: string;
+  offerBannerImg1: string;
   _id: string;
 
   category: string | ICategoryRef;

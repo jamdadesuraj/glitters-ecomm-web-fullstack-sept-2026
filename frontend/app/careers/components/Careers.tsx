@@ -1,649 +1,443 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-
 import {
   FiArrowRight,
   FiBriefcase,
   FiCheckCircle,
   FiClock,
-  FiCoffee,
   FiDollarSign,
   FiMapPin,
   FiSearch,
-  FiShield,
   FiStar,
   FiTrendingUp,
   FiUsers,
+  FiShield,
+  FiCoffee,
 } from "react-icons/fi";
 
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
+import { useGetCareerInfoQuery } from "@/store/careerinfoApi";
+import { useGetCurrentOpeningsQuery } from "@/store/currentOpeningsApi";
 
-type Job = {
-  id: number;
+/* ============================================================
+   TYPES
+============================================================ */
+
+type RawItem =
+  | string
+  | {
+      title?: string;
+      name?: string;
+      text?: string;
+      description?: string;
+      desc?: string;
+    }
+  | null
+  | undefined;
+
+interface CareerInfo {
+  _id: string;
+  badgeText?: string;
+  heroTitle?: string;
+  heroHighlight?: string;
+  heroDescription?: string;
+  benefitsLabel?: string;
+  benefitsTitle?: string;
+  employeeBenefits?: RawItem[];
+  cultureTitle?: string;
+  cultureDescription?: string;
+  culturePoints?: RawItem[];
+  hiringProcessLabel?: string;
+  hiringProcessTitle?: string;
+  hiringProcess?: RawItem[];
+  isDeleted?: boolean;
+}
+
+interface Job {
+  _id: string;
+  jobID?: string;
+  jobTitle?: string;
+  shortDesc?: string;
+  location?: string;
+  jobType?: string;
+  experience?: string;
+  dept?: string;
+  roles?: string;
+  salary?: string;
+  openings?: string;
+  responsibilities?: string;
+  requirements?: string;
+  benefits?: string;
+  isDeleted?: boolean;
+  createdAt?: string | Date | null;
+}
+
+interface Item {
   title: string;
-  department: string;
-  location: string;
-  type: string;
-  experience: string;
-  description: string;
-  featured?: boolean;
+  text: string;
+}
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const hasId = (value: unknown): boolean => isRecord(value) && "_id" in value;
+
+/** Supports: T[] | { data: T[] } | { data: T } | T */
+const extractList = <T,>(response: unknown): T[] => {
+  if (Array.isArray(response)) return response.filter(hasId) as T[];
+
+  if (isRecord(response)) {
+    if (Array.isArray(response.data)) return response.data.filter(hasId) as T[];
+    if (hasId(response.data)) return [response.data as T];
+    if (hasId(response)) return [response as T];
+  }
+
+  return [];
 };
 
-const jobs: Job[] = [
-  {
-    id: 1,
-    title: "Frontend Developer",
-    department: "Engineering",
-    location: "Dubai, UAE",
-    type: "Full Time",
-    experience: "2+ Years",
-    description:
-      "Build responsive and user-friendly ecommerce experiences using modern frontend technologies.",
-    featured: true,
-  },
-  {
-    id: 2,
-    title: "Backend Developer",
-    department: "Engineering",
-    location: "Dubai, UAE",
-    type: "Full Time",
-    experience: "3+ Years",
-    description:
-      "Develop scalable backend systems, APIs and integrations for our ecommerce platform.",
-  },
-  {
-    id: 3,
-    title: "UI/UX Designer",
-    department: "Design",
-    location: "Dubai, UAE",
-    type: "Full Time",
-    experience: "2+ Years",
-    description:
-      "Create clean, intuitive and customer-focused digital shopping experiences.",
-  },
-  {
-    id: 4,
-    title: "Digital Marketing Executive",
-    department: "Marketing",
-    location: "Dubai, UAE",
-    type: "Full Time",
-    experience: "1+ Years",
-    description:
-      "Plan and execute digital campaigns across social media, search and performance channels.",
-  },
-  {
-    id: 5,
-    title: "Customer Support Executive",
-    department: "Customer Support",
-    location: "Dubai, UAE",
-    type: "Full Time",
-    experience: "1+ Years",
-    description:
-      "Support customers with orders, payments, returns, delivery and product-related queries.",
-  },
-  {
-    id: 6,
-    title: "Warehouse Coordinator",
-    department: "Operations",
-    location: "Dubai, UAE",
-    type: "Full Time",
-    experience: "1+ Years",
-    description:
-      "Coordinate inventory, packing, dispatch and warehouse operations efficiently.",
-  },
+/** Converts a string or object item from the API into { title, text }. */
+const toItem = (raw: RawItem): Item | null => {
+  if (!raw) return null;
+
+  if (typeof raw === "string") {
+    return raw.trim() ? { title: raw.trim(), text: "" } : null;
+  }
+
+  const title = raw.title ?? raw.name ?? "";
+  const text = raw.text ?? raw.description ?? raw.desc ?? "";
+
+  return title || text ? { title, text } : null;
+};
+
+const toItems = (list?: RawItem[]): Item[] =>
+  (list ?? []).map(toItem).filter((item): item is Item => item !== null);
+
+const parseDate = (value?: string | Date | null): Date | null => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const text = value.trim();
+
+  /* DD/MM/YYYY or DD-MM-YYYY */
+  const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+
+  if (match) {
+    const [, day, month, year] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const date = new Date(text);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatDate = (value?: string | Date | null): string => {
+  const date = parseDate(value);
+
+  if (!date || Number.isNaN(date.getTime())) return "";
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = date.toLocaleString("en-US", { month: "long" });
+
+  return `${day} ${month} ${date.getFullYear()}`;
+};
+
+/* ============================================================
+   SHARED STYLES
+============================================================ */
+
+const CARD =
+  "rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#181818]";
+
+const SECTION_LABEL =
+  "text-[12px] font-bold uppercase tracking-[1px] text-[#9b7600] dark:text-[#ffd83d]";
+
+const YELLOW_BTN =
+  "flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#ffd83d] px-5 font-serif text-[9px] font-extrabold text-black transition hover:bg-[#ffcf12]";
+
+const BENEFIT_ICONS = [
+  <FiDollarSign key="d" size={14} />,
+  <FiClock key="c" size={14} />,
+  <FiShield key="s" size={14} />,
+  <FiCoffee key="co" size={14} />,
+  <FiTrendingUp key="t" size={14} />,
+  <FiStar key="st" size={14} />,
 ];
 
-const departments = [
-  "All",
-  "Engineering",
-  "Design",
-  "Marketing",
-  "Customer Support",
-  "Operations",
-];
+/* ============================================================
+   PAGE
+============================================================ */
 
 const Careers = () => {
-  const [department, setDepartment] = useState("All");
+  const {
+    data: careerResponse,
+    isLoading: careerLoading,
+    isError: careerError,
+  } = useGetCareerInfoQuery();
 
+  const {
+    data: jobsResponse,
+    isLoading: jobsLoading,
+    isError: jobsError,
+  } = useGetCurrentOpeningsQuery();
+
+  const [department, setDepartment] = useState("All");
   const [search, setSearch] = useState("");
+
+  const career = useMemo(
+    () =>
+      extractList<CareerInfo>(careerResponse).find((item) => !item.isDeleted) ??
+      null,
+    [careerResponse],
+  );
+
+  const jobs = useMemo(
+    () => extractList<Job>(jobsResponse).filter((job) => !job.isDeleted),
+    [jobsResponse],
+  );
+
+  const departments = useMemo(() => {
+    const unique = new Set<string>();
+
+    jobs.forEach((job) => {
+      if (job.dept?.trim()) unique.add(job.dept.trim());
+    });
+
+    return ["All", ...Array.from(unique)];
+  }, [jobs]);
 
   const filteredJobs = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return jobs.filter((job) => {
       const departmentMatch =
-        department === "All" || job.department === department;
+        department === "All" || job.dept?.trim() === department;
 
       const searchMatch =
         !query ||
-        job.title.toLowerCase().includes(query) ||
-        job.department.toLowerCase().includes(query) ||
-        job.location.toLowerCase().includes(query);
+        (job.jobTitle ?? "").toLowerCase().includes(query) ||
+        (job.dept ?? "").toLowerCase().includes(query) ||
+        (job.location ?? "").toLowerCase().includes(query);
 
       return departmentMatch && searchMatch;
     });
-  }, [department, search]);
+  }, [jobs, department, search]);
+
+  /* ---------- STATES ---------- */
+
+  if (careerLoading || jobsLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f7f7f8] dark:bg-[#0f0f0f]">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+      </main>
+    );
+  }
+
+  if (careerError || !career) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f7f7f8] dark:bg-[#0f0f0f]">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Careers information is not available right now.
+        </p>
+      </main>
+    );
+  }
+
+  /* ---------- DERIVED DATA ---------- */
+
+  const benefits = toItems(career.employeeBenefits);
+  const culturePoints = toItems(career.culturePoints);
+  const hiringSteps = toItems(career.hiringProcess);
+
+  /* ---------- RENDER ---------- */
 
   return (
-    <main
-      className="
-        min-h-screen
-        bg-[#f7f7f8]
-        py-4
-        sm:py-6
-        lg:py-8
-        dark:bg-[#0f0f0f]
-      "
-    >
-      <div
-        className="
-          mx-auto
-          w-full
-          max-w-375
-          px-3
-          sm:px-5
-          lg:px-8
-          xl:px-10
-        "
-      >
-        {/* HERO */}
+    <main className="min-h-screen bg-[#f7f7f8] py-4 dark:bg-[#0f0f0f] sm:py-6 lg:py-8">
+      <div className="mx-auto w-full max-w-375 px-3 sm:px-5 lg:px-8 xl:px-10">
+        {/* ================= HERO ================= */}
         <section
-          className="
-            relative
-            overflow-hidden
-            rounded-2xl
-            border
-            border-gray-200
-            bg-white
-            px-4
-            py-8
-            sm:px-6
-            sm:py-10
-            lg:px-10
-            lg:py-14
-            dark:border-gray-800
-            dark:bg-[#181818]
-          "
+          className={`${CARD} relative overflow-hidden px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-14`}
         >
-          <div
-            className="
-              absolute
-              -right-24
-              -top-24
-              h-72
-              w-72
-              rounded-full
-              bg-[#ffd83d]/15
-              blur-3xl
-            "
-          />
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#ffd83d]/15 blur-3xl" />
 
-          <div
-            className="
-              relative
-              grid
-              grid-cols-1
-              items-center
-              gap-7
-              lg:grid-cols-[minmax(0,1fr)_420px]
-            "
-          >
+          <div className="relative grid grid-cols-1 items-center gap-7 lg:grid-cols-[minmax(0,1fr)_420px]">
             <div className="max-w-180">
-              <span
-                className="
-                  inline-flex
-                  items-center
-                  gap-1.5
-                  rounded-full
-                  bg-[#fff6ce]
-                  px-2.5
-                  py-1
-                  text-[8px]
-                  font-bold
-                  text-[#806300]
-                  sm:text-[9px]
-                  dark:bg-[#2b260f]
-                  dark:text-[#ffd83d]
-                "
-              >
-                <FiBriefcase size={11} />
-                Join our team
-              </span>
-
-              <h1
-                className="
-                  mt-3
-                  font-serif
-                  text-[24px]
-                  font-extrabold
-                  leading-tight
-                  text-black
-                  sm:text-[30px]
-                  lg:text-[38px]
-                  dark:text-white
-                "
-              >
-                Build Your Career
-                <span className="text-[#b38900] dark:text-[#ffd83d]">
-                  {" "}
-                  With Us
+              {career.badgeText && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fff6ce] px-2.5 py-1 text-[8px] font-bold text-[#806300] dark:bg-[#2b260f] dark:text-[#ffd83d] sm:text-[9px]">
+                  <FiBriefcase size={11} />
+                  {career.badgeText}
                 </span>
+              )}
+
+              <h1 className="mt-3 font-serif text-[24px] font-extrabold leading-tight text-black dark:text-white sm:text-[30px] lg:text-[38px]">
+                {career.heroTitle}{" "}
+                {career.heroHighlight && (
+                  <span className="text-[#b38900] dark:text-[#ffd83d]">
+                    {career.heroHighlight}
+                  </span>
+                )}
               </h1>
 
-              <p
-                className="
-                  mt-3
-                  max-w-162.5
-                  text-[9px]
-                  leading-5
-                  text-gray-900
-                  sm:text-[10px]
-                  lg:text-[12px]
-                  dark:text-gray-400
-                "
-              >
-                Join a growing ecommerce team working across technology,
-                operations, customer support, marketing and design.
-              </p>
+              {career.heroDescription && (
+                <p className="mt-3 max-w-162.5 text-[9px] leading-5 text-gray-900 dark:text-gray-400 sm:text-[10px] lg:text-[12px]">
+                  {career.heroDescription}
+                </p>
+              )}
 
               <div className="mt-5 flex flex-wrap gap-2">
                 <ThemeBtnOne
                   text="View Open Positions"
                   icon={<FiArrowRight size={11} />}
                   url="#open-positions"
-                  className="
-                    flex
-                    h-10
-                    items-center
-                    justify-center
-                    gap-1.5
-                    rounded-xl
-                    bg-[#ffd83d]
-                    px-4
-                    text-[9px]
-                    font-extrabold
-                    text-black
-                    transition
-                    font-serif
-                    hover:bg-[#ffcf12]
-                  "
+                  className={YELLOW_BTN}
                 />
               </div>
             </div>
           </div>
         </section>
 
-        {/* BENEFITS */}
-        <section
-          className="
-            mt-4
-            grid
-            grid-cols-1
-            gap-4
-            lg:grid-cols-2
-          "
-        >
-          <div
-            className="
-              rounded-2xl
-              border
-              border-gray-200
-              bg-white
-              p-4
-              sm:p-5
-              lg:p-6
-              dark:border-gray-800
-              dark:bg-[#181818]
-            "
-          >
-            <span
-              className="
-                text-[12px]
-                font-bold
-                uppercase
-                tracking-[1px]
-                text-[#9b7600]
-                dark:text-[#ffd83d]
-              "
-            >
-              Employee Benefits
-            </span>
+        {/* ================= BENEFITS + CULTURE ================= */}
+        <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* BENEFITS */}
+          <div className={`${CARD} p-4 sm:p-5 lg:p-6`}>
+            {career.benefitsLabel && (
+              <span className={SECTION_LABEL}>{career.benefitsLabel}</span>
+            )}
 
-            <h2
-              className="
-                mt-1
-                font-serif
-                text-[17px]
-                font-extrabold
-                text-black
-                dark:text-white
-              "
-            >
-              Benefits That Support You
-            </h2>
+            {career.benefitsTitle && (
+              <h2 className="mt-1 font-serif text-[17px] font-extrabold text-black dark:text-white">
+                {career.benefitsTitle}
+              </h2>
+            )}
 
-            <div
-              className="
-                mt-5
-                grid
-                grid-cols-1
-                gap-2.5
-                sm:grid-cols-2
-              "
-            >
-              <SmallBenefit
-                icon={<FiDollarSign size={14} />}
-                title="Competitive Salary"
-              />
-
-              <SmallBenefit
-                icon={<FiClock size={14} />}
-                title="Flexible Work Hours"
-              />
-
-              <SmallBenefit
-                icon={<FiShield size={14} />}
-                title="Health Benefits"
-              />
-
-              <SmallBenefit
-                icon={<FiCoffee size={14} />}
-                title="Paid Time Off"
-              />
-
-              <SmallBenefit
-                icon={<FiTrendingUp size={14} />}
-                title="Learning & Development"
-              />
-
-              <SmallBenefit
-                icon={<FiStar size={14} />}
-                title="Performance Rewards"
-              />
-            </div>
+            {benefits.length > 0 && (
+              <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {benefits.map((item, index) => (
+                  <SmallBenefit
+                    key={`${item.title}-${index}`}
+                    icon={BENEFIT_ICONS[index % BENEFIT_ICONS.length]}
+                    title={item.title || item.text}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* CULTURE */}
-          <div
-            className="
-              relative
-              overflow-hidden
-              rounded-2xl
-              bg-[#181818]
-              p-4
-              sm:p-5
-              lg:p-6
-            "
-          >
-            <div
-              className="
-                absolute
-                -right-20
-                -top-20
-                h-52
-                w-52
-                rounded-full
-                bg-[#ffd83d]/15
-                blur-3xl
-              "
-            />
+          <div className="relative overflow-hidden rounded-2xl bg-[#181818] p-4 sm:p-5 lg:p-6">
+            <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[#ffd83d]/15 blur-3xl" />
 
             <div className="relative">
-              <div
-                className="
-                  flex
-                  h-9
-                  w-9
-                  items-center
-                  justify-center
-                  rounded-lg
-                  bg-[#ffd83d]
-                  text-black
-                "
-              >
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#ffd83d] text-black">
                 <FiUsers size={17} />
               </div>
 
-              <h2
-                className="
-                  mt-3
-                  font-serif
-                  text-[17px]
-                  font-extrabold
-                  text-white
-                "
-              >
-                Our Culture
-              </h2>
+              {career.cultureTitle && (
+                <h2 className="mt-3 font-serif text-[17px] font-extrabold text-white">
+                  {career.cultureTitle}
+                </h2>
+              )}
 
-              <p
-                className="
-                  mt-2
-                  text-[8px]
-                  leading-4
-                  text-gray-400
-                  sm:text-[12px]
-                "
-              >
-                We believe the best work happens when people feel trusted,
-                supported and encouraged to contribute ideas.
-              </p>
+              {career.cultureDescription && (
+                <p className="mt-2 text-[8px] leading-4 text-gray-400 sm:text-[12px]">
+                  {career.cultureDescription}
+                </p>
+              )}
 
-              <div className="mt-4 space-y-2">
-                <CultureItem text="Open communication" />
-                <CultureItem text="Collaborative environment" />
-                <CultureItem text="Continuous learning" />
-                <CultureItem text="Ownership and responsibility" />
-                <CultureItem text="Customer-focused thinking" />
-              </div>
+              {culturePoints.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {culturePoints.map((item, index) => (
+                    <CultureItem
+                      key={`${item.title}-${index}`}
+                      text={item.title || item.text}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </section>
 
-        {/* OPEN POSITIONS */}
+        {/* ================= OPEN POSITIONS ================= */}
         <section
           id="open-positions"
-          className="
-            mt-4
-            scroll-mt-25
-            rounded-2xl
-            border
-            border-gray-200
-            bg-white
-            p-4
-            sm:p-5
-            lg:p-6
-            dark:border-gray-800
-            dark:bg-[#181818]
-          "
+          className={`${CARD} mt-4 scroll-mt-25 p-4 sm:p-5 lg:p-6`}
         >
-          <div
-            className="
-              flex
-              flex-col
-              gap-3
-              sm:flex-row
-              sm:items-end
-              sm:justify-between
-            "
-          >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <span
-                className="
-                  text-[12px]
-                  font-bold
-                  uppercase
-                  tracking-[1px]
-                  text-[#9b7600]
-                  dark:text-[#ffd83d]
-                "
-              >
-                Careers
-              </span>
+              <span className={SECTION_LABEL}>Careers</span>
 
-              <h2
-                className="
-                  mt-1
-                  font-serif
-                  text-[17px]
-                  font-extrabold
-                  text-black
-                  sm:text-[20px]
-                  dark:text-white
-                "
-              >
+              <h2 className="mt-1 font-serif text-[17px] font-extrabold text-black dark:text-white sm:text-[20px]">
                 Open Positions
               </h2>
 
               <p className="mt-1 text-[10px] text-gray-400">
-                {filteredJobs.length} roles available
+                {filteredJobs.length}{" "}
+                {filteredJobs.length === 1 ? "role" : "roles"} available
               </p>
             </div>
 
             {/* SEARCH */}
-            <div
-              className="
-                flex
-                h-10
-                w-full
-                items-center
-                rounded-lg
-                border
-                border-gray-200
-                bg-[#fafafa]
-                px-3
-                focus-within:border-[#ffd83d]
-                sm:w-70
-                dark:border-gray-700
-                dark:bg-[#202020]
-              "
-            >
+            <div className="flex h-10 w-full items-center rounded-lg border border-gray-200 bg-[#fafafa] px-3 focus-within:border-[#ffd83d] dark:border-gray-700 dark:bg-[#202020] sm:w-70">
               <FiSearch size={13} className="shrink-0 text-gray-400" />
 
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search jobs..."
-                className="
-                  h-full
-                  min-w-0
-                  flex-1
-                  bg-transparent
-                  px-2
-                  text-[9px]
-                  text-black
-                  outline-none
-                  placeholder:text-gray-400
-                  dark:text-white
-                "
+                className="h-full min-w-0 flex-1 bg-transparent px-2 text-[9px] text-black outline-none placeholder:text-gray-400 dark:text-white"
               />
             </div>
           </div>
 
           {/* DEPARTMENTS */}
-          <div
-            className="
-              scrollbar-hide
-              mt-4
-              flex
-              gap-2
-              overflow-x-auto
-              pb-1
-            "
-          >
-            {departments.map((item) => {
-              const active = item === department;
+          {departments.length > 1 && (
+            <div className="scrollbar-hide mt-4 flex gap-2 overflow-x-auto pb-1">
+              {departments.map((item) => {
+                const active = item === department;
 
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setDepartment(item)}
-                  className={`
-                    h-9
-                    shrink-0
-                    cursor-pointer
-                    rounded-lg
-                    border
-                    px-3
-                    text-[12px]
-                    font-bold
-                    transition
-
-                    ${
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setDepartment(item)}
+                    className={`h-9 shrink-0 cursor-pointer rounded-lg border px-3 text-[12px] font-bold transition ${
                       active
-                        ? `
-                          border-[#ffd83d]
-                          bg-[#ffd83d]
-                          text-black
-                        `
-                        : `
-                          border-gray-200
-                          bg-white
-                          text-gray-500
-                          hover:border-[#ffd83d]
-                          hover:text-black
-
-                          dark:border-gray-700
-                          dark:bg-[#202020]
-                          dark:text-gray-300
-                        `
-                    }
-                  `}
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
+                        ? "border-[#ffd83d] bg-[#ffd83d] text-black"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-[#ffd83d] hover:text-black dark:border-gray-700 dark:bg-[#202020] dark:text-gray-300"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* JOB LIST */}
-          {filteredJobs.length > 0 ? (
-            <div
-              className="
-                mt-5
-                grid
-                grid-cols-1
-                gap-3
-                md:grid-cols-2
-              "
-            >
+          {jobsError ? (
+            <p className="mt-5 text-center text-sm text-gray-500 dark:text-gray-400">
+              Failed to load job openings.
+            </p>
+          ) : filteredJobs.length > 0 ? (
+            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
               {filteredJobs.map((job) => (
-                <JobCard key={job.id} job={job} />
+                <JobCard key={job._id} job={job} />
               ))}
             </div>
           ) : (
-            <div
-              className="
-                mt-5
-                flex
-                min-h-62.5
-                flex-col
-                items-center
-                justify-center
-                rounded-xl
-                border
-                border-dashed
-                border-gray-200
-                bg-[#fafafa]
-                text-center
-                dark:border-gray-700
-                dark:bg-[#202020]
-              "
-            >
+            <div className="mt-5 flex min-h-62.5 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-[#fafafa] text-center dark:border-gray-700 dark:bg-[#202020]">
               <FiSearch size={22} className="text-gray-300" />
 
-              <p
-                className="
-                  mt-3
-                  font-serif
-                  text-[13px]
-                  font-bold
-                  text-black
-                  dark:text-white
-                "
-              >
+              <p className="mt-3 font-serif text-[13px] font-bold text-black dark:text-white">
                 No jobs found
               </p>
 
@@ -654,127 +448,44 @@ const Careers = () => {
           )}
         </section>
 
-        {/* HIRING PROCESS */}
-        <section
-          className="
-            mt-4
-            rounded-2xl
-            border
-            border-gray-200
-            bg-white
-            p-4
-            sm:p-5
-            lg:p-6
-            dark:border-gray-800
-            dark:bg-[#181818]
-          "
-        >
-          <div className="text-center">
-            <span
-              className="
-                text-[12px]
-                font-bold
-                uppercase
-                tracking-[1px]
-                text-[#9b7600]
-                dark:text-[#ffd83d]
-              "
-            >
-              Hiring Process
-            </span>
+        {/* ================= HIRING PROCESS ================= */}
+        {hiringSteps.length > 0 && (
+          <section className={`${CARD} mt-4 p-4 sm:p-5 lg:p-6`}>
+            <div className="text-center">
+              {career.hiringProcessLabel && (
+                <span className={SECTION_LABEL}>
+                  {career.hiringProcessLabel}
+                </span>
+              )}
 
-            <h2
-              className="
-                mt-1
-                font-serif
-                text-[17px]
-                font-extrabold
-                text-black
-                sm:text-[20px]
-                dark:text-white
-              "
-            >
-              What Happens After You Apply
-            </h2>
-          </div>
+              {career.hiringProcessTitle && (
+                <h2 className="mt-1 font-serif text-[17px] font-extrabold text-black dark:text-white sm:text-[20px]">
+                  {career.hiringProcessTitle}
+                </h2>
+              )}
+            </div>
 
-          <div
-            className="
-              mt-5
-              grid
-              grid-cols-1
-              gap-3
-              sm:grid-cols-2
-              lg:grid-cols-4
-            "
-          >
-            <ProcessStep
-              number="01"
-              title="Apply"
-              text="Submit your application and resume."
-            />
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {hiringSteps.map((step, index) => (
+                <ProcessStep
+                  key={`${step.title}-${index}`}
+                  number={String(index + 1).padStart(2, "0")}
+                  title={step.title}
+                  text={step.text}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
-            <ProcessStep
-              number="02"
-              title="Screening"
-              text="Our HR team reviews your profile."
-            />
-
-            <ProcessStep
-              number="03"
-              title="Interview"
-              text="Meet the team and discuss the role."
-            />
-
-            <ProcessStep
-              number="04"
-              title="Offer"
-              text="Selected candidates receive an offer."
-            />
-          </div>
-        </section>
-
-        {/* FINAL CTA */}
-        <section
-          className="
-            mt-5
-            flex
-            flex-col
-            items-center
-            justify-between
-            gap-4
-            rounded-2xl
-            bg-[#181818]
-            px-4
-            py-5
-            text-center
-            sm:flex-row
-            sm:px-6
-            sm:text-left
-            lg:px-8
-          "
-        >
+        {/* ================= FINAL CTA ================= */}
+        <section className="mt-5 flex flex-col items-center justify-between gap-4 rounded-2xl bg-[#181818] px-4 py-5 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
           <div>
-            <h2
-              className="
-                font-serif
-                text-[15px]
-                font-extrabold
-                text-white
-                sm:text-[17px]
-              "
-            >
+            <h2 className="font-serif text-[15px] font-extrabold text-white sm:text-[17px]">
               Don&apos;t see the right role?
             </h2>
 
-            <p
-              className="
-                mt-1
-                text-[8px]
-                text-gray-400
-                sm:text-[9px]
-              "
-            >
+            <p className="mt-1 text-[8px] text-gray-400 sm:text-[9px]">
               Send your resume to our HR team and we&apos;ll keep your profile
               for future opportunities.
             </p>
@@ -784,22 +495,7 @@ const Careers = () => {
             text="Send Your Resume"
             url="mailto:careers@example.com"
             icon={<FiArrowRight size={11} />}
-            className="
-              flex
-              h-10
-              shrink-0
-              items-center
-              justify-center
-              gap-1.5
-              rounded-xl
-              bg-[#ffd83d]
-              px-5
-              text-[9px]
-              font-extrabold
-              text-black
-              transition
-              hover:bg-[#ffcf12]
-            "
+            className={`${YELLOW_BTN} shrink-0`}
           />
         </section>
       </div>
@@ -807,9 +503,9 @@ const Careers = () => {
   );
 };
 
-/* ============================= */
-/* SMALL BENEFIT */
-/* ============================= */
+/* ============================================================
+   SMALL COMPONENTS
+============================================================ */
 
 const SmallBenefit = ({
   icon,
@@ -817,284 +513,93 @@ const SmallBenefit = ({
 }: {
   icon: React.ReactNode;
   title: string;
-}) => {
-  return (
-    <div
-      className="
-        flex
-        items-center
-        gap-2.5
-        rounded-xl
-        border
-        border-gray-100
-        bg-[#fafafa]
-        p-3
-        dark:border-gray-700
-        dark:bg-[#202020]
-      "
-    >
-      <span
-        className="
-          flex
-          h-8
-          w-8
-          shrink-0
-          items-center
-          justify-center
-          rounded-lg
-          bg-[#fff6ce]
-          text-[#8b6a00]
-          dark:bg-[#2b260f]
-          dark:text-[#ffd83d]
-        "
-      >
-        {icon}
-      </span>
+}) => (
+  <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-[#fafafa] p-3 dark:border-gray-700 dark:bg-[#202020]">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#fff6ce] text-[#8b6a00] dark:bg-[#2b260f] dark:text-[#ffd83d]">
+      {icon}
+    </span>
 
-      <span
-        className="
-          text-[8px]
-          font-bold
-          text-gray-700
-          sm:text-[12px]
-          dark:text-gray-300
-        "
-      >
-        {title}
-      </span>
-    </div>
-  );
-};
+    <span className="text-[8px] font-bold text-gray-700 dark:text-gray-300 sm:text-[12px]">
+      {title}
+    </span>
+  </div>
+);
 
-/* ============================= */
-/* CULTURE ITEM */
-/* ============================= */
+const CultureItem = ({ text }: { text: string }) => (
+  <div className="flex items-center gap-2">
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#ffd83d] text-black">
+      <FiCheckCircle size={10} />
+    </span>
 
-const CultureItem = ({ text }: { text: string }) => {
-  return (
-    <div
-      className="
-        flex
-        items-center
-        gap-2
-      "
-    >
-      <span
-        className="
-          flex
-          h-5
-          w-5
-          shrink-0
-          items-center
-          justify-center
-          rounded-full
-          bg-[#ffd83d]
-          text-black
-        "
-      >
-        <FiCheckCircle size={10} />
-      </span>
+    <span className="text-[8px] text-gray-300 sm:text-[12px]">{text}</span>
+  </div>
+);
 
-      <span className="text-[8px] text-gray-300 sm:text-[12px]">{text}</span>
-    </div>
-  );
-};
-
-/* ============================= */
-/* JOB CARD */
-/* ============================= */
+const JobBadge = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
+  <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-[10px] font-semibold text-gray-500 dark:border-gray-700 dark:bg-[#181818] dark:text-gray-400">
+    {icon}
+    {text}
+  </span>
+);
 
 const JobCard = ({ job }: { job: Job }) => {
-  return (
-    <article
-      className="
-        group
-        relative
-        rounded-xl
-        border
-        border-gray-200
-        bg-[#fafafa]
-        p-4
-        transition-all
-        hover:border-[#ffd83d]
-        hover:shadow-[0_7px_22px_rgba(0,0,0,0.05)]
-        dark:border-gray-700
-        dark:bg-[#202020]
-      "
-    >
-      {job.featured && (
-        <span
-          className="
-            absolute
-            right-3
-            top-3
-            rounded-full
-            bg-[#ffd83d]
-            px-2
-            py-1
-            text-[6px]
-            font-extrabold
-            text-black
-          "
-        >
-          Featured
-        </span>
-      )}
+  const postedOn = formatDate(job.createdAt);
 
-      <div
-        className="
-          flex
-          h-9
-          w-9
-          items-center
-          justify-center
-          rounded-lg
-          bg-[#fff6ce]
-          text-[#8b6a00]
-          dark:bg-[#2b260f]
-          dark:text-[#ffd83d]
-        "
-      >
+  return (
+    <article className="group relative rounded-xl border border-gray-200 bg-[#fafafa] p-4 transition-all hover:border-[#ffd83d] hover:shadow-[0_7px_22px_rgba(0,0,0,0.05)] dark:border-gray-700 dark:bg-[#202020]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#fff6ce] text-[#8b6a00] dark:bg-[#2b260f] dark:text-[#ffd83d]">
         <FiBriefcase size={15} />
       </div>
 
-      <p
-        className="
-          mt-3
-          text-[10px]
-          font-bold
-          uppercase
-          tracking-[0.7px]
-          text-[#9b7600]
-          dark:text-[#ffd83d]
-        "
-      >
-        {job.department}
-      </p>
+      {job.dept && (
+        <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.7px] text-[#9b7600] dark:text-[#ffd83d]">
+          {job.dept}
+        </p>
+      )}
 
-      <h3
-        className="
-          mt-1
-          font-serif
-          text-[14px]
-          font-extrabold
-          text-black
-          sm:text-[14px]
-          dark:text-white
-        "
-      >
-        {job.title}
+      <h3 className="mt-1 font-serif text-[14px] font-extrabold text-black dark:text-white">
+        {job.jobTitle ?? "Untitled Role"}
       </h3>
 
-      <p
-        className="
-          mt-2
-          text-[10px]
-          leading-4
-          text-gray-500
-          dark:text-gray-400
-        "
-      >
-        {job.description}
-      </p>
+      {job.shortDesc && (
+        <p className="mt-2 text-[10px] leading-4 text-gray-500 dark:text-gray-400">
+          {job.shortDesc}
+        </p>
+      )}
 
-      <div
-        className="
-          mt-3
-          flex
-          flex-wrap
-          gap-1.5
-        "
-      >
-        <JobBadge icon={<FiMapPin size={9} />} text={job.location} />
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {job.location && (
+          <JobBadge icon={<FiMapPin size={9} />} text={job.location} />
+        )}
 
-        <JobBadge icon={<FiClock size={9} />} text={job.type} />
+        {job.jobType && (
+          <JobBadge icon={<FiClock size={9} />} text={job.jobType} />
+        )}
 
-        <JobBadge icon={<FiTrendingUp size={9} />} text={job.experience} />
+        {job.experience && (
+          <JobBadge icon={<FiTrendingUp size={9} />} text={job.experience} />
+        )}
+
+        {job.salary && (
+          <JobBadge icon={<FiDollarSign size={9} />} text={job.salary} />
+        )}
       </div>
 
-      <div
-        className="
-          mt-4
-          flex
-          items-center
-          justify-between
-          gap-3
-          border-t
-          border-gray-200
-          pt-3
-          dark:border-gray-700
-        "
-      >
-        <span
-          className="
-            text-[10px]
-            text-gray-400
-          "
-        >
-          Posted recently
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+        <span className="text-[10px] text-gray-400">
+          {postedOn ? `Posted ${postedOn}` : "Posted recently"}
         </span>
 
         <ThemeBtnOne
           text="Apply Now"
           icon={<FiArrowRight size={9} />}
-          url={`/careers/${job.id}`}
-          className="
-            flex
-            h-8
-            items-center
-            justify-center
-            gap-1
-            rounded-lg
-            bg-[#ffd83d]
-            px-3
-            text-[8px]
-            font-extrabold
-            text-black
-            transition
-            cursor-pointer
-            hover:bg-[#ffcf12]
-          "
+          url={`/careers/${job._id}`}
+          className="flex h-8 cursor-pointer items-center justify-center gap-1 rounded-lg bg-[#ffd83d] px-3 text-[8px] font-extrabold text-black transition hover:bg-[#ffcf12]"
         />
       </div>
     </article>
   );
 };
-
-/* ============================= */
-/* JOB BADGE */
-/* ============================= */
-
-const JobBadge = ({ icon, text }: { icon: React.ReactNode; text: string }) => {
-  return (
-    <span
-      className="
-        inline-flex
-        items-center
-        gap-1
-        rounded-full
-        border
-        border-gray-200
-        bg-white
-        px-2
-        py-1
-        text-[10px]
-        font-semibold
-        text-gray-500
-        dark:border-gray-700
-        dark:bg-[#181818]
-        dark:text-gray-400
-      "
-    >
-      {icon}
-      {text}
-    </span>
-  );
-};
-
-/* ============================= */
-/* PROCESS STEP */
-/* ============================= */
 
 const ProcessStep = ({
   number,
@@ -1104,62 +609,18 @@ const ProcessStep = ({
   number: string;
   title: string;
   text: string;
-}) => {
-  return (
-    <div
-      className="
-        relative
-        rounded-xl
-        border
-        border-gray-200
-        bg-[#fafafa]
-        p-4
-        dark:border-gray-700
-        dark:bg-[#202020]
-      "
-    >
-      <span
-        className="
-          flex
-          h-8
-          w-8
-          items-center
-          justify-center
-          rounded-lg
-          bg-[#ffd83d]
-          text-[8px]
-          font-extrabold
-          text-black
-        "
-      >
-        {number}
-      </span>
+}) => (
+  <div className="relative rounded-xl border border-gray-200 bg-[#fafafa] p-4 dark:border-gray-700 dark:bg-[#202020]">
+    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ffd83d] text-[8px] font-extrabold text-black">
+      {number}
+    </span>
 
-      <h3
-        className="
-          mt-3
-          font-serif
-          text-[12px]
-          font-bold
-          text-black
-          dark:text-white
-        "
-      >
-        {title}
-      </h3>
+    <h3 className="mt-3 font-serif text-[12px] font-bold text-black dark:text-white">
+      {title}
+    </h3>
 
-      <p
-        className="
-          mt-1
-          text-[10px]
-          leading-4
-          text-gray-400
-        "
-      >
-        {text}
-      </p>
-    </div>
-  );
-};
+    {text && <p className="mt-1 text-[10px] leading-4 text-gray-400">{text}</p>}
+  </div>
+);
 
 export default Careers;

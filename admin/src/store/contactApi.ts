@@ -16,6 +16,8 @@ export interface IContact {
   updatedAt: string
 }
 
+export type ContactPayload = Pick<IContact, 'firstName' | 'lastName' | 'emailAddress' | 'phone' | 'subject' | 'orderNo' | 'message'>
+
 interface ContactResponse {
   success: boolean
   statusCode: number
@@ -29,16 +31,14 @@ export const contactApi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_API_URL,
 
+    // No manual Content-Type: fetchBaseQuery sets application/json for plain objects
+    // and lets the browser set the multipart boundary for FormData bodies.
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState)?.auth?.token
-
-      console.log('TOKEN =>', token)
 
       if (token) {
         headers.set('authorization', `Bearer ${token}`)
       }
-
-      headers.set('Content-Type', 'application/json')
 
       return headers
     },
@@ -48,31 +48,27 @@ export const contactApi = createApi({
 
   endpoints: (builder) => ({
     getContact: builder.query<IContact[], void>({
-      query: () => ({
-        url: '/enquiries-contacts',
-        method: 'GET',
-      }),
+      query: () => '/enquiries-contacts',
 
-      transformResponse: (response: ContactResponse): IContact[] => {
-        return Array.isArray(response.data) ? response.data : [response.data]
-      },
+      transformResponse: (response: ContactResponse): IContact[] => (Array.isArray(response.data) ? response.data : [response.data]),
 
       providesTags: ['Contact'],
     }),
 
-    // single
     getContactById: builder.query<IContact, string>({
       query: (id) => `/enquiries-contacts/${id}`,
+
       transformResponse: (response: ContactResponse) => response.data as IContact,
+
       providesTags: (result, error, id) => [{ type: 'Contact', id }],
     }),
 
-    // create team api
-    createContact: builder.mutation<IContact, FormData>({
-      query: (formData) => ({
+    // Public contact form: sends the fields as JSON.
+    createContact: builder.mutation<IContact, ContactPayload>({
+      query: (body) => ({
         url: '/enquiries-contacts',
         method: 'POST',
-        body: formData,
+        body,
       }),
 
       transformResponse: (response: ContactResponse) => response.data as IContact,
@@ -80,18 +76,18 @@ export const contactApi = createApi({
       invalidatesTags: ['Contact'],
     }),
 
-    // update team api
     updateContact: builder.mutation<IContact, { id: string; data: FormData }>({
       query: ({ id, data }) => ({
         url: `/enquiries-contacts/${id}`,
         method: 'PUT',
         body: data,
       }),
+
       transformResponse: (response: ContactResponse) => response.data as IContact,
+
       invalidatesTags: ['Contact'],
     }),
 
-    // delete team api
     deleteContact: builder.mutation<IContact, string>({
       query: (id) => ({
         url: `/enquiries-contacts/${id}`,

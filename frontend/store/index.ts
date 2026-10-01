@@ -4,6 +4,22 @@ import { categoryApi } from "./categoriesApi";
 import { subCategoryApi } from "./subCategoryApi";
 import { offerBannerApi } from "./offerBannerApi";
 import { topSaleBannerApi } from "./topSaleBannerApi";
+import { blogApi } from "./blogApi";
+import { blogCategoryApi } from "./blogCategoryApi";
+import { aboutUsApi } from "./aboutUsApi";
+import { counterApi } from "./counterApi";
+import { careerInfoApi } from "./careerinfoApi";
+import { currentOpeningsApi } from "./currentOpeningsApi";
+import { settingApi } from "./settingApi";
+import { careerApi } from "./careerEnquiriesApi";
+import { storeLocatorApi } from "./storeLocatorApi";
+import { storeEnquiryApi } from "./storeEnquiryApi";
+import { privacyApi } from "./privacyPolicyApi";
+import { termsApi } from "./termsApi";
+import { contactApi } from "./contactApi";
+import { faqApi } from "./faqApi";
+import { returnRefundApi } from "./returnRefundApi";
+import { returnRequestApi } from "./returnRequestApi";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +28,22 @@ export const store = configureStore({
     homeBannerApi: homeBannerApi.reducer,
     offerBannerApi: offerBannerApi.reducer,
     topSaleBannerApi: topSaleBannerApi.reducer,
+    blogCategoryApi: blogCategoryApi.reducer,
+    blogApi: blogApi.reducer,
+    aboutUsApi: aboutUsApi.reducer,
+    counterApi: counterApi.reducer,
+    careerInfoApi: careerInfoApi.reducer,
+    currentOpeningsApi: currentOpeningsApi.reducer,
+    careerApi: careerApi.reducer,
+    storeLocatorApi: storeLocatorApi.reducer,
+    storeEnquiryApi: storeEnquiryApi.reducer,
+    settingApi: settingApi.reducer,
+    privacyApi: privacyApi.reducer,
+    termsApi: termsApi.reducer,
+    contactApi: contactApi.reducer,
+    faqApi: faqApi.reducer,
+    returnRefundApi: returnRefundApi.reducer,
+    returnRequestApi: returnRequestApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
@@ -20,6 +52,22 @@ export const store = configureStore({
       homeBannerApi.middleware,
       offerBannerApi.middleware,
       topSaleBannerApi.middleware,
+      blogCategoryApi.middleware,
+      blogApi.middleware,
+      aboutUsApi.middleware,
+      counterApi.middleware,
+      careerInfoApi.middleware,
+      currentOpeningsApi.middleware,
+      careerApi.middleware,
+      storeLocatorApi.middleware,
+      storeEnquiryApi.middleware,
+      settingApi.middleware,
+      privacyApi.middleware,
+      termsApi.middleware,
+      contactApi.middleware,
+      faqApi.middleware,
+      returnRefundApi.middleware,
+      returnRequestApi.middleware,
     ),
 });
 

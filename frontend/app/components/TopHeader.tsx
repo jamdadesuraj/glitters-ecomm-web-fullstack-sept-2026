@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState } from "react";
@@ -11,33 +12,34 @@ import {
   FaMoon,
 } from "react-icons/fa6";
 import Link from "next/link";
+import { useGetSettingsQuery } from "@/store/settingApi";
+import { useGetStoreLocatorQuery } from "@/store/storeLocatorApi";
 
 type LocationOption = {
   value: string;
   label: string;
 };
 
-const locationOptions: LocationOption[] = [
-  {
-    value: "dubai",
-    label: "Dubai",
-  },
-  {
-    value: "abu-dhabi",
-    label: "Abu Dhabi",
-  },
-  {
-    value: "sharjah",
-    label: "Sharjah",
-  },
-  {
-    value: "ajman",
-    label: "Ajman",
-  },
-];
+type FooterSettings = {
+  topHeaderTitle?: string;
+  mail?: string;
+};
 
 const TopHeader = () => {
   const router = useRouter();
+
+  const { data } = useGetSettingsQuery();
+
+  const { data: stores } = useGetStoreLocatorQuery();
+
+  const locationOptions: LocationOption[] =
+    stores?.map((store: any) => ({
+      value: store._id,
+      label: store.storeName,
+    })) ?? [];
+
+  // The settings endpoint returns an array; use the first document.
+  const settings: FooterSettings = (Array.isArray(data) ? data[0] : data) ?? {};
 
   const [dark, setDark] = useState(false);
   const [location, setLocation] = useState<LocationOption | null>(null);
@@ -57,7 +59,7 @@ const TopHeader = () => {
 
     setLocation(option);
 
-    router.push(`/store-locator/${option.value}`);
+    router.push(`/stores/${option.value}`);
   };
 
   const customStyles: StylesConfig<LocationOption, false> = {
@@ -232,13 +234,13 @@ const TopHeader = () => {
       >
         {/* LEFT */}
         <div className="flex items-center gap-3">
-          <span className="font-bold">🛡️ 100% Original Products</span>
+          <span className="font-bold">🛡️ {settings?.topHeaderTitle}</span>
 
           <span className="text-gray-300 dark:text-gray-600">|</span>
 
           {/* EMAIL */}
           <Link
-            href="mailto:support@yourstore.com"
+            href={`mailto:${settings?.mail}`}
             className="
               flex
               items-center
@@ -249,7 +251,7 @@ const TopHeader = () => {
             "
           >
             <FaEnvelope className="text-sm" />
-            support@yourstore.com
+            {settings?.mail}
           </Link>
         </div>
 

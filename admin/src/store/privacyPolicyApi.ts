@@ -10,6 +10,8 @@ export interface IPrivacy {
   userId: string
 }
 
+export type PrivacyPayload = Pick<IPrivacy, 'badgeTitle' | 'title' | 'shortDesc' | 'content'>
+
 interface IPrivacyResponse {
   success: boolean
   statusCode: number
@@ -30,8 +32,6 @@ export const privacyApi = createApi({
         headers.set('Authorization', `Bearer ${token}`)
       }
 
-      headers.set('Content-Type', 'application/json')
-
       return headers
     },
   }),
@@ -39,17 +39,11 @@ export const privacyApi = createApi({
   tagTypes: ['Privacy'],
 
   endpoints: (builder) => ({
-    // GET Privacy
     getPrivacy: builder.query<IPrivacy[], void>({
-      query: () => ({
-        url: '/privacy-policy',
-        method: 'GET',
-      }),
+      query: () => '/privacy-policy',
 
       transformResponse: (response: IPrivacyResponse) => {
-        if (Array.isArray(response.data)) {
-          return response.data
-        }
+        if (Array.isArray(response.data)) return response.data
 
         return response.data ? [response.data] : []
       },
@@ -57,13 +51,7 @@ export const privacyApi = createApi({
       providesTags: ['Privacy'],
     }),
 
-    // CREATE Privacy
-    createPrivacy: builder.mutation<
-      IPrivacy,
-      {
-        content: string
-      }
-    >({
+    createPrivacy: builder.mutation<IPrivacy, PrivacyPayload>({
       query: (body) => ({
         url: '/privacy-policy',
         method: 'POST',
@@ -75,20 +63,11 @@ export const privacyApi = createApi({
       invalidatesTags: ['Privacy'],
     }),
 
-    // UPDATE Privacy
-    updatePrivacy: builder.mutation<
-      IPrivacy,
-      {
-        _id: string
-        content: string
-      }
-    >({
-      query: ({ _id, content }) => ({
+    updatePrivacy: builder.mutation<IPrivacy, { _id: string } & PrivacyPayload>({
+      query: ({ _id, ...body }) => ({
         url: `/privacy-policy/${_id}`,
         method: 'PUT',
-        body: {
-          content,
-        },
+        body,
       }),
 
       transformResponse: (response: IPrivacyResponse) => response.data as IPrivacy,

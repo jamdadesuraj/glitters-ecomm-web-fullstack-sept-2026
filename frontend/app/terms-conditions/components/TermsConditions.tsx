@@ -1,1249 +1,438 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { FiChevronRight, FiMail, FiShield } from "react-icons/fi";
 
-import {
-  FiAlertCircle,
-  FiChevronRight,
-  FiCreditCard,
-  FiFileText,
-  FiLock,
-  FiMail,
-  FiPackage,
-  FiRefreshCw,
-  FiShield,
-  FiShoppingBag,
-  FiTruck,
-  FiUser,
-} from "react-icons/fi";
+import { useGetTermsQuery } from "@/store/termsApi";
 
-type TermsSection = {
+/* ============================================================
+   TYPES
+============================================================ */
+
+interface TermsData {
+  _id: string;
+  badgeTitle?: string;
+  title?: string;
+  shortDesc?: string;
+  content?: string;
+  isDeleted?: boolean;
+  createdAt?: string | Date | null;
+  updatedAt?: string | Date | null;
+}
+
+interface TermsSection {
   id: string;
   title: string;
+}
+
+type DateInput = string | Date | null | undefined;
+
+const DEFAULT_TITLE = "Terms & Conditions";
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isTerms = (value: unknown): value is TermsData =>
+  isRecord(value) && "_id" in value;
+
+/** Supports: Terms[] | { data: Terms[] } | { data: Terms } | Terms */
+const extractTerms = (response: unknown): TermsData | null => {
+  let list: unknown[] = [];
+
+  if (Array.isArray(response)) {
+    list = response;
+  } else if (isRecord(response)) {
+    if (Array.isArray(response.data)) list = response.data;
+    else if (isTerms(response.data)) list = [response.data];
+    else if (isTerms(response)) list = [response];
+  }
+
+  return list.filter(isTerms).find((item) => !item.isDeleted) ?? null;
 };
 
-const termsSections: TermsSection[] = [
-  {
-    id: "introduction",
-    title: "Introduction",
-  },
-  {
-    id: "eligibility",
-    title: "Eligibility",
-  },
-  {
-    id: "account",
-    title: "Your Account",
-  },
-  {
-    id: "products",
-    title: "Products & Pricing",
-  },
-  {
-    id: "orders",
-    title: "Orders",
-  },
-  {
-    id: "payments",
-    title: "Payments",
-  },
-  {
-    id: "shipping",
-    title: "Shipping & Delivery",
-  },
-  {
-    id: "returns",
-    title: "Returns & Refunds",
-  },
-  {
-    id: "cancellations",
-    title: "Order Cancellation",
-  },
-  {
-    id: "warranty",
-    title: "Product Warranty",
-  },
-  {
-    id: "prohibited",
-    title: "Prohibited Use",
-  },
-  {
-    id: "intellectual-property",
-    title: "Intellectual Property",
-  },
-  {
-    id: "liability",
-    title: "Limitation of Liability",
-  },
-  {
-    id: "changes",
-    title: "Changes to Terms",
-  },
-  {
-    id: "contact",
-    title: "Contact Us",
-  },
-];
+const parseDate = (value: DateInput): Date | null => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const text = value.trim();
+
+  /* DD/MM/YYYY or DD-MM-YYYY */
+  const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+
+  if (match) {
+    const [, day, month, year] = match;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = new Date(text);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatDate = (value: DateInput): string => {
+  const date = parseDate(value);
+
+  if (!date) return "";
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = date.toLocaleString("en-US", { month: "long" });
+
+  return `${day} ${month} ${date.getFullYear()}`;
+};
+
+const stripTags = (html: string): string =>
+  html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .trim();
+
+const slugify = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "section";
+
+/**
+ * Adds an id to every <h2>/<h3> in the HTML
+ * and returns the list of headings for the sidebar.
+ */
+const processContent = (
+  html?: string,
+): { html: string; sections: TermsSection[] } => {
+  if (!html?.trim()) return { html: "", sections: [] };
+
+  const sections: TermsSection[] = [];
+  const used = new Map<string, number>();
+
+  const result = html.replace(
+    /<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi,
+    (match, level: string, attrs: string, inner: string) => {
+      const title = stripTags(inner);
+
+      if (!title) return match;
+
+      const base = slugify(title);
+      const count = used.get(base) ?? 0;
+
+      used.set(base, count + 1);
+
+      const id = count === 0 ? base : `${base}-${count + 1}`;
+      const cleanAttrs = attrs.replace(/\sid\s*=\s*("[^"]*"|'[^']*')/i, "");
+
+      sections.push({ id, title });
+
+      return `<h${level}${cleanAttrs} id="${id}">${inner}</h${level}>`;
+    },
+  );
+
+  return { html: result, sections };
+};
+
+/* ============================================================
+   SHARED STYLES
+============================================================ */
+
+const CARD =
+  "rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#181818]";
+
+/** Styles the raw HTML coming from the database. */
+const PROSE = [
+  "text-[15px] leading-7 text-gray-600 dark:text-gray-300",
+  "[&_h2]:mt-8 [&_h2]:scroll-mt-28 [&_h2]:font-serif [&_h2]:text-xl [&_h2]:font-extrabold [&_h2]:text-black dark:[&_h2]:text-white sm:[&_h2]:text-2xl",
+  "[&_h3]:mt-6 [&_h3]:scroll-mt-28 [&_h3]:font-serif [&_h3]:text-lg [&_h3]:font-bold [&_h3]:text-black dark:[&_h3]:text-white",
+  "[&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0",
+  "[&_p]:mt-3",
+  "[&_ul]:mt-3 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5",
+  "[&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5",
+  "[&_li::marker]:text-[#d4aa00]",
+  "[&_a]:font-semibold [&_a]:text-[#967200] [&_a]:underline dark:[&_a]:text-[#ffd83d]",
+  "[&_strong]:font-bold [&_strong]:text-gray-900 dark:[&_strong]:text-white",
+  "[&_blockquote]:mt-4 [&_blockquote]:rounded-xl [&_blockquote]:border-l-4 [&_blockquote]:border-[#ffd83d] [&_blockquote]:bg-[#fffdf3] [&_blockquote]:p-4 dark:[&_blockquote]:bg-[#29260f]",
+].join(" ");
+
+/* ============================================================
+   SKELETON
+============================================================ */
+
+const Bar = ({ className = "" }: { className?: string }) => (
+  <div className={`rounded bg-gray-200 dark:bg-neutral-800 ${className}`} />
+);
+
+const TermsSkeleton = () => (
+  <main className="min-h-screen bg-[#f7f7f8] py-4 dark:bg-[#0f0f0f] sm:py-6 lg:py-8">
+    <div
+      className="mx-auto w-full max-w-375 animate-pulse px-3 sm:px-5 lg:px-8 xl:px-10"
+      aria-busy="true"
+      aria-label="Loading terms and conditions"
+    >
+      {/* HERO */}
+      <section className={`${CARD} px-4 py-8 sm:px-6 lg:px-8 lg:py-10`}>
+        <Bar className="h-6 w-40 rounded-full" />
+        <Bar className="mt-4 h-9 w-2/3 max-w-md" />
+        <Bar className="mt-4 h-4 w-full max-w-2xl" />
+        <Bar className="mt-2 h-4 w-3/4 max-w-xl" />
+        <Bar className="mt-5 h-3 w-48" />
+      </section>
+
+      {/* CONTENT */}
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-6">
+        <aside className="hidden lg:block">
+          <div className={`${CARD} p-3`}>
+            <Bar className="mb-4 ml-2 h-4 w-28" />
+
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <Bar key={item} className="h-8 w-full rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        <section className={`${CARD} p-5 sm:p-6 lg:p-8`}>
+          {[1, 2, 3].map((item) => (
+            <div key={item} className={item > 1 ? "mt-8" : ""}>
+              <Bar className="h-6 w-1/2" />
+              <Bar className="mt-4 h-4 w-full" />
+              <Bar className="mt-2 h-4 w-full" />
+              <Bar className="mt-2 h-4 w-5/6" />
+              <Bar className="mt-2 h-4 w-2/3" />
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
+  </main>
+);
+
+/* ============================================================
+   PAGE
+============================================================ */
 
 const TermsConditions = () => {
-  const [activeSection, setActiveSection] = useState("introduction");
+  const { data, isLoading, isError } = useGetTermsQuery();
+
+  const [activeSection, setActiveSection] = useState("");
+
+  const terms = useMemo(() => extractTerms(data), [data]);
+
+  const { html, sections } = useMemo(
+    () => processContent(terms?.content),
+    [terms?.content],
+  );
+
+  /* Active link: the clicked / scrolled section, or the first one by default */
+  const currentSection = sections.some(
+    (section) => section.id === activeSection,
+  )
+    ? activeSection
+    : (sections[0]?.id ?? "");
+
+  /* Highlight the sidebar link of the section being read */
+  useEffect(() => {
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.find((entry) => entry.isIntersecting);
+
+        if (visible) setActiveSection(visible.target.id);
+      },
+      { rootMargin: "-100px 0px -70% 0px" },
+    );
+
+    sections.forEach((section) => {
+      const element = document.getElementById(section.id);
+
+      if (element) observer.observe(element);
+    });
+
+    return () => observer.disconnect();
+  }, [sections]);
 
   const handleNavigate = (id: string) => {
     setActiveSection(id);
 
-    const element = document.getElementById(id);
-
-    if (!element) return;
-
-    element.scrollIntoView({
+    document.getElementById(id)?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
   };
 
+  /* ---------- STATES ---------- */
+
+  if (isLoading) return <TermsSkeleton />;
+
+  if (isError || !terms) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f7f7f8] px-4 dark:bg-[#0f0f0f]">
+        <p className="text-base text-gray-500 dark:text-gray-400">
+          Terms and conditions are not available right now.
+        </p>
+      </main>
+    );
+  }
+
+  /* ---------- DERIVED ---------- */
+
+  const title = terms.title ?? DEFAULT_TITLE;
+  const updatedOn = formatDate(terms.updatedAt ?? terms.createdAt);
+  const hasSections = sections.length > 0;
+
+  /* ---------- RENDER ---------- */
+
   return (
-    <main
-      className="
-        min-h-screen
-        bg-[#f7f7f8]
-        py-4
-        sm:py-6
-        lg:py-8
-        dark:bg-[#0f0f0f]
-      "
-    >
-      <div
-        className="
-          mx-auto
-          w-full
-          max-w-[1500px]
-          px-3
-          sm:px-5
-          lg:px-8
-          xl:px-10
-        "
-      >
-        {/* ================================= */}
-        {/* HERO */}
-        {/* ================================= */}
+    <main className="min-h-screen bg-[#f7f7f8] py-4 dark:bg-[#0f0f0f] sm:py-6 lg:py-8">
+      <div className="mx-auto w-full max-w-375 px-3 sm:px-5 lg:px-8 xl:px-10">
+        {/* ================= HERO ================= */}
         <section
-          className="
-            relative
-            overflow-hidden
-            rounded-2xl
-            border
-            border-gray-200
-            bg-white
-            px-4
-            py-7
-            sm:px-6
-            sm:py-9
-            lg:px-8
-            lg:py-10
-            dark:border-gray-800
-            dark:bg-[#181818]
-          "
+          className={`${CARD} relative overflow-hidden px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12`}
         >
-          <div
-            className="
-              absolute
-              -right-20
-              -top-20
-              h-60
-              w-60
-              rounded-full
-              bg-[#ffd83d]/10
-              blur-3xl
-            "
-          />
+          <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#ffd83d]/10 blur-3xl" />
 
-          <div className="relative max-w-[760px]">
-            <span
-              className="
-                inline-flex
-                items-center
-                gap-1.5
-                rounded-full
-                bg-[#fff6ce]
-                px-2.5
-                py-1
-                text-[8px]
-                font-bold
-                text-[#806300]
-                sm:text-[9px]
-                dark:bg-[#2b260f]
-                dark:text-[#ffd83d]
-              "
-            >
-              <FiFileText size={11} />
-              Please read carefully
-            </span>
+          <div className="relative max-w-190">
+            {terms.badgeTitle && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fff6ce] px-3 py-1.5 text-[11px] font-bold text-[#806300] dark:bg-[#2b260f] dark:text-[#ffd83d] sm:text-xs">
+                <FiShield size={13} />
+                {terms.badgeTitle}
+              </span>
+            )}
 
-            <h1
-              className="
-                mt-3
-                font-serif
-                text-[22px]
-                font-extrabold
-                text-black
-                sm:text-[28px]
-                lg:text-[34px]
-                dark:text-white
-              "
-            >
-              Terms & Conditions
+            <h1 className="mt-4 font-serif text-3xl font-extrabold text-black dark:text-white sm:text-4xl lg:text-[42px]">
+              {title}
             </h1>
 
-            <p
-              className="
-                mt-2
-                max-w-[650px]
-                text-[9px]
-                leading-5
-                text-gray-500
-                sm:text-[10px]
-                lg:text-[11px]
-                dark:text-gray-400
-              "
-            >
-              These Terms & Conditions explain the rules that apply when you
-              access our website, create an account, purchase products or use
-              our services.
-            </p>
+            {terms.shortDesc && (
+              <p className="mt-3 max-w-162.5 text-sm leading-6 text-gray-500 dark:text-gray-400 sm:text-base sm:leading-7">
+                {terms.shortDesc}
+              </p>
+            )}
 
-            <div
-              className="
-                mt-4
-                flex
-                flex-wrap
-                items-center
-                gap-x-4
-                gap-y-2
-                text-[8px]
-                text-gray-400
-              "
-            >
-              <span>Last updated: September 24, 2026</span>
-
-              <span className="hidden sm:inline">•</span>
-
-              <span>Effective immediately</span>
-            </div>
+            {updatedOn && (
+              <p className="mt-5 text-xs text-gray-400 sm:text-[13px]">
+                Last updated: {updatedOn}
+              </p>
+            )}
           </div>
         </section>
 
-        {/* ================================= */}
-        {/* QUICK INFO */}
-        {/* ================================= */}
-        <section
-          className="
-            mt-4
-            grid
-            grid-cols-2
-            gap-2.5
-            sm:gap-3
-            lg:grid-cols-4
-          "
-        >
-          <InfoCard
-            icon={<FiShoppingBag size={16} />}
-            title="Orders"
-            text="Terms for placing and managing your orders."
-          />
-
-          <InfoCard
-            icon={<FiCreditCard size={16} />}
-            title="Payments"
-            text="Information about accepted payment methods."
-          />
-
-          <InfoCard
-            icon={<FiTruck size={16} />}
-            title="Delivery"
-            text="Shipping and delivery terms for your purchases."
-          />
-
-          <InfoCard
-            icon={<FiRefreshCw size={16} />}
-            title="Returns"
-            text="Conditions applicable to eligible returns and refunds."
-          />
-        </section>
-
-        {/* ================================= */}
-        {/* CONTENT */}
-        {/* ================================= */}
+        {/* ================= CONTENT ================= */}
         <div
-          className="
-            mt-4
-            grid
-            grid-cols-1
-            gap-4
-            lg:grid-cols-[250px_minmax(0,1fr)]
-            xl:grid-cols-[280px_minmax(0,1fr)]
-            xl:gap-6
-          "
+          className={`mt-4 grid grid-cols-1 gap-4 xl:gap-6 ${
+            hasSections
+              ? "lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]"
+              : ""
+          }`}
         >
           {/* SIDEBAR */}
-          <aside className="hidden lg:block">
-            <div
-              className="
-                sticky
-                top-[100px]
-                rounded-2xl
-                border
-                border-gray-200
-                bg-white
-                p-3
-                dark:border-gray-800
-                dark:bg-[#181818]
-              "
-            >
-              <div className="px-2 pb-3">
-                <h2
-                  className="
-                    font-serif
-                    text-[12px]
-                    font-extrabold
-                    text-black
-                    dark:text-white
-                  "
-                >
-                  Terms & Conditions
-                </h2>
+          {hasSections && (
+            <aside className="hidden lg:block">
+              <div className={`${CARD} sticky top-25 p-3`}>
+                <div className="px-2 pb-3">
+                  <p className="font-serif text-sm font-extrabold text-black dark:text-white">
+                    {title}
+                  </p>
 
-                <p className="mt-0.5 text-[7px] text-gray-400">
-                  Jump to a section
-                </p>
-              </div>
+                  <p className="mt-0.5 text-[11px] text-gray-400">
+                    Jump to a section
+                  </p>
+                </div>
 
-              <nav className="space-y-1">
-                {termsSections.map((section) => {
-                  const active = activeSection === section.id;
+                <nav className="max-h-[60vh] space-y-1 overflow-y-auto">
+                  {sections.map((section) => {
+                    const active = currentSection === section.id;
 
-                  return (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => handleNavigate(section.id)}
-                      className={`
-                        flex
-                        w-full
-                        cursor-pointer
-                        items-center
-                        justify-between
-                        gap-2
-                        rounded-lg
-                        px-2.5
-                        py-2
-                        text-left
-                        text-[8px]
-                        font-semibold
-                        transition-all
-
-                        ${
+                    return (
+                      <button
+                        key={section.id}
+                        type="button"
+                        onClick={() => handleNavigate(section.id)}
+                        className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold transition-all ${
                           active
-                            ? `
-                              bg-[#fff7d5]
-                              text-[#8a6900]
+                            ? "bg-[#fff7d5] text-[#8a6900] dark:bg-[#2b260f] dark:text-[#ffd83d]"
+                            : "text-gray-500 hover:bg-gray-50 hover:text-black dark:text-gray-400 dark:hover:bg-[#222] dark:hover:text-white"
+                        }`}
+                      >
+                        <span className="truncate">{section.title}</span>
 
-                              dark:bg-[#2b260f]
-                              dark:text-[#ffd83d]
-                            `
-                            : `
-                              text-gray-500
+                        <FiChevronRight size={13} className="shrink-0" />
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+            </aside>
+          )}
 
-                              hover:bg-gray-50
-                              hover:text-black
-
-                              dark:text-gray-400
-                              dark:hover:bg-[#222]
-                              dark:hover:text-white
-                            `
-                        }
-                      `}
-                    >
-                      <span className="truncate">{section.title}</span>
-
-                      <FiChevronRight size={10} className="shrink-0" />
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-          </aside>
-
-          {/* RIGHT */}
+          {/* TERMS CONTENT */}
           <section className="min-w-0">
             {/* MOBILE NAV */}
-            <div
-              className="
-                scrollbar-hide
-                mb-3
-                flex
-                gap-2
-                overflow-x-auto
-                pb-1
-                lg:hidden
-              "
-            >
-              {termsSections.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => handleNavigate(section.id)}
-                  className={`
-                    shrink-0
-                    rounded-lg
-                    border
-                    px-3
-                    py-2
-                    text-[8px]
-                    font-bold
-                    transition
-
-                    ${
-                      activeSection === section.id
-                        ? `
-                          border-[#ffd83d]
-                          bg-[#ffd83d]
-                          text-black
-                        `
-                        : `
-                          border-gray-200
-                          bg-white
-                          text-gray-500
-
-                          dark:border-gray-700
-                          dark:bg-[#181818]
-                          dark:text-gray-300
-                        `
-                    }
-                  `}
-                >
-                  {section.title}
-                </button>
-              ))}
-            </div>
-
-            <div
-              className="
-                rounded-2xl
-                border
-                border-gray-200
-                bg-white
-                p-4
-                sm:p-5
-                lg:p-6
-                dark:border-gray-800
-                dark:bg-[#181818]
-              "
-            >
-              {/* INTRODUCTION */}
-              <TermsBlock id="introduction" number="01" title="Introduction">
-                <p>
-                  Welcome to our online store. By accessing this website or
-                  purchasing products from us, you agree to these Terms &
-                  Conditions.
-                </p>
-
-                <p>
-                  If you do not agree with these terms, you should not use the
-                  website or related services.
-                </p>
-              </TermsBlock>
-
-              {/* ELIGIBILITY */}
-              <TermsBlock id="eligibility" number="02" title="Eligibility">
-                <p>
-                  You must be legally capable of entering into a binding
-                  agreement to purchase products or use account-based services.
-                </p>
-
-                <TermsList
-                  items={[
-                    "You must provide accurate and complete information.",
-                    "You are responsible for ensuring that your use of the website is lawful.",
-                    "You must not use the website for fraudulent or unauthorised activity.",
-                  ]}
-                />
-              </TermsBlock>
-
-              {/* ACCOUNT */}
-              <TermsBlock id="account" number="03" title="Your Account">
-                <p>
-                  You may be able to create an account to manage orders,
-                  addresses, wishlist items and other services.
-                </p>
-
-                <TermsList
-                  items={[
-                    "You are responsible for maintaining the confidentiality of your account credentials.",
-                    "You are responsible for activities performed through your account.",
-                    "You should notify us if you suspect unauthorised account access.",
-                    "Account information should remain accurate and up to date.",
-                  ]}
-                />
-              </TermsBlock>
-
-              {/* PRODUCTS */}
-              <TermsBlock id="products" number="04" title="Products & Pricing">
-                <p>
-                  We aim to provide accurate product descriptions, images,
-                  specifications and pricing. However, minor differences may
-                  occur.
-                </p>
-
-                <TermsList
-                  items={[
-                    "Product availability may change without notice.",
-                    "Prices may change before an order is confirmed.",
-                    "Promotional prices may be available for a limited period.",
-                    "Product images may differ slightly from the actual product.",
-                    "Specifications may vary depending on model or variant.",
-                  ]}
-                />
-
-                <Notice>
-                  If an obvious pricing or product information error occurs, we
-                  may contact you before processing the affected order.
-                </Notice>
-              </TermsBlock>
-
-              {/* ORDERS */}
-              <TermsBlock id="orders" number="05" title="Orders">
-                <p>
-                  Submitting an order does not necessarily mean that the order
-                  has been accepted.
-                </p>
-
-                <TermsList
-                  items={[
-                    "Orders are subject to product availability.",
-                    "Order details should be reviewed before checkout.",
-                    "We may contact you if additional verification is required.",
-                    "An order may be rejected or cancelled where appropriate.",
-                    "You will receive order information through the website or your registered contact details.",
-                  ]}
-                />
-              </TermsBlock>
-
-              {/* PAYMENTS */}
-              <TermsBlock id="payments" number="06" title="Payments">
-                <p>
-                  Payment methods shown during checkout may vary based on
-                  location, order value and availability.
-                </p>
-
-                <div
-                  className="
-                    mt-3
-                    grid
-                    grid-cols-2
-                    gap-2
-                    sm:grid-cols-3
-                  "
-                >
-                  <PaymentItem title="Cards" />
-
-                  <PaymentItem title="UPI" />
-
-                  <PaymentItem title="Razorpay" />
-
-                  <PaymentItem title="Tabby" />
-
-                  <PaymentItem title="Apple Pay" />
-
-                  <PaymentItem title="Cash on Delivery" />
-                </div>
-
-                <p className="mt-3">
-                  Payment approval may depend on your bank, payment provider or
-                  selected payment service.
-                </p>
-              </TermsBlock>
-
-              {/* SHIPPING */}
-              <TermsBlock id="shipping" number="07" title="Shipping & Delivery">
-                <p>
-                  Delivery estimates are provided for convenience and may vary
-                  depending on location, courier availability, product stock and
-                  external factors.
-                </p>
-
-                <TermsList
-                  items={[
-                    "Customers are responsible for providing a complete and accurate delivery address.",
-                    "Delivery charges, where applicable, are displayed during checkout.",
-                    "Delivery timelines may change during holidays or high-demand periods.",
-                    "Additional verification may be required before delivery.",
-                    "Risk and responsibility for the product may transfer according to applicable delivery terms.",
-                  ]}
-                />
-              </TermsBlock>
-
-              {/* RETURNS */}
-              <TermsBlock id="returns" number="08" title="Returns & Refunds">
-                <p>
-                  Eligible products may be returned in accordance with our
-                  applicable return and refund policy.
-                </p>
-
-                <TermsList
-                  items={[
-                    "Return requests should be submitted within the applicable return period.",
-                    "Products may need to be unused and returned with original packaging and accessories.",
-                    "Certain categories may be non-returnable for hygiene, safety or other reasons.",
-                    "Returned products may be inspected before a refund is approved.",
-                    "Refund timing may vary depending on the payment method.",
-                  ]}
-                />
-
-                <Link
-                  href="/returns"
-                  className="
-                    mt-3
-                    inline-flex
-                    items-center
-                    gap-1
-                    text-[8px]
-                    font-bold
-                    text-[#957200]
-                    hover:underline
-                    dark:text-[#ffd83d]
-                  "
-                >
-                  View Return Policy
-                  <FiChevronRight size={10} />
-                </Link>
-              </TermsBlock>
-
-              {/* CANCELLATIONS */}
-              <TermsBlock
-                id="cancellations"
-                number="09"
-                title="Order Cancellation"
-              >
-                <p>
-                  You may be able to cancel an order before it reaches certain
-                  processing or shipping stages.
-                </p>
-
-                <p>
-                  Once an order has been shipped, cancellation may no longer be
-                  available and the return process may need to be used instead.
-                </p>
-              </TermsBlock>
-
-              {/* WARRANTY */}
-              <TermsBlock id="warranty" number="10" title="Product Warranty">
-                <p>
-                  Warranty coverage varies by product, manufacturer, seller and
-                  region.
-                </p>
-
-                <TermsList
-                  items={[
-                    "Warranty information may be displayed on the product page.",
-                    "Proof of purchase may be required for warranty claims.",
-                    "Physical damage or misuse may not be covered.",
-                    "Manufacturer warranty terms may apply independently.",
-                  ]}
-                />
-              </TermsBlock>
-
-              {/* PROHIBITED */}
-              <TermsBlock id="prohibited" number="11" title="Prohibited Use">
-                <p>You must not misuse our website, services or systems.</p>
-
-                <TermsList
-                  items={[
-                    "Attempt to gain unauthorised access to systems or accounts.",
-                    "Use the website for fraudulent activities.",
-                    "Introduce malware, harmful code or automated attacks.",
-                    "Copy or scrape content in violation of applicable rights.",
-                    "Interfere with the security or normal operation of the website.",
-                    "Use another person's information without authority.",
-                  ]}
-                />
-              </TermsBlock>
-
-              {/* IP */}
-              <TermsBlock
-                id="intellectual-property"
-                number="12"
-                title="Intellectual Property"
-              >
-                <p>
-                  Website content including branding, graphics, text,
-                  interfaces, design and other materials may be protected by
-                  intellectual property rights.
-                </p>
-
-                <p>
-                  You may not reproduce, distribute, modify or commercially
-                  exploit protected content without appropriate permission.
-                </p>
-              </TermsBlock>
-
-              {/* LIABILITY */}
-              <TermsBlock
-                id="liability"
-                number="13"
-                title="Limitation of Liability"
-              >
-                <p>
-                  To the extent permitted by applicable law, liability related
-                  to the use of the website, products or services may be subject
-                  to applicable limitations and exclusions.
-                </p>
-
-                <Notice>
-                  Nothing in these terms is intended to exclude rights or
-                  remedies that cannot legally be excluded.
-                </Notice>
-              </TermsBlock>
-
-              {/* CHANGES */}
-              <TermsBlock
-                id="changes"
-                number="14"
-                title="Changes to These Terms"
-              >
-                <p>
-                  We may update these Terms & Conditions when our services,
-                  business practices or legal requirements change.
-                </p>
-
-                <p>
-                  The latest version and effective date will be displayed on
-                  this page.
-                </p>
-              </TermsBlock>
-
-              {/* CONTACT */}
-              <TermsBlock id="contact" number="15" title="Contact Us" last>
-                <p>
-                  If you have any questions about these Terms & Conditions,
-                  please contact our support team.
-                </p>
-
-                <div
-                  className="
-                    mt-4
-                    grid
-                    grid-cols-1
-                    gap-2
-                    sm:grid-cols-2
-                  "
-                >
-                  <a
-                    href="mailto:support@example.com"
-                    className="
-                      flex
-                      items-center
-                      gap-2.5
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-[#fafafa]
-                      p-3
-                      transition
-                      hover:border-[#ffd83d]
-
-                      dark:border-gray-700
-                      dark:bg-[#202020]
-                    "
+            {hasSections && (
+              <div className="scrollbar-hide mb-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => handleNavigate(section.id)}
+                    className={`shrink-0 cursor-pointer rounded-lg border px-3.5 py-2.5 text-xs font-bold transition ${
+                      currentSection === section.id
+                        ? "border-[#ffd83d] bg-[#ffd83d] text-black"
+                        : "border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-[#181818] dark:text-gray-300"
+                    }`}
                   >
-                    <span
-                      className="
-                        flex
-                        h-8
-                        w-8
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-[#fff6ce]
-                        text-[#8b6a00]
+                    {section.title}
+                  </button>
+                ))}
+              </div>
+            )}
 
-                        dark:bg-[#2b260f]
-                        dark:text-[#ffd83d]
-                      "
-                    >
-                      <FiMail size={13} />
-                    </span>
-
-                    <span className="min-w-0">
-                      <span
-                        className="
-                          block
-                          text-[7px]
-                          text-gray-400
-                        "
-                      >
-                        Email
-                      </span>
-
-                      <span
-                        className="
-                          mt-0.5
-                          block
-                          truncate
-                          text-[9px]
-                          font-bold
-                          text-black
-
-                          dark:text-white
-                        "
-                      >
-                        support@example.com
-                      </span>
-                    </span>
-                  </a>
-
-                  <Link
-                    href="/contact-us"
-                    className="
-                      flex
-                      items-center
-                      gap-2.5
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-[#fafafa]
-                      p-3
-                      transition
-                      hover:border-[#ffd83d]
-
-                      dark:border-gray-700
-                      dark:bg-[#202020]
-                    "
-                  >
-                    <span
-                      className="
-                        flex
-                        h-8
-                        w-8
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-[#fff6ce]
-                        text-[#8b6a00]
-
-                        dark:bg-[#2b260f]
-                        dark:text-[#ffd83d]
-                      "
-                    >
-                      <FiUser size={13} />
-                    </span>
-
-                    <span>
-                      <span
-                        className="
-                          block
-                          text-[7px]
-                          text-gray-400
-                        "
-                      >
-                        Customer Support
-                      </span>
-
-                      <span
-                        className="
-                          mt-0.5
-                          block
-                          text-[9px]
-                          font-bold
-                          text-black
-
-                          dark:text-white
-                        "
-                      >
-                        Contact Support
-                      </span>
-                    </span>
-                  </Link>
-                </div>
-              </TermsBlock>
+            <div className={`${CARD} p-5 sm:p-6 lg:p-8`}>
+              {html ? (
+                <div
+                  className={PROSE}
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              ) : (
+                <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  No terms and conditions have been added yet.
+                </p>
+              )}
             </div>
           </section>
         </div>
 
-        {/* ================================= */}
-        {/* BOTTOM CTA */}
-        {/* ================================= */}
-        <section
-          className="
-            mt-5
-            flex
-            flex-col
-            items-center
-            justify-between
-            gap-4
-            rounded-2xl
-            bg-[#181818]
-            px-4
-            py-5
-            text-center
-
-            sm:flex-row
-            sm:px-6
-            sm:text-left
-
-            lg:px-8
-          "
-        >
+        {/* ================= BOTTOM CTA ================= */}
+        <section className="mt-5 flex flex-col items-center justify-between gap-4 rounded-2xl bg-[#181818] px-4 py-6 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
           <div>
-            <h2
-              className="
-                font-serif
-                text-[14px]
-                font-extrabold
-                text-white
-                sm:text-[16px]
-              "
-            >
-              Need help with our terms?
+            <h2 className="font-serif text-lg font-extrabold text-white sm:text-xl">
+              Have questions about our terms?
             </h2>
 
-            <p
-              className="
-                mt-1
-                text-[8px]
-                text-gray-400
-                sm:text-[9px]
-              "
-            >
-              Contact our support team if you have questions.
+            <p className="mt-1 text-xs text-gray-400 sm:text-sm">
+              Our support team is available to help.
             </p>
           </div>
 
           <Link
             href="/contact-us"
-            className="
-              flex
-              h-10
-              shrink-0
-              items-center
-              justify-center
-              gap-1.5
-              rounded-xl
-              bg-[#ffd83d]
-              px-5
-              text-[9px]
-              font-extrabold
-              text-black
-              transition
-              hover:bg-[#ffcf12]
-            "
+            className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-6 text-xs font-extrabold text-black transition hover:bg-[#ffcf12] sm:text-sm"
           >
-            <FiMail size={12} />
+            <FiMail size={14} />
             Contact Us
           </Link>
         </section>
       </div>
     </main>
-  );
-};
-
-/* ================================= */
-/* INFO CARD */
-/* ================================= */
-
-const InfoCard = ({
-  icon,
-  title,
-  text,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-}) => {
-  return (
-    <div
-      className="
-        rounded-xl
-        border
-        border-gray-200
-        bg-white
-        p-3
-        sm:p-4
-        dark:border-gray-800
-        dark:bg-[#181818]
-      "
-    >
-      <div
-        className="
-          flex
-          h-8
-          w-8
-          items-center
-          justify-center
-          rounded-lg
-          bg-[#fff6ce]
-          text-[#8b6a00]
-
-          dark:bg-[#2b260f]
-          dark:text-[#ffd83d]
-        "
-      >
-        {icon}
-      </div>
-
-      <h3
-        className="
-          mt-2.5
-          font-serif
-          text-[9px]
-          font-bold
-          text-black
-          sm:text-[10px]
-          dark:text-white
-        "
-      >
-        {title}
-      </h3>
-
-      <p
-        className="
-          mt-1
-          text-[7px]
-          leading-3.5
-          text-gray-400
-          sm:text-[8px]
-        "
-      >
-        {text}
-      </p>
-    </div>
-  );
-};
-
-/* ================================= */
-/* TERMS BLOCK */
-/* ================================= */
-
-const TermsBlock = ({
-  id,
-  number,
-  title,
-  children,
-  last = false,
-}: {
-  id: string;
-  number: string;
-  title: string;
-  children: React.ReactNode;
-  last?: boolean;
-}) => {
-  return (
-    <div
-      id={id}
-      className={`
-        scroll-mt-[110px]
-        py-5
-        sm:py-6
-
-        ${!last ? "border-b border-gray-100 dark:border-gray-800" : ""}
-      `}
-    >
-      <div className="flex items-start gap-3">
-        <span
-          className="
-            flex
-            h-8
-            min-w-8
-            shrink-0
-            items-center
-            justify-center
-            rounded-lg
-            bg-[#fff7d5]
-            text-[8px]
-            font-extrabold
-            text-[#8a6900]
-
-            dark:bg-[#2b260f]
-            dark:text-[#ffd83d]
-          "
-        >
-          {number}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <h2
-            className="
-              font-serif
-              text-[14px]
-              font-extrabold
-              text-black
-              sm:text-[16px]
-              lg:text-[17px]
-              dark:text-white
-            "
-          >
-            {title}
-          </h2>
-
-          <div
-            className="
-              mt-2.5
-              space-y-2.5
-              text-[8px]
-              leading-4
-              text-gray-500
-              sm:text-[9px]
-              sm:leading-5
-              dark:text-gray-400
-            "
-          >
-            {children}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ================================= */
-/* TERMS LIST */
-/* ================================= */
-
-const TermsList = ({ items }: { items: string[] }) => {
-  return (
-    <ul className="space-y-2">
-      {items.map((item, index) => (
-        <li
-          key={index}
-          className="
-            flex
-            items-start
-            gap-2
-          "
-        >
-          <span
-            className="
-              mt-[6px]
-              h-1.5
-              w-1.5
-              shrink-0
-              rounded-full
-              bg-[#ffd83d]
-            "
-          />
-
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-};
-
-/* ================================= */
-/* NOTICE */
-/* ================================= */
-
-const Notice = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <div
-      className="
-        mt-3
-        flex
-        items-start
-        gap-2.5
-        rounded-xl
-        border
-        border-[#ffe681]
-        bg-[#fffdf3]
-        p-3
-
-        dark:border-[#5e5117]
-        dark:bg-[#29260f]
-      "
-    >
-      <FiAlertCircle
-        size={13}
-        className="
-          mt-0.5
-          shrink-0
-          text-[#997400]
-
-          dark:text-[#ffd83d]
-        "
-      />
-
-      <p
-        className="
-          text-[8px]
-          font-medium
-          leading-4
-          text-[#6d5900]
-
-          dark:text-[#e7d369]
-        "
-      >
-        {children}
-      </p>
-    </div>
-  );
-};
-
-/* ================================= */
-/* PAYMENT ITEM */
-/* ================================= */
-
-const PaymentItem = ({ title }: { title: string }) => {
-  return (
-    <div
-      className="
-        flex
-        items-center
-        gap-2
-        rounded-lg
-        border
-        border-gray-100
-        bg-[#fafafa]
-        px-3
-        py-2.5
-
-        dark:border-gray-700
-        dark:bg-[#202020]
-      "
-    >
-      <span
-        className="
-          flex
-          h-6
-          w-6
-          shrink-0
-          items-center
-          justify-center
-          rounded-md
-          bg-[#fff6ce]
-          text-[#8b6a00]
-
-          dark:bg-[#2b260f]
-          dark:text-[#ffd83d]
-        "
-      >
-        <FiLock size={11} />
-      </span>
-
-      <span
-        className="
-          truncate
-          text-[7px]
-          font-bold
-          text-gray-600
-          sm:text-[8px]
-          dark:text-gray-300
-        "
-      >
-        {title}
-      </span>
-    </div>
   );
 };
 
