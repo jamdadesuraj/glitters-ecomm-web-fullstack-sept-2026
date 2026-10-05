@@ -20,6 +20,7 @@ import { contactApi } from "./contactApi";
 import { faqApi } from "./faqApi";
 import { returnRefundApi } from "./returnRefundApi";
 import { returnRequestApi } from "./returnRequestApi";
+import { productsApi } from "./productsApi";
 
 export const store = configureStore({
   reducer: {
@@ -44,6 +45,9 @@ export const store = configureStore({
     faqApi: faqApi.reducer,
     returnRefundApi: returnRefundApi.reducer,
     returnRequestApi: returnRequestApi.reducer,
+
+    // products
+    productsApi: productsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
@@ -68,6 +72,9 @@ export const store = configureStore({
       faqApi.middleware,
       returnRefundApi.middleware,
       returnRequestApi.middleware,
+
+      // products
+      productsApi.middleware,
     ),
 });
 

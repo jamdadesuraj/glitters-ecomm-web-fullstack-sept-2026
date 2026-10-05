@@ -1,89 +1,37 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Slider from "react-slick";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import ProductCard from "@/app/components/ProductCard";
 import { useGetTopSaleBannerQuery } from "@/store/topSaleBannerApi";
-
-const products = [
-  {
-    id: 1,
-    name: "Apple iPhone 16 Pro Max 256GB",
-    image: "/img/products/iphone.png",
-    href: "/product/iphone-16-pro-max",
-    brand: "Apple",
-    price: 4899,
-    oldPrice: 5299,
-    rating: 4.9,
-    reviews: 186,
-    discount: 8,
-  },
-  {
-    id: 2,
-    name: "Samsung Galaxy S25 Ultra 512GB",
-    image: "/img/products/samsung.png",
-    href: "/product/samsung-s25-ultra",
-    brand: "Samsung",
-    price: 4499,
-    oldPrice: 4999,
-    rating: 4.8,
-    reviews: 142,
-    discount: 10,
-  },
-  {
-    id: 3,
-    name: "Apple Watch Series 10 GPS",
-    image: "/img/products/watch.png",
-    href: "/product/apple-watch-series-10",
-    brand: "Apple",
-    price: 1599,
-    oldPrice: 1799,
-    rating: 4.7,
-    reviews: 96,
-    discount: 11,
-  },
-  {
-    id: 4,
-    name: "AirPods Pro 2nd Generation",
-    image: "/img/products/airpods.png",
-    href: "/product/airpods-pro",
-    brand: "Apple",
-    price: 849,
-    oldPrice: 999,
-    rating: 4.8,
-    reviews: 211,
-    discount: 15,
-  },
-  {
-    id: 5,
-    name: "Samsung Galaxy Buds 3 Pro",
-    image: "/img/products/buds.png",
-    href: "/product/galaxy-buds-3",
-    brand: "Samsung",
-    price: 699,
-    oldPrice: 799,
-    rating: 4.6,
-    reviews: 88,
-    discount: 13,
-  },
-  {
-    id: 6,
-    name: "Google Pixel 9 Pro",
-    image: "/img/products/pixel.png",
-    href: "/product/google-pixel-9-pro",
-    brand: "Google",
-    price: 3299,
-    oldPrice: 3599,
-    rating: 4.7,
-    reviews: 75,
-    discount: 9,
-  },
-];
+import { useGetProductsQuery } from "@/store/productsApi";
 
 const PopularProducts = () => {
+  const {
+    data: products = [],
+    isLoading: isProductsLoading,
+    isError: isProductsError,
+  } = useGetProductsQuery();
+
+  const popularProducts = useMemo(() => {
+    return products.filter((product) => {
+      if (!product.section) return false;
+
+      const sections = Array.isArray(product.section)
+        ? product.section
+        : [product.section];
+
+      return sections.some(
+        (section) =>
+          typeof section === "string" &&
+          section.toLowerCase().replace(/\s+/g, "") === "popularproducts",
+      );
+    });
+  }, [products]);
+
   const sliderRef = useRef<Slider | null>(null);
 
   const {
@@ -149,6 +97,22 @@ const PopularProducts = () => {
 
   if (isError) {
     return null;
+  }
+
+  if (isProductsLoading) {
+    return (
+      <section className="w-full bg-white py-5 dark:bg-[#111]">
+        <p className="text-center text-sm text-gray-500">Loading...</p>
+      </section>
+    );
+  }
+
+  if (isProductsError) {
+    return (
+      <section className="w-full bg-white py-5 dark:bg-[#111]">
+        <p className="text-center text-sm text-red-500">Something went wrong</p>
+      </section>
+    );
   }
 
   return (
@@ -252,9 +216,9 @@ const PopularProducts = () => {
                   {...settings}
                   className="new-offer-slider"
                 >
-                  {products.map((product) => (
-                    <div key={product.id} className="px-2 pb-2">
-                      <ProductCard {...product} />
+                  {popularProducts.map((product) => (
+                    <div key={product._id} className="px-2 pb-3">
+                      <ProductCard product={product} />
                     </div>
                   ))}
                 </Slider>
