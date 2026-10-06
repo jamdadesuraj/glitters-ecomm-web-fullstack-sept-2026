@@ -3,6 +3,7 @@
 import React from "react";
 import ProductCard from "@/app/components/ProductCard";
 import type { Product } from "./filterUtils";
+import Image from "next/image";
 
 interface GridViewProps {
   products: Product[];
@@ -16,9 +17,16 @@ const GridView = ({ products, isLoading, isError }: GridViewProps) => {
 
   if (products.length === 0) {
     return (
-      <p className="py-10 text-center text-sm text-gray-500">
-        No products found.
-      </p>
+      <>
+        <div className="flex items-center justify-center h-screen">
+          <Image
+            src="/img/noproduct.jpg"
+            alt="No product found"
+            width={400}
+            height={400}
+          />
+        </div>
+      </>
     );
   }
 

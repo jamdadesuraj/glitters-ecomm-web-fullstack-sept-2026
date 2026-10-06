@@ -5,17 +5,21 @@ export type Product = NonNullable<
 >[number];
 
 export type Filters = {
+  categories: string[]; // category _id list
+  subCategories: string[]; // subCategory _id list
   minPrice: number;
   maxPrice: number;
-  colors: string[]; // color _id list
-  sizes: string[]; // size _id list
-  materials: string[]; // material _id list
+  colors: string[];
+  sizes: string[];
+  materials: string[];
   rating: number | null;
   inStock: boolean;
   onSale: boolean;
 };
 
 export const DEFAULT_FILTERS: Filters = {
+  categories: [],
+  subCategories: [],
   minPrice: 0,
   maxPrice: 5000,
   colors: [],
@@ -28,7 +32,6 @@ export const DEFAULT_FILTERS: Filters = {
 
 type Rec = Record<string, unknown>;
 
-/* API response -> array (handles [] or { data: [] }) */
 export const toArray = <T>(res: unknown): T[] => {
   if (Array.isArray(res)) return res as T[];
   const data = (res as { data?: unknown } | undefined)?.data;
@@ -41,7 +44,7 @@ const num = (v: unknown) => {
 };
 
 /* "abc" | { _id: "abc" } | ObjectId  ->  "abc" */
-const getId = (v: unknown): string => {
+export const getId = (v: unknown): string => {
   if (!v) return "";
   if (typeof v === "string") return v;
   if (typeof v === "object") {
@@ -74,7 +77,20 @@ export const filterProducts = (
   const result = products.filter((product) => {
     const p = product as unknown as Rec;
 
-    /* MATERIAL (product level) */
+    /* CATEGORY */
+    if (f.categories.length > 0 && !f.categories.includes(getId(p.category))) {
+      return false;
+    }
+
+    /* SUB CATEGORY */
+    if (
+      f.subCategories.length > 0 &&
+      !f.subCategories.includes(getId(p.subCategory))
+    ) {
+      return false;
+    }
+
+    /* MATERIAL */
     if (f.materials.length > 0 && !f.materials.includes(getId(p.material))) {
       return false;
     }
@@ -82,8 +98,8 @@ export const filterProducts = (
     /* RATING */
     if (f.rating !== null && avgRating(p) < f.rating) return false;
 
-    /* VARIANT: price + color + size + stock + sale must match in ONE variant */
-    const variantMatch = getVariants(p).some((v) => {
+    /* VARIANT: price + color + size + stock + sale in ONE variant */
+    return getVariants(p).some((v) => {
       const price = num(v.price);
 
       if (price < f.minPrice || price > f.maxPrice) return false;
@@ -96,8 +112,6 @@ export const filterProducts = (
 
       return true;
     });
-
-    return variantMatch;
   });
 
   const sorted = [...result];

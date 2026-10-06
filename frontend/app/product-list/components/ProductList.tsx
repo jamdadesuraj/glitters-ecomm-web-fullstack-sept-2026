@@ -1,6 +1,9 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { FiFilter, FiX } from "react-icons/fi";
 
 import SideFilter from "./SideFilter";
@@ -12,11 +15,31 @@ import { DEFAULT_FILTERS, filterProducts, type Filters } from "./filterUtils";
 
 type ViewType = "grid" | "list";
 
-const ProductList = () => {
+const ProductListContent = () => {
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get("category");
+  const subCategoryParam = searchParams.get("subCategory");
+
   const [filterOpen, setFilterOpen] = useState(false);
   const [view, setView] = useState<ViewType>("grid");
   const [sort, setSort] = useState("featured");
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+
+  /* start with category / subCategory from the URL */
+  const [filters, setFilters] = useState<Filters>({
+    ...DEFAULT_FILTERS,
+    categories: categoryParam ? [categoryParam] : [],
+    subCategories: subCategoryParam ? [subCategoryParam] : [],
+  });
+
+  /* when the URL changes (menu click), update category filters */
+  useEffect(() => {
+    // @ts-ignore
+    setFilters((prev) => ({
+      ...prev,
+      categories: categoryParam ? [categoryParam] : [],
+      subCategories: subCategoryParam ? [subCategoryParam] : [],
+    }));
+  }, [categoryParam, subCategoryParam]);
 
   const { data: products = [], isLoading, isError } = useGetProductsQuery();
 
@@ -111,7 +134,7 @@ const ProductList = () => {
       {/* MOBILE SIDE DRAWER */}
       <aside
         aria-hidden={!filterOpen}
-        className={`fixed left-0 top-0 z-[9999] h-dvh w-[88%] max-w-[340px] overflow-hidden bg-white shadow-[15px_0_50px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out lg:hidden dark:bg-[#111] ${
+        className={`fixed left-0 top-0 z-9999 h-dvh w-[88%] max-w-85 overflow-hidden bg-white shadow-[15px_0_50px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out lg:hidden dark:bg-[#111] ${
           filterOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -160,5 +183,12 @@ const ProductList = () => {
     </>
   );
 };
+
+/* Suspense is required when using useSearchParams in Next.js */
+const ProductList = () => (
+  <Suspense fallback={null}>
+    <ProductListContent />
+  </Suspense>
+);
 
 export default ProductList;

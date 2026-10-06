@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useGetcategoryQuery } from "@/store/categoriesApi";
 
-const MainMenu = () => {
-  const pathname = usePathname();
+const MenuContent = () => {
+  const searchParams = useSearchParams();
+  const activeCategory = searchParams.get("category");
 
   // apis
   const { data: menuItems } = useGetcategoryQuery();
@@ -18,7 +19,7 @@ const MainMenu = () => {
         flex flex-1 items-center
         justify-center
         overflow-x-auto
-        whitespace-nowrap  
+        whitespace-nowrap
       "
     >
       <div
@@ -33,14 +34,12 @@ const MainMenu = () => {
         "
       >
         {menuItems?.map((item) => {
-          const active =
-            pathname === item.categoryName ||
-            pathname.startsWith(`${item.categoryName}/`);
+          const active = activeCategory === item._id;
 
           return (
             <Link
-              key={item.categoryName}
-              href={`/product-list`}
+              key={item._id}
+              href={`/product-list?category=${item._id}`}
               className={`
                 relative shrink-0
                 rounded-lg
@@ -88,5 +87,12 @@ const MainMenu = () => {
     </div>
   );
 };
+
+/* Suspense is required when using useSearchParams in Next.js */
+const MainMenu = () => (
+  <Suspense fallback={null}>
+    <MenuContent />
+  </Suspense>
+);
 
 export default MainMenu;

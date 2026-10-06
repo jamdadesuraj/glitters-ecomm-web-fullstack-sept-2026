@@ -11,7 +11,9 @@ import {
 import { useGetSizeQuery } from "../../../store/sizeApi";
 import { useGetColorsQuery } from "@/store/colorsApi";
 import { useGetMaterialQuery } from "@/store/materialApi";
-import { DEFAULT_FILTERS, toArray, type Filters } from "./filterUtils";
+import { DEFAULT_FILTERS, getId, toArray, type Filters } from "./filterUtils";
+import { useGetcategoryQuery } from "@/store/categoriesApi";
+import { useGetSubCategoryQuery } from "@/store/subCategoryApi";
 
 type ColorItem = {
   _id?: string;
@@ -36,6 +38,23 @@ type SizeItem = {
   size?: string;
   sizeName?: string;
   name?: string;
+};
+
+type CategoryItem = {
+  _id?: string;
+  id?: string;
+  categoryName?: string;
+  name?: string;
+  title?: string;
+};
+
+type SubCategoryItem = {
+  _id?: string;
+  id?: string;
+  subCategoryName?: string;
+  name?: string;
+  title?: string;
+  category?: unknown; // parent category id (or populated object)
 };
 
 interface SideFilterProps {
@@ -96,10 +115,14 @@ const SideFilter = ({ filters, onChange }: SideFilterProps) => {
   const { data: sizeResponse } = useGetSizeQuery();
   const { data: colorResponse } = useGetColorsQuery();
   const { data: materialResponse } = useGetMaterialQuery();
+  const { data: categoryResponse } = useGetcategoryQuery();
+  const { data: subCategoryResponse } = useGetSubCategoryQuery();
 
   const apiSizes = toArray<SizeItem>(sizeResponse);
   const apiColors = toArray<ColorItem>(colorResponse);
   const apiMaterials = toArray<MaterialItem>(materialResponse);
+  const apiCategories = toArray<CategoryItem>(categoryResponse);
+  const allSubCategories = toArray<SubCategoryItem>(subCategoryResponse);
 
   /* Price inputs (typed values, applied on button click) */
   const [minInput, setMinInput] = useState(String(filters.minPrice));
@@ -111,6 +134,19 @@ const SideFilter = ({ filters, onChange }: SideFilterProps) => {
   const getSizeName = (s: SizeItem) => s.sizeName || s.size || s.name || "Size";
   const getMaterialName = (m: MaterialItem) =>
     m.materialName || m.material || m.name || "Material";
+  const getCategoryName = (c: CategoryItem) =>
+    c.categoryName || c.name || c.title || "Category";
+  const getSubCategoryName = (s: SubCategoryItem) =>
+    s.subCategoryName || s.name || s.title || "Sub Category";
+
+  /* if categories are selected, show only their sub categories */
+  const apiSubCategories =
+    filters.categories.length > 0
+      ? allSubCategories.filter((s) => {
+          const parent = getId(s.category);
+          return !parent || filters.categories.includes(parent);
+        })
+      : allSubCategories;
 
   const update = (patch: Partial<Filters>) =>
     onChange({ ...filters, ...patch });
@@ -217,6 +253,71 @@ const SideFilter = ({ filters, onChange }: SideFilterProps) => {
             onClick={applyPrice}
             className="mt-3 flex h-9 w-full cursor-pointer items-center justify-center rounded-lg bg-[#ffd83d] px-3 text-[10px] font-extrabold text-black transition-all hover:bg-[#ffce18]"
           />
+        </div>
+      </Section>
+
+      {/* CATEGORY */}
+      <Section title="Category">
+        <div className="flex flex-wrap gap-2 px-4 pb-4">
+          {apiCategories.length > 0 ? (
+            apiCategories.map((category, index) => {
+              const categoryId = category._id || category.id || "";
+              const categoryName = getCategoryName(category);
+              const selected = filters.categories.includes(categoryId);
+
+              return (
+                <button
+                  key={categoryId || `${categoryName}-${index}`}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      categories: toggleItem(filters.categories, categoryId),
+                      subCategories: [], // reset sub category when category changes
+                    })
+                  }
+                  className={`px-3 py-2 ${chipClass(selected)}`}
+                >
+                  {categoryName}
+                </button>
+              );
+            })
+          ) : (
+            <p className="py-1 text-[10px] text-gray-400">
+              No categories available
+            </p>
+          )}
+        </div>
+      </Section>
+
+      {/* SUB CATEGORY */}
+      <Section title="Sub Category">
+        <div className="flex flex-wrap gap-2 px-4 pb-4">
+          {apiSubCategories.length > 0 ? (
+            apiSubCategories.map((sub, index) => {
+              const subId = sub._id || sub.id || "";
+              const subName = getSubCategoryName(sub);
+              const selected = filters.subCategories.includes(subId);
+
+              return (
+                <button
+                  key={subId || `${subName}-${index}`}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      subCategories: toggleItem(filters.subCategories, subId),
+                    })
+                  }
+                  className={`px-3 py-2 ${chipClass(selected)}`}
+                >
+                  {subName}
+                </button>
+              );
+            })
+          ) : (
+            <p className="py-1 text-[10px] text-gray-400">
+              No sub categories available
+            </p>
+          )}
         </div>
       </Section>
 
