@@ -5,6 +5,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+
 import {
   FiHeart,
   FiShoppingBag,
@@ -14,7 +15,9 @@ import {
 } from "react-icons/fi";
 
 import ThemeBtnOne from "./ThemeBtnOne";
-import { useRouter } from "next/navigation";
+
+import { useAddToCartMutation } from "@/store/addToCartApi";
+import { toast } from "react-toastify";
 
 type ProductCardProps = {
   // @ts-ignore
@@ -22,7 +25,9 @@ type ProductCardProps = {
 };
 
 const ProductCard = ({ product }: ProductCardProps) => {
-  const router = useRouter();
+  // api add to cart
+  const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
+
   const [wishlist, setWishlist] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -87,6 +92,46 @@ const ProductCard = ({ product }: ProductCardProps) => {
     .replace(/^-+|-+$/g, "");
 
   const productHref = `/product/${productSlug}${_id ? `/${_id}` : ""}`;
+
+  /**
+   * Add to cart
+   */
+  const handleAddToCart = async (): Promise<void> => {
+    if (!_id) {
+      toast.error("Product not found");
+      return;
+    }
+
+    if (stock <= 0) {
+      toast.error("This product is out of stock");
+      return;
+    }
+
+    try {
+      const res = await addToCart({
+        product: _id,
+        quantity: 1,
+      }).unwrap();
+
+      toast.success(res?.message ?? "Product added to cart", {
+        // @ts-ignore
+        duration: 3000,
+      });
+    } catch (error: unknown) {
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        "message" in error.data &&
+        typeof error.data.message === "string"
+          ? error.data.message
+          : "Failed to add product to cart. Try again.";
+
+      toast.error(message);
+    }
+  };
 
   return (
     <article
@@ -390,15 +435,28 @@ const ProductCard = ({ product }: ProductCardProps) => {
             />
           </div>
 
-          {/* Cart Icon Only */}
+          {/* Add To Cart (icon only) */}
           <button
             type="button"
-            className="cursor-pointer border border-gray-300 h-10  rounded-lg  px-3 sm:text-[11px]
-            "
-            onClick={() => router.push("/cart")}
+            disabled={isAdding}
+            onClick={handleAddToCart}
             title="Add To Cart"
+            aria-label="Add to cart"
+            className="
+              flex h-10 cursor-pointer items-center justify-center
+              rounded-lg border border-gray-300 px-3
+              transition-all duration-200
+              hover:border-[#ffd83d] hover:bg-[#fff7d5]
+              disabled:cursor-not-allowed disabled:opacity-60
+              sm:h-11 sm:text-[11px]
+              dark:border-gray-700
+            "
           >
-            <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            {isAdding ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent sm:h-4 sm:w-4" />
+            ) : (
+              <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            )}
           </button>
         </div>
       </div>

@@ -42,6 +42,7 @@ import { offerBannerRouter } from "../modules/offerBanner/offerBanner.route";
 import { topSaleBannerRouter } from "../modules/topSaleBanner/topSaleBanner.route";
 import { appBannerRouter } from "../modules/appBanner/appBanner.route";
 import { appSettingsRouter } from "../modules/appSettings/app-settings.routes";
+import { cartRouter } from "../modules/addToCart/addToCart.route";
 
 const router = Router();
 const moduleRoutes = [
@@ -85,6 +86,10 @@ const moduleRoutes = [
   {
     path: "/products",
     route: productRouter,
+  },
+  {
+    path: "/add-to-cart",
+    route: cartRouter,
   },
   {
     path: "/blogs-category",

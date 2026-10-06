@@ -203,7 +203,7 @@ const HomeBanner = () => {
                     sm:h-40
                     md:h-70
                     lg:h-90
-                    xl:h-125
+                    xl:h-150
 
                     dark:bg-[#181818]
                   "
@@ -228,7 +228,7 @@ const HomeBanner = () => {
                         inset-0
                         h-full
                         w-full
-                        object-cover
+                        object-fill
                       "
                       onLoadedData={(event) => {
                         if (index === activeSlide) {

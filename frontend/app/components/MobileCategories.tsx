@@ -4,59 +4,11 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { FiArrowRight, FiGrid } from "react-icons/fi";
-
-const categories = [
-  {
-    id: 1,
-    name: "Mobile Phones",
-    href: "/category/mobile-phones",
-    image: "/img/categories/mobile.png",
-  },
-  {
-    id: 2,
-    name: "Smart Watches",
-    href: "/category/smart-watches",
-    image: "/img/categories/watch.png",
-  },
-  {
-    id: 3,
-    name: "Audio",
-    href: "/category/audio",
-    image: "/img/categories/audio.png",
-  },
-  {
-    id: 4,
-    name: "Cases & Protection",
-    href: "/category/cases-protection",
-    image: "/img/categories/cases.png",
-  },
-  {
-    id: 5,
-    name: "Power & Cables",
-    href: "/category/power-cables",
-    image: "/img/categories/charger.png",
-  },
-  {
-    id: 6,
-    name: "Screen Protection",
-    href: "/category/screen-protection",
-    image: "/img/categories/screen.png",
-  },
-  {
-    id: 7,
-    name: "Car Accessories",
-    href: "/category/car-accessories",
-    image: "/img/categories/car-accessories.png",
-  },
-  {
-    id: 8,
-    name: "Gadgets",
-    href: "/category/gadgets",
-    image: "/img/categories/gadgets.png",
-  },
-];
+import { useGetcategoryQuery } from "@/store/categoriesApi";
 
 const MobileCategories = () => {
+  // apis
+  const { data: categories } = useGetcategoryQuery();
   return (
     <section
       className="
@@ -109,10 +61,10 @@ const MobileCategories = () => {
           pb-1
         "
       >
-        {categories.map((category) => (
+        {categories?.map((category) => (
           <Link
-            key={category.id}
-            href={category.href}
+            key={category._id}
+            href={`/product-list?category=${category._id}`}
             className="
               flex
               h-22
@@ -149,8 +101,8 @@ const MobileCategories = () => {
               "
             >
               <Image
-                src={category.image}
-                alt={category.name}
+                src={category.img}
+                alt={category.categoryName}
                 width={48}
                 height={48}
                 className="
@@ -174,7 +126,7 @@ const MobileCategories = () => {
                 dark:text-gray-300
               "
             >
-              {category.name}
+              {category.categoryName}
             </p>
           </Link>
         ))}
