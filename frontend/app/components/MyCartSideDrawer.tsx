@@ -478,30 +478,21 @@ const MyCartSideDrawer = () => {
                           )}
 
                           {item.color && (
-                            <div
-                              className="
-                                flex items-center gap-1.5
-                                rounded-lg
-                                border border-[#eeeeee]
-                                bg-[#fafafa]
-                                px-2 py-1.5
-                                text-[10px]
-                                text-gray-600
-                                dark:border-gray-700
-                                dark:bg-[#202020]
-                                dark:text-gray-300
-                              "
-                            >
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[8px] font-semibold text-gray-600 sm:text-[9px] dark:border-gray-700 dark:bg-[#202020] dark:text-gray-300">
                               <span
-                                className="h-2.5 w-2.5 rounded-full border border-black/10 bg-gray-800"
-                                style={
-                                  item.colorCode
-                                    ? { backgroundColor: item.colorCode }
-                                    : undefined
-                                }
+                                className="h-2 w-2 shrink-0 rounded-full border border-black/10"
+                                style={{
+                                  backgroundColor:
+                                    typeof item.color === "string"
+                                      ? item.color
+                                      : item.color || "#000000",
+                                }}
                               />
-                              <span>{item.color}</span>
-                            </div>
+
+                              {typeof item.color === "string"
+                                ? item.color
+                                : item.color || ""}
+                            </span>
                           )}
 
                           {item.stock <= 0 && (
@@ -707,8 +698,9 @@ const MyCartSideDrawer = () => {
                 Looks like you haven&apos;t added anything to your cart yet.
               </p>
 
-              <Link
-                href="/products"
+              <ThemeBtnOne
+                url="/product-list"
+                text="  Start Shopping"
                 onClick={closeDrawer}
                 className="
                   mt-6 flex h-10
@@ -721,10 +713,8 @@ const MyCartSideDrawer = () => {
                   transition
                   hover:bg-[#f6c900]
                 "
-              >
-                Start Shopping
-                <FiArrowRight size={14} />
-              </Link>
+                icon={<FiArrowRight size={14} />}
+              />
             </div>
           )}
         </div>

@@ -1,13 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { FiArrowRight, FiBox, FiPercent, FiShoppingBag } from "react-icons/fi";
-
-import ThemeBtnOne from "@/app/components/ThemeBtnOne";
-import { useGetProductsQuery } from "@/store/productsApi";
 import { AiFillStar } from "react-icons/ai";
+import { toast } from "react-toastify";
+
+import { useGetProductsQuery } from "@/store/productsApi";
+import { useAddToCartMutation } from "@/store/addToCartApi";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -35,12 +37,14 @@ type ApiProduct = {
 
 type Deal = {
   id: string;
+  productId: string;
   name: string;
   description: string;
   image?: string;
   href: string;
   price: number;
   oldPrice: number;
+  stock: number;
   rating: number;
   reviewCount: number;
 };
@@ -66,6 +70,14 @@ const toList = <T,>(response: unknown): T[] => {
 
 const stripHtml = (html = "") => html.replace(/<[^>]*>/g, "").trim();
 
+/** Same slug rule as the cart page, so links open the same product route */
+const slugify = (name: string) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 const isVisible = (p: ApiProduct) =>
   p.status === "active" && !p.isDeleted && p.variants?.length > 0;
 
@@ -82,12 +94,14 @@ const toDeal = (p: ApiProduct): Deal => {
 
   return {
     id: p._id,
+    productId: p._id,
     name: p.productName,
     description: stripHtml(p.shortDesc),
     image: variant.image,
-    href: `/product/${p._id}`,
+    href: `/product/${slugify(p.productName)}/${p._id}`,
     price: variant.price,
     oldPrice: variant.delPrice ?? variant.price,
+    stock: Number(variant.stock ?? 0),
     rating,
     reviewCount: p.reviews?.length ?? 0,
   };
@@ -232,14 +246,45 @@ const TimeBox = ({ value, label }: { value: number; label: string }) => (
 /* -------------------------------------------------------------------------- */
 
 const DealProductCard = ({ deal }: { deal: Deal }) => {
+  const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
   const [imageError, setImageError] = useState(false);
 
   const hasImage = Boolean(deal.image?.trim()) && !imageError;
   const saving = Math.max(0, deal.oldPrice - deal.price);
   const discount = saving > 0 ? Math.round((saving / deal.oldPrice) * 100) : 0;
+  const outOfStock = deal.stock <= 0;
+
+  const buttonLabel = outOfStock
+    ? "Out of Stock"
+    : isAdding
+      ? "Adding..."
+      : "Add to Cart";
+
+  /**
+   * Add to cart
+   */
+  const handleAddToCart = async () => {
+    if (outOfStock) {
+      toast.error("This product is out of stock");
+      return;
+    }
+
+    try {
+      const res = await addToCart({
+        product: deal.productId,
+        quantity: 1,
+      }).unwrap();
+
+      toast.success(res?.message ?? "Product added to cart");
+    } catch (error: any) {
+      toast.error(
+        error?.data?.message || "Failed to add product to cart. Try again.",
+      );
+    }
+  };
 
   return (
-    <div className="group relative flex min-h-25 items-center border-y border-[#f3ead5] bg-white px-4.5 lg:border-x lg:border-y-0 dark:border-gray-800 dark:bg-[#171717]">
+    <div className="group relative flex min-h-25 items-center border-y border-[#f3ead5] bg-white px-4.5 py-3 lg:border-x lg:border-y-0 lg:py-0 dark:border-gray-800 dark:bg-[#171717]">
       {/* IMAGE */}
       <Link
         href={deal.href}
@@ -289,22 +334,38 @@ const DealProductCard = ({ deal }: { deal: Deal }) => {
             </span>
           )}
         </div>
+
+        {/* MOBILE ADD TO CART (desktop button is in the actions column) */}
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          disabled={isAdding || outOfStock}
+          className="mt-2 flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#ffd83d] px-3 font-serif text-[10px] font-bold text-black transition hover:bg-[#ffcc00] disabled:cursor-not-allowed disabled:opacity-60 sm:hidden"
+        >
+          <FiShoppingBag size={12} />
+          {buttonLabel}
+        </button>
       </div>
 
       {/* ACTIONS */}
       <div className="ml-3 hidden h-full min-w-31.25 shrink-0 flex-col items-end justify-between py-2.5 sm:flex">
-        {discount > 0 && (
+        {discount > 0 ? (
           <span className="rounded-[5px] bg-[#ff3b49] px-2.5 py-1 text-[9px] font-extrabold leading-none text-white">
             {discount}% OFF
           </span>
+        ) : (
+          <span />
         )}
 
-        <ThemeBtnOne
-          text="Add to Cart"
-          url={deal.href}
-          icon={<FiShoppingBag size={15} />}
-          className="mt-4 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] font-serif text-[11px] font-bold text-black transition-all duration-200 hover:bg-[#ffcc00] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]"
-        />
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          disabled={isAdding || outOfStock}
+          className="mt-4 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] font-serif text-[11px] font-bold text-black transition-all duration-200 hover:bg-[#ffcc00] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <FiShoppingBag size={15} />
+          {buttonLabel}
+        </button>
       </div>
     </div>
   );

@@ -292,13 +292,21 @@ const Cart = () => {
                                 Material: {item.material}
                               </span>
                             )}
-
                             {item.color && (
                               <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[8px] font-semibold text-gray-600 sm:text-[9px] dark:border-gray-700 dark:bg-[#202020] dark:text-gray-300">
                                 <span
-                                  className={`h-2 w-2 shrink-0 rounded-full border border-black/10 bg-${item.colorCode}`}
+                                  className="h-2 w-2 shrink-0 rounded-full border border-black/10"
+                                  style={{
+                                    backgroundColor:
+                                      typeof item.color === "string"
+                                        ? item.color
+                                        : item.color || "#000000",
+                                  }}
                                 />
-                                {item.color}
+
+                                {typeof item.color === "string"
+                                  ? item.color
+                                  : item.color || ""}
                               </span>
                             )}
 

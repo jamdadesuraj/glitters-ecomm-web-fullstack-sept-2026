@@ -1,12 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+
 import { FiArrowRight, FiBox, FiHeart, FiShoppingBag } from "react-icons/fi";
-import ThemeBtnOne from "@/app/components/ThemeBtnOne";
+import { toast } from "react-toastify";
+
 import { useGetcategoryQuery } from "@/store/categoriesApi";
 import { useGetProductsQuery } from "@/store/productsApi";
+import { useAddToCartMutation } from "@/store/addToCartApi";
+import ThemeBtnOne from "@/app/components/ThemeBtnOne";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -36,12 +41,14 @@ type ApiCategory = {
 
 type Product = {
   id: string;
+  productId: string;
   name: string;
   categoryId: string;
   image?: string;
   href: string;
   price: number;
   oldPrice?: number;
+  stock: number;
 };
 
 type Tab = { id: string; label: string };
@@ -53,6 +60,14 @@ type Tab = { id: string; label: string };
 const ALL_TAB: Tab = { id: "all", label: "All" };
 
 const normalize = (value: string) => value.toLowerCase().replace(/\s+/g, "");
+
+/** Same slug rule as the cart page, so links open the same product route */
+const slugify = (name: string) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 const getCategoryId = (category: ApiProduct["category"]) =>
   typeof category === "string" ? category : (category?._id ?? "");
@@ -73,12 +88,14 @@ const toProduct = (p: ApiProduct): Product => {
 
   return {
     id: p._id,
+    productId: p._id,
     name: p.productName,
     categoryId: getCategoryId(p.category),
     image: variant.image,
-    href: `/product/${p.productName}/${p._id}`,
+    href: `/product/${slugify(p.productName)}/${p._id}`,
     price: variant.price,
     oldPrice: variant.delPrice,
+    stock: Number(variant.stock ?? 0),
   };
 };
 
@@ -206,12 +223,51 @@ const CategoryTabs = ({ tabs, active, onChange }: CategoryTabsProps) => (
 /* -------------------------------------------------------------------------- */
 
 const NewArrivalCard = ({ product }: { product: Product }) => {
+  // api add to cart
+  const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
+
   const [wishlist, setWishlist] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const hasImage = Boolean(product.image?.trim()) && !imageError;
   const oldPrice = product.oldPrice ?? product.price;
   const saving = oldPrice - product.price;
+  const outOfStock = product.stock <= 0;
+
+  /**
+   * Adds the product to cart. Returns true on success so "Buy Now"
+   * knows whether it can continue to checkout.
+   */
+  const addProductToCart = async (): Promise<boolean> => {
+    if (!product.productId) {
+      toast.error("Product not found");
+      return false;
+    }
+
+    if (outOfStock) {
+      toast.error("This product is out of stock");
+      return false;
+    }
+
+    try {
+      const res = await addToCart({
+        product: product.productId,
+        quantity: 1,
+      }).unwrap();
+
+      toast.success(res?.message ?? "Product added to cart");
+      return true;
+    } catch (error: any) {
+      toast.error(
+        error?.data?.message || "Failed to add product to cart. Try again.",
+      );
+      return false;
+    }
+  };
+
+  const handleAddToCart = async () => {
+    await addProductToCart();
+  };
 
   return (
     <article className="group relative flex w-38.75 shrink-0 flex-col overflow-hidden rounded-xl border border-[#ececec] bg-white transition-all duration-300 hover:border-[#ffe076] hover:shadow-[0_8px_25px_rgba(0,0,0,0.06)] min-[380px]:w-41.25 sm:w-45 lg:w-auto dark:border-gray-800 dark:bg-[#171717]">
@@ -238,6 +294,13 @@ const NewArrivalCard = ({ product }: { product: Product }) => {
           )}
         </Link>
 
+        {/* OUT OF STOCK BADGE */}
+        {outOfStock && (
+          <span className="absolute left-2 top-2 z-20 rounded bg-red-50 px-1.5 py-0.5 text-[8px] font-bold text-red-500 sm:left-3 sm:top-3">
+            Out of Stock
+          </span>
+        )}
+
         {/* WISHLIST */}
         <button
           type="button"
@@ -258,8 +321,8 @@ const NewArrivalCard = ({ product }: { product: Product }) => {
       {/* CONTENT */}
       <div className="flex flex-1 flex-col p-2.5 sm:p-3">
         <Link href={product.href} className="block" title={product.name}>
-          <h3 className="line-clamp-2 min-h-2  font-serif text-[9px] font-semibold leading-3.75 text-[#222] transition hover:text-[#b58b00] sm:text-[10px] dark:text-white">
-            {product.name.slice(0, 30)}...
+          <h3 className="line-clamp-2 min-h-7.5 font-serif text-[9px] font-semibold leading-3.75 text-[#222] transition hover:text-[#b58b00] sm:text-[10px] dark:text-white">
+            {product.name}
           </h3>
         </Link>
 
@@ -290,13 +353,63 @@ const NewArrivalCard = ({ product }: { product: Product }) => {
           )}
         </div>
 
-        {/* ADD TO CART */}
-        <ThemeBtnOne
-          text="Add to Cart"
-          url={product.href}
-          icon={<FiShoppingBag className="h-3.5 w-3.5" />}
-          className="mt-3 flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#ffd83d] font-serif text-[9px] font-bold text-black transition-all duration-200 hover:bg-[#ffcc00] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)] sm:h-10 sm:text-[10px]"
-        />
+        {/* BUY NOW + ADD TO CART */}
+        <div className="mt-3 flex w-full items-center gap-2 sm:mt-4 sm:gap-2.5">
+          {/* Buy Now */}
+          <div className="min-w-0 flex-1">
+            <ThemeBtnOne
+              text="Buy Now"
+              url="/checkout"
+              icon={
+                <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              }
+              className="
+        flex h-10 w-full min-w-0
+        cursor-pointer items-center
+        justify-center gap-1.5
+        overflow-hidden
+        whitespace-nowrap
+        rounded-lg
+        bg-[#ffd83d]
+        px-3
+        font-serif text-[9px]
+        font-bold text-black
+        transition-all duration-200
+        hover:bg-[#ffcc00]
+        hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
+        sm:h-11
+        sm:gap-2
+        sm:rounded-xl
+        sm:px-4
+        sm:text-[11px]
+      "
+            />
+          </div>
+
+          {/* Add To Cart (icon only) */}
+          <button
+            type="button"
+            disabled={outOfStock}
+            onClick={handleAddToCart}
+            title="Add To Cart"
+            aria-label="Add to cart"
+            className="
+              flex h-10 cursor-pointer items-center justify-center
+              rounded-lg border border-gray-300 px-3
+              transition-all duration-200
+              hover:border-[#ffd83d] hover:bg-[#fff7d5]
+              disabled:cursor-not-allowed disabled:opacity-60
+              sm:h-11 sm:text-[11px]
+              dark:border-gray-700 dark:text-white
+            "
+          >
+            {isAdding ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent sm:h-4 sm:w-4" />
+            ) : (
+              <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            )}
+          </button>
+        </div>
       </div>
     </article>
   );
