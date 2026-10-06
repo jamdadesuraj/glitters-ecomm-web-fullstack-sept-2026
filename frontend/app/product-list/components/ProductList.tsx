@@ -1,24 +1,32 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FiFilter, FiX } from "react-icons/fi";
 
 import SideFilter from "./SideFilter";
 import TopFilter from "./TopFilter";
 import GridView from "./GridView";
 import ListView from "./ListView";
+import { useGetProductsQuery } from "@/store/productsApi";
+import { DEFAULT_FILTERS, filterProducts, type Filters } from "./filterUtils";
 
 type ViewType = "grid" | "list";
 
 const ProductList = () => {
   const [filterOpen, setFilterOpen] = useState(false);
-
   const [view, setView] = useState<ViewType>("grid");
   const [sort, setSort] = useState("featured");
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+
+  const { data: products = [], isLoading, isError } = useGetProductsQuery();
+
+  const filteredProducts = useMemo(
+    () => filterProducts(products, filters, sort),
+    [products, filters, sort],
+  );
 
   useEffect(() => {
     document.body.style.overflow = filterOpen ? "hidden" : "";
-
     return () => {
       document.body.style.overflow = "";
     };
@@ -26,126 +34,64 @@ const ProductList = () => {
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setFilterOpen(false);
-      }
+      if (event.key === "Escape") setFilterOpen(false);
     };
-
     window.addEventListener("keydown", handleEscape);
-
-    return () => {
-      window.removeEventListener("keydown", handleEscape);
-    };
+    return () => window.removeEventListener("keydown", handleEscape);
   }, []);
 
   return (
     <>
       <section className="w-full bg-white py-3 dark:bg-[#111] sm:py-5 lg:py-6">
-        <div
-          className="
-            mx-auto
-            w-full
-            max-w-[1600px]
-            px-3
-            sm:px-5
-            lg:px-8
-            xl:px-10
-          "
-        >
-          <div
-            className="
-              grid
-              grid-cols-1
-              gap-4
-
-              lg:grid-cols-[260px_minmax(0,1fr)]
-              lg:gap-6
-
-              xl:grid-cols-[280px_minmax(0,1fr)]
-            "
-          >
+        <div className="mx-auto w-full max-w-[1600px] px-3 sm:px-5 lg:px-8 xl:px-10">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
             {/* DESKTOP SIDE FILTER */}
             <aside className="hidden min-w-0 lg:block">
-              <div
-                className="
-                  sticky
-                  top-27.5
-                  overflow-hidden
-                  rounded-2xl
-                  bg-white
-                  dark:bg-[#161616]
-                "
-              >
-                <SideFilter />
+              <div className="sticky top-27.5 overflow-hidden rounded-2xl bg-white dark:bg-[#161616]">
+                <SideFilter filters={filters} onChange={setFilters} />
               </div>
             </aside>
 
             {/* RIGHT CONTENT */}
             <div className="min-w-0">
-              {/* FILTER + TOP FILTER */}
-              <div
-                className="
-                  mb-3
-                  flex
-                  items-center
-                  gap-2
-                  sm:mb-4
-                "
-              >
-                {/* MOBILE FILTER */}
+              <div className="mb-3 flex items-center gap-2 sm:mb-4">
+                {/* MOBILE FILTER BUTTON */}
                 <button
                   type="button"
                   onClick={() => setFilterOpen(true)}
                   aria-label="Open filters"
-                  className="
-                    flex
-                    h-10
-                    shrink-0
-                    cursor-pointer
-                    items-center
-                    justify-center
-                    gap-1.5
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-3
-                    text-[11px]
-                    font-bold
-                    text-black
-                    shadow-[0_2px_10px_rgba(0,0,0,0.05)]
-                    transition-all
-
-                    active:scale-[0.97]
-
-                    sm:h-11
-                    sm:px-3.5
-
-                    lg:hidden
-
-                    dark:border-gray-700
-                    dark:bg-[#181818]
-                    dark:text-white
-                  "
+                  className="flex h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-[11px] font-bold text-black shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-all active:scale-[0.97] sm:h-11 sm:px-3.5 lg:hidden dark:border-gray-700 dark:bg-[#181818] dark:text-white"
                 >
                   <FiFilter className="h-4 w-4" />
                   <span>Filter</span>
                 </button>
 
-                {/* TOP FILTER */}
                 <div className="min-w-0 flex-1">
                   <TopFilter
                     view={view}
                     onViewChange={setView}
                     sort={sort}
                     onSortChange={setSort}
+                    total={filteredProducts.length}
                   />
                 </div>
               </div>
 
               {/* PRODUCT VIEW */}
               <div className="w-full">
-                {view === "grid" ? <GridView /> : <ListView />}
+                {view === "grid" ? (
+                  <GridView
+                    products={filteredProducts}
+                    isLoading={isLoading}
+                    isError={isError}
+                  />
+                ) : (
+                  <ListView
+                    products={filteredProducts}
+                    isLoading={isLoading}
+                    isError={isError}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -155,84 +101,30 @@ const ProductList = () => {
       {/* OVERLAY */}
       <div
         onClick={() => setFilterOpen(false)}
-        className={`
-          fixed
-          inset-0
-          z-9998
-          bg-black/40
-          backdrop-blur-[2px]
-          transition-opacity
-          duration-300
-          lg:hidden
-
-          ${
-            filterOpen
-              ? "pointer-events-auto opacity-100"
-              : "pointer-events-none opacity-0"
-          }
-        `}
+        className={`fixed inset-0 z-9998 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden ${
+          filterOpen
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
+        }`}
       />
 
       {/* MOBILE SIDE DRAWER */}
       <aside
         aria-hidden={!filterOpen}
-        className={`
-          fixed
-          left-0
-          top-0
-          z-[9999]
-          h-dvh
-          w-[88%]
-          max-w-[340px]
-          overflow-hidden
-          bg-white
-          shadow-[15px_0_50px_rgba(0,0,0,0.15)]
-          transition-transform
-          duration-300
-          ease-out
-
-          lg:hidden
-          dark:bg-[#111]
-
-          ${filterOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
+        className={`fixed left-0 top-0 z-[9999] h-dvh w-[88%] max-w-[340px] overflow-hidden bg-white shadow-[15px_0_50px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-out lg:hidden dark:bg-[#111] ${
+          filterOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         {/* HEADER */}
-        <div
-          className="
-            flex
-            h-15.5
-            items-center
-            justify-between
-            border-b
-            border-gray-100
-            px-4
-            dark:border-gray-800
-          "
-        >
+        <div className="flex h-15.5 items-center justify-between border-b border-gray-100 px-4 dark:border-gray-800">
           <div className="flex items-center gap-2.5">
-            <div
-              className="
-                flex
-                h-9
-                w-9
-                items-center
-                justify-center
-                rounded-xl
-                bg-[#fff7d1]
-                text-black
-                dark:bg-[#2a2510]
-                dark:text-[#ffd83d]
-              "
-            >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff7d1] text-black dark:bg-[#2a2510] dark:text-[#ffd83d]">
               <FiFilter className="h-4.25 w-4.25" />
             </div>
-
             <div>
               <h2 className="text-[14px] font-extrabold text-black dark:text-white">
                 Filters
               </h2>
-
               <p className="mt-0.5 text-[9px] text-gray-400">
                 Refine your results
               </p>
@@ -243,81 +135,25 @@ const ProductList = () => {
             type="button"
             onClick={() => setFilterOpen(false)}
             aria-label="Close filters"
-            className="
-              flex
-              h-9
-              w-9
-              cursor-pointer
-              items-center
-              justify-center
-              rounded-full
-              border
-              border-gray-100
-              bg-gray-50
-              text-gray-600
-              transition
-
-              active:scale-95
-
-              dark:border-gray-700
-              dark:bg-[#1b1b1b]
-              dark:text-white
-            "
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-gray-100 bg-gray-50 text-gray-600 transition active:scale-95 dark:border-gray-700 dark:bg-[#1b1b1b] dark:text-white"
           >
             <FiX className="h-4.25 w-4.25" />
           </button>
         </div>
 
         {/* FILTER CONTENT */}
-        <div
-          className="
-            h-[calc(100dvh-122px)]
-            overflow-y-auto
-            overscroll-contain
-            p-3
-          "
-        >
-          <SideFilter />
+        <div className="h-[calc(100dvh-122px)] overflow-y-auto overscroll-contain p-3">
+          <SideFilter filters={filters} onChange={setFilters} />
         </div>
 
         {/* BOTTOM */}
-        <div
-          className="
-            absolute
-            bottom-0
-            left-0
-            right-0
-            border-t
-            border-gray-100
-            bg-white
-            p-3
-
-            dark:border-gray-800
-            dark:bg-[#111]
-          "
-        >
+        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-[#111]">
           <button
             type="button"
             onClick={() => setFilterOpen(false)}
-            className="
-              flex
-              h-11
-              w-full
-              cursor-pointer
-              items-center
-              justify-center
-              rounded-xl
-              bg-[#ffd83d]
-              text-[11px]
-              font-extrabold
-              text-black
-              transition
-
-              hover:bg-[#ffcf12]
-              active:scale-[0.98]
-            "
+            className="flex h-11 w-full cursor-pointer items-center justify-center rounded-xl bg-[#ffd83d] text-[11px] font-extrabold text-black transition hover:bg-[#ffcf12] active:scale-[0.98]"
           >
-            Show Products
+            Show {filteredProducts.length} Products
           </button>
         </div>
       </aside>

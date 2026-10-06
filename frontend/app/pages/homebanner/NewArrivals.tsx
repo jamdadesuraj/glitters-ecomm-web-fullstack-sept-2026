@@ -76,7 +76,7 @@ const toProduct = (p: ApiProduct): Product => {
     name: p.productName,
     categoryId: getCategoryId(p.category),
     image: variant.image,
-    href: `/product/${p._id}`,
+    href: `/product/${p.productName}/${p._id}`,
     price: variant.price,
     oldPrice: variant.delPrice,
   };

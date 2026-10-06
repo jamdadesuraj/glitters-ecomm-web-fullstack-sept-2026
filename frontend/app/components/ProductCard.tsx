@@ -14,6 +14,7 @@ import {
 } from "react-icons/fi";
 
 import ThemeBtnOne from "./ThemeBtnOne";
+import { useRouter } from "next/navigation";
 
 type ProductCardProps = {
   // @ts-ignore
@@ -21,6 +22,7 @@ type ProductCardProps = {
 };
 
 const ProductCard = ({ product }: ProductCardProps) => {
+  const router = useRouter();
   const [wishlist, setWishlist] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -45,6 +47,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
     typeof product?.brand === "object"
       ? product?.brand?.name || ""
       : product?.brand || "";
+
+  const material =
+    typeof product?.material === "object"
+      ? product?.material?.name || ""
+      : product?.material || "";
 
   const rating =
     product?.reviews?.length > 0
@@ -199,26 +206,46 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
       {/* CONTENT */}
       <div className="flex flex-1 flex-col p-2.5 sm:p-4">
-        {/* BRAND + STOCK */}
-        <div className="flex min-w-0 items-center justify-between gap-1">
-          <span
-            className="
-              min-w-0 truncate
-              text-[7px] font-bold uppercase
-              tracking-[0.8px] text-gray-400
-              sm:text-[9px]
-            "
-          >
-            {brand || "Brand"}
-          </span>
+        {/* BRAND + MATERIAL + STOCK */}
+        <div className="flex w-full min-w-0 items-center justify-between gap-2">
+          {/* Brand + Material */}
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+            <span
+              className="
+        min-w-0 max-w-[45%] truncate
+        text-[7px] font-bold uppercase
+        tracking-[0.8px] text-gray-400
+        sm:text-[9px]
+      "
+            >
+              {brand || "Brand"}
+            </span>
 
+            <span className="shrink-0 text-[7px] text-gray-300 sm:text-[8px]">
+              |
+            </span>
+
+            <span
+              className="
+        min-w-0 max-w-[45%] truncate
+        text-[7px] font-bold uppercase
+        tracking-[0.8px] text-gray-400
+        sm:text-[9px]
+      "
+            >
+              {material || "Material"}
+            </span>
+          </div>
+
+          {/* Stock */}
           <span
             className={`
-              flex shrink-0 items-center gap-1
-              text-[7px] font-semibold
-              ${stock > 0 ? "text-green-600" : "text-red-500"}
-              sm:text-[9px]
-            `}
+      flex shrink-0 items-center gap-1
+      whitespace-nowrap
+      text-[7px] font-semibold
+      sm:text-[9px]
+      ${stock > 0 ? "text-green-600" : "text-red-500"}
+    `}
           >
             <FiCheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
 
@@ -241,8 +268,9 @@ const ProductCard = ({ product }: ProductCardProps) => {
               sm:mt-2 sm:text-[13px] sm:leading-5
               dark:text-white
             "
+            title={name}
           >
-            {name}
+            {name.slice(0, 29)}...
           </h3>
         </Link>
 
@@ -329,26 +357,50 @@ const ProductCard = ({ product }: ProductCardProps) => {
           )}
         </div>
 
-        {/* ADD TO CART */}
-        <ThemeBtnOne
-          text="Add to Cart"
-          url="/cart"
-          icon={<FiShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-          className="
-            mt-3 flex h-9 w-full
-            cursor-pointer items-center
-            justify-center gap-1.5
-            rounded-lg bg-[#ffd83d]
-            font-serif text-[8px]
-            font-bold text-black
-            transition-all duration-200
-            hover:bg-[#ffcc00]
-            hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
-            sm:mt-4 sm:h-11
-            sm:gap-2 sm:rounded-xl
-            sm:text-[11px]
-          "
-        />
+        {/* BUY NOW + ADD TO CART */}
+        <div className="mt-3 flex w-full items-center gap-2 sm:mt-4 sm:gap-2.5">
+          {/* Buy Now */}
+          <div className="min-w-0 flex-1">
+            <ThemeBtnOne
+              text="Buy Now"
+              url="/checkout"
+              icon={
+                <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              }
+              className="
+        flex h-10 w-full min-w-0
+        cursor-pointer items-center
+        justify-center gap-1.5
+        overflow-hidden
+        whitespace-nowrap
+        rounded-lg
+        bg-[#ffd83d]
+        px-3
+        font-serif text-[9px]
+        font-bold text-black
+        transition-all duration-200
+        hover:bg-[#ffcc00]
+        hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
+        sm:h-11
+        sm:gap-2
+        sm:rounded-xl
+        sm:px-4
+        sm:text-[11px]
+      "
+            />
+          </div>
+
+          {/* Cart Icon Only */}
+          <button
+            type="button"
+            className="cursor-pointer border border-gray-300 h-10  rounded-lg  px-3 sm:text-[11px]
+            "
+            onClick={() => router.push("/cart")}
+            title="Add To Cart"
+          >
+            <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+          </button>
+        </div>
       </div>
     </article>
   );
