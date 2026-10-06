@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 
 type Props = {
   text?: string;
+  subtitle?: string;
   url?: string;
   className?: string;
   icon?: ReactNode;
@@ -15,6 +16,7 @@ type Props = {
 
 const ThemeBtnOne = ({
   text = "",
+  subtitle = "",
   url,
   className = "",
   icon,
@@ -26,11 +28,31 @@ const ThemeBtnOne = ({
     disabled ? "pointer-events-none opacity-50" : ""
   } ${className}`;
 
+  const content = (
+    <>
+      {icon && <span className="flex shrink-0 items-center">{icon}</span>}
+
+      <span className="flex flex-col items-start justify-center leading-tight">
+        <span className="font-bold">{text}</span>
+
+        {subtitle && (
+          <span className="mt-0.5 text-[8px] font-normal leading-none opacity-70 sm:text-[8px]">
+            {subtitle}
+          </span>
+        )}
+      </span>
+    </>
+  );
+
   if (url) {
     return (
-      <Link href={url} onClick={onClick} className={classes}>
-        {icon && <span className="flex items-center">{icon}</span>}
-        <span>{text}</span>
+      <Link
+        href={disabled ? "#" : url}
+        onClick={disabled ? undefined : onClick}
+        aria-disabled={disabled}
+        className={classes}
+      >
+        {content}
       </Link>
     );
   }
@@ -42,8 +64,7 @@ const ThemeBtnOne = ({
       onClick={onClick}
       className={classes}
     >
-      {icon && <span className="flex items-center">{icon}</span>}
-      <span>{text}</span>
+      {content}
     </button>
   );
 };

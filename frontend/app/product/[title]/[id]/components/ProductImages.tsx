@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FiChevronLeft,
   FiChevronRight,
@@ -9,78 +9,56 @@ import {
   FiX,
 } from "react-icons/fi";
 
-interface ProductImage {
-  id: number;
-  src: string;
-  alt: string;
-}
-
-const productImages: ProductImage[] = [
-  {
-    id: 1,
-    src: "/img/products/product-1.png",
-    alt: "Product front view",
-  },
-  {
-    id: 2,
-    src: "/img/products/product-2.png",
-    alt: "Product side view",
-  },
-  {
-    id: 3,
-    src: "/img/products/product-3.png",
-    alt: "Product back view",
-  },
-  {
-    id: 4,
-    src: "/img/products/product-4.png",
-    alt: "Product detail view",
-  },
-  {
-    id: 5,
-    src: "/img/products/product-5.png",
-    alt: "Product close view",
-  },
-  {
-    id: 6,
-    src: "/img/products/product-6.png",
-    alt: "Product additional view",
-  },
-];
-
-const ProductImages = () => {
+const ProductImages = ({ product, selectedColorId }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const activeImage = productImages[activeIndex];
+  // Selected color ke variants ki images
+  const productImages = useMemo(() => {
+    const variants = (product?.variants ?? []).filter((v) => v?.image);
+
+    const byColor = variants.filter((v) => v.color?._id === selectedColorId);
+    // agar color match na ho to saari images dikhao
+    const list = byColor.length ? byColor : variants;
+
+    // same color ke different sizes ki duplicate image hatao
+    const seen = new Set();
+    return list
+      .filter((v) => {
+        if (seen.has(v.image)) return false;
+        seen.add(v.image);
+        return true;
+      })
+      .map((v, i) => ({
+        id: v._id ?? i,
+        src: v.image,
+        alt: `${product?.productName ?? "Product"} - ${v.color?.colorName ?? ""}`,
+      }));
+  }, [product, selectedColorId]);
+
+  // Color change hone par pehli image par wapas
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [selectedColorId]);
+
+  const total = productImages.length;
+  const activeImage = productImages[activeIndex] ?? productImages[0];
 
   const showPrevious = () => {
-    setActiveIndex((prev) =>
-      prev === 0 ? productImages.length - 1 : prev - 1,
-    );
+    setActiveIndex((prev) => (prev === 0 ? total - 1 : prev - 1));
   };
 
   const showNext = () => {
-    setActiveIndex((prev) =>
-      prev === productImages.length - 1 ? 0 : prev + 1,
-    );
+    setActiveIndex((prev) => (prev === total - 1 ? 0 : prev + 1));
   };
 
   useEffect(() => {
     if (!isModalOpen) return;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsModalOpen(false);
-      }
-
-      if (event.key === "ArrowLeft") {
-        showPrevious();
-      }
-
-      if (event.key === "ArrowRight") {
-        showNext();
-      }
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setIsModalOpen(false);
+      if (event.key === "ArrowLeft") showPrevious();
+      if (event.key === "ArrowRight") showNext();
     };
 
     document.body.style.overflow = "hidden";
@@ -90,7 +68,17 @@ const ProductImages = () => {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isModalOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, total]);
+
+  // Koi image na ho to crash na ho
+  if (!activeImage) {
+    return (
+      <div className="flex min-h-95 w-full items-center justify-center rounded-2xl border border-gray-200 bg-[#f8f8f8] text-sm text-gray-400 dark:border-white/10 dark:bg-[#0d0d0d]">
+        No image available
+      </div>
+    );
+  }
 
   return (
     <>
@@ -122,6 +110,7 @@ const ProductImages = () => {
             onClick={() => setIsModalOpen(true)}
           >
             <Image
+              key={activeImage.src}
               src={activeImage.src}
               alt={activeImage.alt}
               fill
@@ -178,7 +167,7 @@ const ProductImages = () => {
 
             {/* Image Counter */}
             <div className="absolute bottom-4 left-4 rounded-full bg-black/70 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur">
-              {activeIndex + 1} / {productImages.length}
+              {activeIndex + 1} / {total}
             </div>
           </div>
 
@@ -260,45 +249,64 @@ const ProductImages = () => {
       {isModalOpen && (
         <div
           className="
-            fixed
-            inset-0
-            z-9999
-            flex
-            items-center
-            justify-center
-            bg-black/90
-            p-3
-            backdrop-blur-sm
-            sm:p-6
-          "
+      fixed
+      inset-0
+      z-[999999999]
+      flex
+      items-center
+      justify-center
+      bg-black/90
+      p-3
+      backdrop-blur-sm
+      sm:p-6
+    "
           onClick={() => setIsModalOpen(false)}
         >
           {/* Modal Content */}
           <div
             className="
-              relative
-              flex
-              h-full
-              max-h-225
-              w-full
-              max-w-312.5
-              flex-col
-              overflow-hidden
-              rounded-2xl
-              bg-white
-              dark:bg-[#0c0c0c]
-            "
+        relative
+        z-[1000000000]
+        flex
+        h-full
+        max-h-[900px]
+        w-full
+        max-w-[820px]
+        flex-col
+        overflow-hidden
+        rounded-2xl
+        bg-white
+        shadow-2xl
+        dark:bg-[#0c0c0c]
+      "
             onClick={(event) => event.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 px-4 dark:border-white/10 sm:px-5">
+            <div
+              className="
+          relative
+          z-[1000000001]
+          flex
+          h-14
+          shrink-0
+          items-center
+          justify-between
+          border-b
+          border-gray-100
+          bg-white
+          px-4
+          dark:border-white/10
+          dark:bg-[#0c0c0c]
+          sm:px-5
+        "
+            >
               <div>
                 <p className="text-xs font-extrabold text-gray-900 dark:text-white">
                   Product Gallery
                 </p>
 
                 <p className="mt-0.5 text-[10px] text-gray-400">
-                  Image {activeIndex + 1} of {productImages.length}
+                  Image {activeIndex + 1} of {total}
                 </p>
               </div>
 
@@ -307,31 +315,42 @@ const ProductImages = () => {
                 onClick={() => setIsModalOpen(false)}
                 aria-label="Close gallery"
                 className="
-                  flex
-                  h-9
-                  w-9
-                  cursor-pointer
-                  items-center
-                  justify-center
-                  rounded-full
-                  bg-gray-100
-                  text-gray-700
-                  transition
-                  hover:bg-red-50
-                  hover:text-red-500
-                  dark:bg-white/10
-                  dark:text-white
-                  dark:hover:bg-red-500/10
-                  dark:hover:text-red-400
-                "
+            flex
+            h-9
+            w-9
+            shrink-0
+            cursor-pointer
+            items-center
+            justify-center
+            rounded-full
+            bg-gray-100
+            text-gray-700
+            transition
+            hover:bg-red-50
+            hover:text-red-500
+            dark:bg-white/10
+            dark:text-white
+            dark:hover:bg-red-500/10
+            dark:hover:text-red-400
+          "
               >
                 <FiX size={19} />
               </button>
             </div>
 
             {/* Large Modal Image */}
-            <div className="relative min-h-0 flex-1 bg-[#fafafa] dark:bg-[#080808]">
+            <div
+              className="
+          relative
+          z-0
+          min-h-0
+          flex-1
+          bg-[#fafafa]
+          dark:bg-[#080808]
+        "
+            >
               <Image
+                key={activeImage.src}
                 src={activeImage.src}
                 alt={activeImage.alt}
                 fill
@@ -339,107 +358,132 @@ const ProductImages = () => {
                 className="object-contain p-5 sm:p-8 lg:p-12"
               />
 
-              {/* Previous */}
-              <button
-                type="button"
-                onClick={showPrevious}
-                aria-label="Previous image"
-                className="
-                  absolute
-                  left-3
-                  top-1/2
-                  z-10
-                  flex
-                  h-11
-                  w-11
-                  -translate-y-1/2
-                  cursor-pointer
-                  items-center
-                  justify-center
-                  rounded-full
-                  border
-                  border-gray-200
-                  bg-white/95
-                  text-gray-900
-                  shadow-lg
-                  backdrop-blur
-                  transition
-                  hover:bg-[#ffd83d]
-                  dark:border-white/10
-                  dark:bg-black/70
-                  dark:text-white
-                  dark:hover:bg-[#ffd83d]
-                  dark:hover:text-black
-                  sm:left-5
-                "
-              >
-                <FiChevronLeft size={22} />
-              </button>
+              {total > 1 && (
+                <>
+                  {/* Previous */}
+                  <button
+                    type="button"
+                    onClick={showPrevious}
+                    aria-label="Previous image"
+                    className="
+                absolute
+                left-3
+                top-1/2
+                z-[1000000002]
+                flex
+                h-11
+                w-11
+                -translate-y-1/2
+                cursor-pointer
+                items-center
+                justify-center
+                rounded-full
+                border
+                border-gray-200
+                bg-white/95
+                text-gray-900
+                shadow-lg
+                backdrop-blur
+                transition
+                hover:bg-[#ffd83d]
+                dark:border-white/10
+                dark:bg-black/70
+                dark:text-white
+                dark:hover:bg-[#ffd83d]
+                dark:hover:text-black
+                sm:left-5
+              "
+                  >
+                    <FiChevronLeft size={22} />
+                  </button>
 
-              {/* Next */}
-              <button
-                type="button"
-                onClick={showNext}
-                aria-label="Next image"
-                className="
-                  absolute
-                  right-3
-                  top-1/2
-                  z-10
-                  flex
-                  h-11
-                  w-11
-                  -translate-y-1/2
-                  cursor-pointer
-                  items-center
-                  justify-center
-                  rounded-full
-                  border
-                  border-gray-200
-                  bg-white/95
-                  text-gray-900
-                  shadow-lg
-                  backdrop-blur
-                  transition
-                  hover:bg-[#ffd83d]
-                  dark:border-white/10
-                  dark:bg-black/70
-                  dark:text-white
-                  dark:hover:bg-[#ffd83d]
-                  dark:hover:text-black
-                  sm:right-5
-                "
-              >
-                <FiChevronRight size={22} />
-              </button>
+                  {/* Next */}
+                  <button
+                    type="button"
+                    onClick={showNext}
+                    aria-label="Next image"
+                    className="
+                absolute
+                right-3
+                top-1/2
+                z-[1000000002]
+                flex
+                h-11
+                w-11
+                -translate-y-1/2
+                cursor-pointer
+                items-center
+                justify-center
+                rounded-full
+                border
+                border-gray-200
+                bg-white/95
+                text-gray-900
+                shadow-lg
+                backdrop-blur
+                transition
+                hover:bg-[#ffd83d]
+                dark:border-white/10
+                dark:bg-black/70
+                dark:text-white
+                dark:hover:bg-[#ffd83d]
+                dark:hover:text-black
+              "
+                  >
+                    <FiChevronRight size={22} />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Modal Bottom Thumbnails */}
-            <div className="shrink-0 border-t border-gray-100 bg-white p-3 dark:border-white/10 dark:bg-[#0c0c0c]">
-              <div className="mx-auto flex max-w-full justify-start gap-2 overflow-x-auto sm:justify-center">
+            <div
+              className="
+          relative
+          z-[1000000001]
+          shrink-0
+          border-t
+          border-gray-100
+          bg-white
+          p-3
+          dark:border-white/10
+          dark:bg-[#0c0c0c]
+        "
+            >
+              <div
+                className="
+            mx-auto
+            flex
+            max-w-full
+            justify-start
+            gap-2
+            overflow-x-auto
+            sm:justify-center
+          "
+              >
                 {productImages.map((image, index) => (
                   <button
                     key={image.id}
                     type="button"
                     onClick={() => setActiveIndex(index)}
                     className={`
-                      relative
-                      h-14
-                      w-14
-                      shrink-0
-                      cursor-pointer
-                      overflow-hidden
-                      rounded-lg
-                      border-2
-                      bg-gray-50
-                      transition
-                      dark:bg-white/5
-                      ${
-                        activeIndex === index
-                          ? "border-[#ffd83d]"
-                          : "border-gray-200 dark:border-white/10"
-                      }
-                    `}
+                relative
+                h-14
+                w-14
+                shrink-0
+                cursor-pointer
+                overflow-hidden
+                rounded-lg
+                border-2
+                bg-gray-50
+                transition
+                dark:bg-white/5
+                ${
+                  activeIndex === index
+                    ? "border-[#ffd83d]"
+                    : "border-gray-200 dark:border-white/10"
+                }
+              `}
                   >
                     <Image
                       src={image.src}

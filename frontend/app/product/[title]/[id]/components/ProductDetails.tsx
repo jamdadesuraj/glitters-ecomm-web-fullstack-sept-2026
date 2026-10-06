@@ -1,39 +1,86 @@
+"use client";
+
 import React from "react";
 import ProductImages from "./ProductImages";
 import ProductInfo from "./ProductInfo";
 import ProductTabs from "./ProductTabs";
+import { useParams } from "next/navigation";
+import { useGetProductsByIdQuery } from "@/store/productsApi";
 
 const ProductDetails = () => {
+  const params = useParams();
+
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+
+  const {
+    data: productResponse,
+    isLoading,
+    isError,
+  } = useGetProductsByIdQuery(id ?? "", {
+    skip: !id,
+  });
+
+  if (isLoading) {
+    return (
+      <section className="bg-white py-8 dark:bg-[#0a0a0a]">
+        <div className="mx-auto w-full max-w-[1450px] px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+            <div className="h-[500px] animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5" />
+            <div className="h-[500px] animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5" />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (isError || !productResponse) {
+    return (
+      <section className="bg-white py-10 dark:bg-[#0a0a0a]">
+        <div className="mx-auto max-w-[1450px] px-4 text-center sm:px-6 lg:px-8">
+          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+            Unable to load product details.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="bg-white py-6 dark:bg-[#0a0a0a] sm:py-8 lg:py-10">
-      <div className="mx-auto w-full max-w-362.5 px-4 sm:px-6 lg:px-8">
-        {/* Top Product Section */}
+      <div className="mx-auto w-full max-w-[1450px] px-4 sm:px-6 lg:px-8">
+        {/* =====================================================
+            PRODUCT IMAGE + INFORMATION
+        ====================================================== */}
         <div
           className="
             grid
             grid-cols-1
-            gap-6
-            lg:grid-cols-[0.9fr_1.1fr]
-            lg:gap-10
-            xl:grid-cols-[1fr_1fr]
+            items-start
+            gap-7
+            lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]
+            lg:gap-8
+            xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]
+            xl:gap-12
           "
         >
           {/* Product Images */}
-          <div>
-            <ProductImages />
+          <div className="w-full min-w-0 lg:sticky lg:top-24 lg:self-start">
+            <div className="mx-auto w-full max-w-[650px]">
+              <ProductImages product={productResponse} />
+            </div>
           </div>
 
           {/* Product Information */}
-          <div>
-            <ProductInfo />
+          <div className="w-full min-w-0 lg:max-w-[680px]">
+            <ProductInfo product={productResponse} />
           </div>
         </div>
 
-        {/* Product Tabs */}
-        <div className="mt-8 sm:mt-10 lg:mt-12">
-          <div>
-            <ProductTabs />
-          </div>
+        {/* =====================================================
+            PRODUCT TABS
+        ====================================================== */}
+        <div className="mt-8 sm:mt-10 lg:mt-14">
+          <ProductTabs product={productResponse} />
         </div>
       </div>
     </section>
