@@ -1,12 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FiHeart, FiStar, FiShoppingBag, FiCheckCircle } from "react-icons/fi";
-
-import ThemeBtnOne from "./ThemeBtnOne";
 import { useRouter } from "next/navigation";
+import { FiHeart, FiStar, FiShoppingBag, FiCheckCircle } from "react-icons/fi";
+import { toast } from "react-toastify";
+
+import { useAddToCartMutation } from "@/store/addToCartApi";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -53,7 +55,12 @@ const slugify = (text: string) =>
 
 const ListViewCard = ({ product }: ProductCardProps) => {
   const router = useRouter();
+
+  // api add to cart
+  const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
+
   const [imageError, setImageError] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
 
   const variant = product?.variants?.[0];
 
@@ -92,6 +99,54 @@ const ListViewCard = ({ product }: ProductCardProps) => {
 
   /* ----- link ----- */
   const productHref = `/product/${slugify(name)}${id ? `/${id}` : ""}`;
+
+  const busy = isAdding || buyingNow;
+
+  /**
+   * Adds the product to cart. Returns true on success so "Buy Now"
+   * knows whether it can continue to checkout.
+   */
+  const addProductToCart = async (): Promise<boolean> => {
+    if (!id) {
+      toast.error("Product not found");
+      return false;
+    }
+
+    if (!inStock) {
+      toast.error("This product is out of stock");
+      return false;
+    }
+
+    try {
+      const res = await addToCart({
+        product: id,
+        quantity: 1,
+      }).unwrap();
+
+      toast.success(res?.message ?? "Product added to cart");
+      return true;
+    } catch (error: any) {
+      toast.error(
+        error?.data?.message || "Failed to add product to cart. Try again.",
+      );
+      return false;
+    }
+  };
+
+  const handleAddToCart = async () => {
+    await addProductToCart();
+  };
+
+  /**
+   * Buy now = add to cart, then go to checkout
+   */
+  const handleBuyNow = async () => {
+    setBuyingNow(true);
+    const added = await addProductToCart();
+    setBuyingNow(false);
+
+    if (added) router.push("/checkout");
+  };
 
   return (
     <article className="group relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_3px_16px_rgba(0,0,0,0.04)] transition-all duration-200 hover:border-gray-300 hover:shadow-[0_8px_28px_rgba(0,0,0,0.07)] sm:p-4 dark:border-gray-800 dark:bg-[#181818]">
@@ -163,25 +218,15 @@ const ListViewCard = ({ product }: ProductCardProps) => {
               </div>
 
               {/* Stock */}
-              {inStock && (
-                <span
-                  className="
-        flex
-        shrink-0
-        items-center
-        gap-1
-        whitespace-nowrap
-        text-[7px]
-        font-semibold
-        text-green-600
-        min-[380px]:text-[8px]
-        sm:text-[9px]
-        dark:text-green-400
-      "
-                >
+              {inStock ? (
+                <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[7px] font-semibold text-green-600 min-[380px]:text-[8px] sm:text-[9px] dark:text-green-400">
                   <FiCheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
 
                   <span className="hidden min-[340px]:inline">In Stock</span>
+                </span>
+              ) : (
+                <span className="shrink-0 whitespace-nowrap rounded bg-red-50 px-1.5 py-0.5 text-[8px] font-bold text-red-500 sm:text-[9px]">
+                  Out of Stock
                 </span>
               )}
             </div>
@@ -251,22 +296,31 @@ const ListViewCard = ({ product }: ProductCardProps) => {
               )}
             </div>
 
-            {/* Add to cart */}
+            {/* Buy now + Add to cart */}
             <div className="flex gap-2">
-              <ThemeBtnOne
-                text="Buy Now"
-                url="/checkout"
-                icon={<FiShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#ffd83d] px-4 font-serif text-[8px] font-bold text-black transition-all duration-200 hover:bg-[#ffcc00] sm:h-11 sm:gap-2 sm:rounded-xl sm:px-5 sm:text-[11px]"
-              />
               <button
                 type="button"
-                className="cursor-pointer border border-gray-300 h-10  rounded-lg  px-3 sm:text-[11px]
-            "
-                onClick={() => router.push("/cart")}
-                title="Add To Cart"
+                onClick={handleBuyNow}
+                disabled={busy || !inStock}
+                className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#ffd83d] px-4 font-serif text-[8px] font-bold text-black transition-all duration-200 hover:bg-[#ffcc00] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:gap-2 sm:rounded-xl sm:px-5 sm:text-[11px]"
               >
-                <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <FiShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {buyingNow ? "Please wait..." : "Buy Now"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={busy || !inStock}
+                title="Add To Cart"
+                aria-label="Add to cart"
+                className="flex h-9 cursor-pointer items-center justify-center rounded-lg border border-gray-300 px-3 transition-all duration-200 hover:border-[#ffd83d] hover:bg-[#fff7d5] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-xl sm:text-[11px] dark:border-gray-700 dark:text-white"
+              >
+                {isAdding ? (
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent sm:h-4 sm:w-4" />
+                ) : (
+                  <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                )}
               </button>
             </div>
           </div>
