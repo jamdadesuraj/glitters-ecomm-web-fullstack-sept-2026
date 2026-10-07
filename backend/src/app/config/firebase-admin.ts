@@ -1,37 +1,27 @@
-import admin from 'firebase-admin';
-import dotenv from 'dotenv';
+import "dotenv/config";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 
-dotenv.config();
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-// Initialize Firebase Admin SDK
-// You need to add your Firebase service account key
-const initializeFirebaseAdmin = () => {
-  if (admin.apps.length === 0) {
-    // Option 1: Using service account JSON file path
-    // const serviceAccount = require('../../../firebase-service-account.json');
-    
-    // Option 2: Using environment variables (recommended for production)
-    const serviceAccount = {
-      type: 'service_account',
-      project_id: process.env.FIREBASE_PROJECT_ID,
-      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      client_email: process.env.FIREBASE_CLIENT_EMAIL,
-      client_id: process.env.FIREBASE_CLIENT_ID,
-      auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-      token_uri: 'https://oauth2.googleapis.com/token',
-      auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-      client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
-    };
+if (!projectId || !clientEmail || !privateKey) {
+  console.error("Firebase env check:", {
+    projectId: !!projectId,
+    clientEmail: !!clientEmail,
+    privateKey: !!privateKey,
+    cwd: process.cwd(),
+  });
+  throw new Error(
+    "Missing Firebase Admin env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY",
+  );
+}
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-    });
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({ projectId, clientEmail, privateKey }),
+  });
+}
 
-    console.log('✅ Firebase Admin SDK initialized');
-  }
-  
-  return admin;
-};
-
-export default initializeFirebaseAdmin;
+export const firebaseAdminAuth = getAuth();

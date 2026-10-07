@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { authRouter } from "../modules/auth/auth.routes";
 
 import { generalSettingsRouter } from "../modules/general-settings/general-settings.routes";
 import { homeBannerRouter } from "../modules/homeBanner/homeBanner.route";
@@ -43,6 +42,7 @@ import { topSaleBannerRouter } from "../modules/topSaleBanner/topSaleBanner.rout
 import { appBannerRouter } from "../modules/appBanner/appBanner.route";
 import { appSettingsRouter } from "../modules/appSettings/app-settings.routes";
 import { cartRouter } from "../modules/addToCart/addToCart.route";
+import { authRouter } from "../modules/auth/auth.routes";
 
 const router = Router();
 const moduleRoutes = [

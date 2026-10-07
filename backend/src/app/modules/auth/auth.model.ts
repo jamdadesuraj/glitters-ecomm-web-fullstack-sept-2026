@@ -1,6 +1,5 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import bcrypt from 'bcrypt';
-
+import mongoose, { Document, Schema } from "mongoose";
+import bcrypt from "bcrypt";
 
 // const MenuBookmarkSchema = new Schema({
 //   menuItemId: {
@@ -11,14 +10,13 @@ import bcrypt from 'bcrypt';
 //     type: mongoose.Schema.Types.ObjectId,
 //     ref: 'Hotel',
 //     required: true
-    
+
 //   },
 //   hotelName: {
 //     type: String,
 //     required: true
 //   },
-  
-  
+
 //   menuTitle: {
 //     type: String,
 //     required: true
@@ -37,7 +35,7 @@ import bcrypt from 'bcrypt';
 //   }
 // }, { _id: false });
 
-export type VendorServiceType = 'film_trade' | 'events' | 'movie_watch';
+export type VendorServiceType = "film_trade" | "events" | "movie_watch";
 
 export interface IUser extends Document {
   name: string;
@@ -45,12 +43,12 @@ export interface IUser extends Document {
   password: string;
   phone: string;
   email: string;
-  role: 'admin' | 'vendor'|'user';
+  role: "admin" | "vendor" | "user";
   otp?: string;
   otpExpires?: Date;
   googleId?: string;
   appleId?: string;
-  authProvider: 'local' | 'google' | 'phone' | 'apple';
+  authProvider: "local" | "google" | "phone" | "apple";
   packageFeatures?: string[];
   vendorServices?: VendorServiceType[];
   // Services with a currently-valid subscription/fee setup. For film_trade the
@@ -68,61 +66,62 @@ export interface IUser extends Document {
   compareOtp(otp: string): boolean;
 }
 
-
-
 const userSchema: Schema = new Schema(
   {
-    name: { type: String }, 
-    password: { type: String }, 
+    name: { type: String },
+    password: { type: String },
     phone: { type: String, sparse: true }, // Removed unique - only email should be unique
-    email: { type: String, sparse: true, unique: true }, 
+    email: { type: String, sparse: true, unique: true },
     img: { type: String },
-    role: { type: String, enum: ['admin','vendor', 'user'], default: 'user' },
-    status: { type: String, enum: ['pending', 'active'], default: 'active' },
+    role: { type: String, enum: ["admin", "vendor", "user"], default: "user" },
+    status: { type: String, enum: ["pending", "active"], default: "active" },
     otp: { type: String },
     otpExpires: { type: Date },
     googleId: { type: String, sparse: true, unique: true },
     appleId: { type: String, sparse: true, unique: true },
-    authProvider: { type: String, enum: ['local', 'google', 'phone', 'apple'], default: 'local' },
+    authProvider: {
+      type: String,
+      enum: ["local", "google", "phone", "apple"],
+      default: "local",
+    },
 
     packageFeatures: {
-        type: [String],
-        default: []
+      type: [String],
+      default: [],
     },
 
     vendorServices: {
       type: [String],
-      enum: ['film_trade', 'events', 'movie_watch'],
-      default: []
+      enum: ["film_trade", "events", "movie_watch"],
+      default: [],
     },
 
     vendorActiveServices: {
       type: [String],
-      enum: ['film_trade', 'events', 'movie_watch'],
-      default: []
+      enum: ["film_trade", "events", "movie_watch"],
+      default: [],
     },
 
     vendorApplicationId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'VendorApplication'
+      ref: "VendorApplication",
     },
 
     // Block flag used by admin to disable vendor login and hide their content
     isBlocked: { type: Boolean, default: false, index: true },
     blockedAt: { type: Date },
-    blockedReason: { type: String, default: '' },
+    blockedReason: { type: String, default: "" },
 
-  //   menuBookmarks: {
-  //   type: [MenuBookmarkSchema],
-  //   default: []
-  // },
+    //   menuBookmarks: {
+    //   type: [MenuBookmarkSchema],
+    //   default: []
+    // },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-
-userSchema.pre<IUser>('save', async function (next) {
-  if (!this.isModified('password')) {
+userSchema.pre<IUser>("save", async function (next) {
+  if (!this.isModified("password")) {
     return next();
   }
   const salt = await bcrypt.genSalt(10);
@@ -130,7 +129,9 @@ userSchema.pre<IUser>('save', async function (next) {
   next();
 });
 
-userSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
+userSchema.methods.comparePassword = async function (
+  password: string,
+): Promise<boolean> {
   return bcrypt.compare(password, this.password);
 };
 
@@ -139,10 +140,9 @@ userSchema.methods.compareOtp = function (otp: string): boolean {
   return this.otp === otp && this.otpExpires && this.otpExpires > new Date();
 };
 
-
 // Add indexes
 // userSchema.index({ phone: 1 }, { unique: true, sparse: true });
 // userSchema.index({ email: 1 }, { unique: true, sparse: true });
 // userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 
-export const User = mongoose.model<IUser>('User', userSchema);
+export const User = mongoose.model<IUser>("User", userSchema);
