@@ -1,148 +1,60 @@
-import mongoose, { Document, Schema } from "mongoose";
-import bcrypt from "bcrypt";
-
-// const MenuBookmarkSchema = new Schema({
-//   menuItemId: {
-//     type: String,
-//     required: true
-//   },
-//   hotelId: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: 'Hotel',
-//     required: true
-
-//   },
-//   hotelName: {
-//     type: String,
-//     required: true
-//   },
-
-//   menuTitle: {
-//     type: String,
-//     required: true
-//   },
-//   menuImage: {
-//     type: String,
-//     required: true
-//   },
-//   menuPrice: {
-//     type: Number,
-//     required: true
-//   },
-//   bookmarkedAt: {
-//     type: Date,
-//     default: Date.now
-//   }
-// }, { _id: false });
-
-export type VendorServiceType = "film_trade" | "events" | "movie_watch";
+import mongoose, { Document, Model } from "mongoose";
 
 export interface IUser extends Document {
+  firebaseUid: string;
   name: string;
-  img: string;
-  password: string;
-  phone: string;
   email: string;
-  role: "admin" | "vendor" | "user";
-  otp?: string;
-  otpExpires?: Date;
-  googleId?: string;
-  appleId?: string;
-  authProvider: "local" | "google" | "phone" | "apple";
-  packageFeatures?: string[];
-  vendorServices?: VendorServiceType[];
-  // Services with a currently-valid subscription/fee setup. For film_trade the
-  // value is only present here when the subscription is not expired. Admin
-  // panel menu uses this to hide film_trade menu items once the subscription
-  // lapses. Populated on login and updated on renewal/expiry.
-  vendorActiveServices?: VendorServiceType[];
-  vendorApplicationId?: mongoose.Types.ObjectId;
-  // Admin can block a vendor/user to stop their login and hide their content on the frontend
-  isBlocked?: boolean;
-  blockedAt?: Date;
-  blockedReason?: string;
-  // menuBookmarks?: typeof MenuBookmarkSchema[];
-  comparePassword(password: string): Promise<boolean>;
-  compareOtp(otp: string): boolean;
+  phone: string;
+  profileImage: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-const userSchema: Schema = new Schema(
+const userSchema = new mongoose.Schema<IUser>(
   {
-    name: { type: String },
-    password: { type: String },
-    phone: { type: String, sparse: true }, // Removed unique - only email should be unique
-    email: { type: String, sparse: true, unique: true },
-    img: { type: String },
-    role: { type: String, enum: ["admin", "vendor", "user"], default: "user" },
-    status: { type: String, enum: ["pending", "active"], default: "active" },
-    otp: { type: String },
-    otpExpires: { type: Date },
-    googleId: { type: String, sparse: true, unique: true },
-    appleId: { type: String, sparse: true, unique: true },
-    authProvider: {
+    firebaseUid: {
       type: String,
-      enum: ["local", "google", "phone", "apple"],
-      default: "local",
+      required: true,
+      unique: true,
+      index: true,
+      trim: true,
     },
 
-    packageFeatures: {
-      type: [String],
-      default: [],
+    name: {
+      type: String,
+      default: "",
+      trim: true,
     },
 
-    vendorServices: {
-      type: [String],
-      enum: ["film_trade", "events", "movie_watch"],
-      default: [],
+    email: {
+      type: String,
+      default: "",
+      trim: true,
+      lowercase: true,
     },
 
-    vendorActiveServices: {
-      type: [String],
-      enum: ["film_trade", "events", "movie_watch"],
-      default: [],
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
     },
 
-    vendorApplicationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "VendorApplication",
+    profileImage: {
+      type: String,
+      default: "",
+      trim: true,
     },
 
-    // Block flag used by admin to disable vendor login and hide their content
-    isBlocked: { type: Boolean, default: false, index: true },
-    blockedAt: { type: Date },
-    blockedReason: { type: String, default: "" },
-
-    //   menuBookmarks: {
-    //   type: [MenuBookmarkSchema],
-    //   default: []
-    // },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
-userSchema.pre<IUser>("save", async function (next) {
-  if (!this.isModified("password")) {
-    return next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
-userSchema.methods.comparePassword = async function (
-  password: string,
-): Promise<boolean> {
-  return bcrypt.compare(password, this.password);
-};
-
-// Add method to compare OTP
-userSchema.methods.compareOtp = function (otp: string): boolean {
-  return this.otp === otp && this.otpExpires && this.otpExpires > new Date();
-};
-
-// Add indexes
-// userSchema.index({ phone: 1 }, { unique: true, sparse: true });
-// userSchema.index({ email: 1 }, { unique: true, sparse: true });
-// userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
-
-export const User = mongoose.model<IUser>("User", userSchema);
+export const User: Model<IUser> =
+  mongoose.models.User || mongoose.model<IUser>("User", userSchema);

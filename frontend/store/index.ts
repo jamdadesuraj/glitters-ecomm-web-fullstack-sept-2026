@@ -25,9 +25,11 @@ import { sizeApi } from "./sizeApi";
 import { colorsApi } from "./colorsApi";
 import { materialApi } from "./materialApi";
 import { addToCartApi } from "./addToCartApi";
+import { authApi } from "./authApi";
 
 export const store = configureStore({
   reducer: {
+    authApi: authApi.reducer,
     categoryApi: categoryApi.reducer,
     subCategoryApi: subCategoryApi.reducer,
     homeBannerApi: homeBannerApi.reducer,
@@ -59,6 +61,7 @@ export const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
+      authApi.middleware,
       categoryApi.middleware,
       subCategoryApi.middleware,
       homeBannerApi.middleware,
