@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+
 import { firebaseAdminAuth } from "../config/firebase-admin";
 
 export const authMiddleware = async (
@@ -25,7 +26,7 @@ export const authMiddleware = async (
       return;
     }
 
-    const token = authHeader.substring(7).trim();
+    const token = authHeader.replace("Bearer ", "").trim();
 
     if (!token) {
       res.status(401).json({
@@ -45,11 +46,11 @@ export const authMiddleware = async (
 
     next();
   } catch (error) {
-    console.error("Firebase auth middleware error:", error);
+    console.error("Firebase token verification error:", error);
 
     res.status(401).json({
       success: false,
-      message: "Invalid or expired authentication token",
+      message: "Invalid or expired Firebase token",
     });
   }
 };

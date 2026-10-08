@@ -1,4 +1,5 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+
 import { auth } from "@/firebase/config";
 
 export interface AuthUser {
@@ -19,6 +20,11 @@ export interface AuthResponse {
   data: AuthUser;
 }
 
+export interface SyncUserRequest {
+  name?: string;
+  phone?: string;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export const authApi = createApi({
@@ -29,8 +35,6 @@ export const authApi = createApi({
 
     prepareHeaders: async (headers) => {
       try {
-        // Wait for Firebase to restore authentication
-        // after page refresh.
         await auth.authStateReady();
 
         const currentUser = auth.currentUser;
@@ -41,7 +45,7 @@ export const authApi = createApi({
           headers.set("Authorization", `Bearer ${token}`);
         }
       } catch (error) {
-        console.error("Firebase authentication token error:", error);
+        console.error("Firebase token error:", error);
       }
 
       headers.set("Content-Type", "application/json");
@@ -53,24 +57,19 @@ export const authApi = createApi({
   tagTypes: ["AuthUser"],
 
   endpoints: (builder) => ({
-    /**
-     * Create/update Firebase user in MongoDB
-     */
-    syncUser: builder.mutation<AuthResponse, void>({
-      query: () => ({
-        url: "/api/auth/sync",
+    syncUser: builder.mutation<AuthResponse, SyncUserRequest>({
+      query: (body) => ({
+        url: "/auth/sync",
         method: "POST",
+        body,
       }),
 
       invalidatesTags: ["AuthUser"],
     }),
 
-    /**
-     * Get currently logged-in MongoDB user
-     */
     getMe: builder.query<AuthResponse, void>({
       query: () => ({
-        url: "/api/auth/me",
+        url: "/auth/me",
         method: "GET",
       }),
 

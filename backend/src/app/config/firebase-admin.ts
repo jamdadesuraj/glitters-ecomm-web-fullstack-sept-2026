@@ -3,22 +3,16 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const initializeFirebaseAdmin = (): admin.app.App => {
-  if (admin.apps.length > 0) {
-    return admin.app();
-  }
-
+if (admin.apps.length === 0) {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      "Missing Firebase env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY",
-    );
+    throw new Error("Missing Firebase environment variables.");
   }
 
-  const app = admin.initializeApp({
+  admin.initializeApp({
     credential: admin.credential.cert({
       projectId,
       clientEmail,
@@ -26,12 +20,7 @@ const initializeFirebaseAdmin = (): admin.app.App => {
     }),
   });
 
-  console.log("✅ Firebase Admin SDK initialized");
-  return app;
-};
+  console.log("Firebase Admin initialized");
+}
 
-// Initialize once on import and export the auth instance
-const app = initializeFirebaseAdmin();
-export const firebaseAdminAuth = admin.auth(app);
-
-export default initializeFirebaseAdmin;
+export const firebaseAdminAuth = admin.auth();
