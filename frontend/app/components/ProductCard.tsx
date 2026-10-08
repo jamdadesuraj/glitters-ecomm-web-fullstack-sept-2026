@@ -1,246 +1,237 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { toast } from "react-toastify";
 
 import {
+  FiBox,
+  FiCheckCircle,
   FiHeart,
   FiShoppingBag,
   FiStar,
-  FiCheckCircle,
-  FiBox,
+  FiXCircle,
 } from "react-icons/fi";
 
 import ThemeBtnOne from "./ThemeBtnOne";
 
 import { useAddToCartMutation } from "@/store/addToCartApi";
-import { toast } from "react-toastify";
+import {
+  useAddToWishlistMutation,
+  useGetWishlistQuery,
+  useRemoveWishlistByProductMutation,
+} from "@/store/wishlistApi";
+
+/* ---------- types ---------- */
+
+type NamedRef = { _id?: string; name?: string };
+
+type Product = {
+  _id: string;
+  productName?: string;
+  brand?: NamedRef | string;
+  material?: NamedRef | string;
+  variants?: {
+    image?: string;
+    price?: number | string;
+    delPrice?: number | string;
+    stock?: number | string;
+  }[];
+  reviews?: { rating?: number | string }[];
+};
 
 type ProductCardProps = {
-  // @ts-ignore
   product: Product;
 };
 
-const ProductCard = ({ product }: ProductCardProps) => {
-  // api add to cart
-  const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
+/* ---------- helpers ---------- */
 
-  const [wishlist, setWishlist] = useState(false);
-  const [imageError, setImageError] = useState(false);
+const getRefName = (value?: NamedRef | string): string =>
+  typeof value === "object" ? (value?.name ?? "") : (value ?? "");
 
-  const variant = product?.variants?.[0];
-
-  const _id = product?._id;
-  const name = product?.productName || "Product Name";
-
-  const image = variant?.image || "";
-
-  const price = Number(variant?.price || 0);
-  const oldPrice = Number(variant?.delPrice || 0);
-
-  const discount =
-    oldPrice > 0 && oldPrice > price
-      ? Math.round(((oldPrice - price) / oldPrice) * 100)
-      : 0;
-
-  const stock = Number(variant?.stock || 0);
-
-  const brand =
-    typeof product?.brand === "object"
-      ? product?.brand?.name || ""
-      : product?.brand || "";
-
-  const material =
-    typeof product?.material === "object"
-      ? product?.material?.name || ""
-      : product?.material || "";
-
-  const rating =
-    product?.reviews?.length > 0
-      ? (
-          product.reviews.reduce(
-            (total: number, review: any) => total + Number(review.rating || 0),
-            0,
-          ) / product.reviews.length
-        ).toFixed(1)
-      : "0.0";
-
-  const reviews = product?.reviews?.length || 0;
-
-  /**
-   * Image
-   */
-  const hasImage = Boolean(image?.trim()) && !imageError;
-
-  /**
-   * Saving
-   */
-  const hasSaving = Number.isFinite(oldPrice) && oldPrice > price;
-
-  const savingAmount = hasSaving ? oldPrice - price : 0;
-
-  /**
-   * Product slug
-   */
-  const productSlug = name
+const slugify = (text: string): string =>
+  text
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  const productHref = `/product/${productSlug}${_id ? `/${_id}` : ""}`;
+const formatAED = (amount: number): string => `AED ${amount.toLocaleString()}`;
 
-  /**
-   * Add to cart
-   */
-  const handleAddToCart = async (): Promise<void> => {
-    if (!_id) {
-      toast.error("Product not found");
-      return;
+const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === "object" && error !== null && "data" in error) {
+    const data = (error as { data?: { message?: unknown } }).data;
+    if (typeof data?.message === "string") return data.message;
+  }
+  return fallback;
+};
+
+/* ---------- component ---------- */
+
+const ProductCard = ({ product }: ProductCardProps) => {
+  const [imageError, setImageError] = useState(false);
+
+  // cart
+  const [addToCart, { isLoading: isAddingToCart }] = useAddToCartMutation();
+
+  // wishlist
+  const { data: wishlistItems = [] } = useGetWishlistQuery();
+  const [addToWishlist, { isLoading: isAddingToWishlist }] =
+    useAddToWishlistMutation();
+  const [removeFromWishlist, { isLoading: isRemovingFromWishlist }] =
+    useRemoveWishlistByProductMutation();
+
+  // product data
+  const variant = product.variants?.[0];
+
+  const name = product.productName || "Product Name";
+  const image = variant?.image ?? "";
+  const price = Number(variant?.price || 0);
+  const oldPrice = Number(variant?.delPrice || 0);
+  const stock = Number(variant?.stock || 0);
+
+  const brand = getRefName(product.brand);
+  const material = getRefName(product.material);
+
+  const reviews = product.reviews ?? [];
+  const rating =
+    reviews.length > 0
+      ? (
+          reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) /
+          reviews.length
+        ).toFixed(1)
+      : "0.0";
+
+  // derived values
+  const savingAmount = oldPrice > price ? oldPrice - price : 0;
+  const hasSaving = savingAmount > 0;
+  const discount = hasSaving ? Math.round((savingAmount / oldPrice) * 100) : 0;
+
+  const inStock = stock > 0;
+  const hasImage = Boolean(image.trim()) && !imageError;
+  const productHref = `/product/${slugify(name)}/${product._id}`;
+
+  const isWishlisted = wishlistItems.some(
+    (item) => item.product._id === product._id,
+  );
+  const isWishlistBusy = isAddingToWishlist || isRemovingFromWishlist;
+
+  // handlers
+  const handleWishlistToggle = async () => {
+    try {
+      if (isWishlisted) {
+        await removeFromWishlist(product._id).unwrap();
+        toast.success("Removed from wishlist");
+      } else {
+        await addToWishlist({ product: product._id }).unwrap();
+        toast.success("Added to wishlist");
+      }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Please login to use wishlist"));
     }
+  };
 
-    if (stock <= 0) {
+  const handleAddToCart = async () => {
+    if (!inStock) {
       toast.error("This product is out of stock");
       return;
     }
 
     try {
       const res = await addToCart({
-        product: _id,
+        product: product._id,
         quantity: 1,
       }).unwrap();
-
       toast.success(res?.message ?? "Product added to cart", {
-        // @ts-ignore
-        duration: 3000,
+        autoClose: 3000,
       });
-    } catch (error: unknown) {
-      const message =
-        typeof error === "object" &&
-        error !== null &&
-        "data" in error &&
-        typeof error.data === "object" &&
-        error.data !== null &&
-        "message" in error.data &&
-        typeof error.data.message === "string"
-          ? error.data.message
-          : "Failed to add product to cart. Try again.";
-
-      toast.error(message);
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Failed to add product to cart. Try again."),
+      );
     }
   };
 
   return (
     <article
       className="
-        group flex h-full w-full min-w-0 flex-col
-        overflow-hidden rounded-xl border border-[#ededed]
-        bg-white transition-all duration-300
-        hover:border-[#ffe27a]
-        hover:shadow-[0_10px_28px_rgba(0,0,0,0.07)]
+        group flex h-full w-full min-w-0 flex-col overflow-hidden
+        rounded-xl border border-[#ededed] bg-white
+        transition-all duration-300
+        hover:border-[#ffe27a] hover:shadow-[0_10px_28px_rgba(0,0,0,0.07)]
         sm:rounded-2xl
-        dark:border-gray-800
-        dark:bg-[#171717]
+        dark:border-gray-800 dark:bg-[#171717]
       "
     >
       {/* IMAGE */}
-      <div
-        className="
-          relative aspect-square w-full overflow-hidden
-          bg-[#f8f8f8] dark:bg-[#202020]
-        "
-      >
-        {/* DISCOUNT */}
+      <div className="relative aspect-square w-full overflow-hidden bg-[#f8f8f8] dark:bg-[#202020]">
+        {/* Discount */}
         {discount > 0 && (
           <span
             className="
-              absolute left-2 top-2 z-20
-              rounded bg-[#ffd83d]
-              px-1.5 py-0.5
-              text-[8px] font-bold text-black
-              sm:left-3 sm:top-3
-              sm:rounded-md sm:px-2.5 sm:py-1
-              sm:text-[9px]
+              absolute left-2 top-2 z-20 rounded bg-[#ffd83d]
+              px-1.5 py-0.5 text-[8px] font-bold text-black
+              sm:left-3 sm:top-3 sm:rounded-md sm:px-2.5 sm:py-1 sm:text-[9px]
             "
           >
             {discount}% OFF
           </span>
         )}
 
-        {/* WISHLIST */}
+        {/* Wishlist */}
         <button
           type="button"
-          onClick={() => setWishlist((prev) => !prev)}
-          aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
-          title="Add to wishlist"
+          onClick={handleWishlistToggle}
+          disabled={isWishlistBusy}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           className={`
             absolute right-2 top-2 z-20
-            flex h-7 w-7 cursor-pointer
-            items-center justify-center
-            rounded-full border border-white
-            bg-white shadow-[0_3px_12px_rgba(0,0,0,0.08)]
-            transition-all duration-200
-            hover:scale-105
-            sm:right-3 sm:top-3
-            sm:h-9 sm:w-9
-            ${wishlist ? "text-red-500" : "text-gray-500 hover:text-red-500"}
-            dark:border-gray-700
-            dark:bg-[#292929]
+            flex h-7 w-7 cursor-pointer items-center justify-center
+            rounded-full border border-white bg-white
+            shadow-[0_3px_12px_rgba(0,0,0,0.08)]
+            transition-all duration-200 hover:scale-105
+            disabled:cursor-not-allowed disabled:opacity-60
+            sm:right-3 sm:top-3 sm:h-9 sm:w-9
+            dark:border-gray-700 dark:bg-[#292929]
+            ${isWishlisted ? "text-red-500" : "text-gray-500 hover:text-red-500"}
           `}
         >
           <FiHeart
             className="h-3.5 w-3.5 sm:h-4 sm:w-4"
-            fill={wishlist ? "currentColor" : "none"}
+            fill={isWishlisted ? "currentColor" : "none"}
           />
         </button>
 
-        {/* PRODUCT IMAGE */}
+        {/* Product image */}
         <Link
           href={productHref}
-          className="
-            absolute inset-0 flex
-            items-center justify-center
-          "
+          className="absolute inset-0 flex items-center justify-center"
         >
           {hasImage ? (
             <Image
               src={image}
               alt={name}
               fill
-              sizes="
-                (max-width: 480px) 50vw,
-                (max-width: 768px) 33vw,
-                (max-width: 1024px) 25vw,
-                (max-width: 1280px) 25vw,
-                20vw
-              "
+              sizes="(max-width: 480px) 50vw, (max-width: 768px) 33vw, (max-width: 1280px) 25vw, 20vw"
               onError={() => setImageError(true)}
               className="
-                object-contain p-3
-                transition-transform duration-500
+                object-contain p-3 transition-transform duration-500
                 group-hover:scale-[1.04]
-                min-[380px]:p-4
-                sm:p-5
-                lg:p-6
+                min-[380px]:p-4 sm:p-5 lg:p-6
               "
             />
           ) : (
             <div
               className="
-                flex h-[46%] w-[46%]
-                flex-col items-center justify-center
-                rounded-xl border border-[#e5e7eb]
-                bg-[#fafafa] text-[#cbd2dc]
+                flex h-[46%] w-[46%] flex-col items-center justify-center
+                rounded-xl border border-[#e5e7eb] bg-[#fafafa] text-[#cbd2dc]
                 sm:rounded-2xl
-                dark:border-gray-700
-                dark:bg-[#242424]
+                dark:border-gray-700 dark:bg-[#242424]
               "
             >
               <FiBox className="h-6 w-6 sm:h-8 sm:w-8" />
-
               <span className="mt-1 text-[8px] font-medium sm:mt-2 sm:text-[10px]">
                 Product
               </span>
@@ -251,18 +242,10 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
       {/* CONTENT */}
       <div className="flex flex-1 flex-col p-2.5 sm:p-4">
-        {/* BRAND + MATERIAL + STOCK */}
+        {/* Brand + material + stock */}
         <div className="flex w-full min-w-0 items-center justify-between gap-2">
-          {/* Brand + Material */}
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-            <span
-              className="
-        min-w-0 max-w-[45%] truncate
-        text-[7px] font-bold uppercase
-        tracking-[0.8px] text-gray-400
-        sm:text-[9px]
-      "
-            >
+            <span className="min-w-0 max-w-[45%] truncate text-[7px] font-bold uppercase tracking-[0.8px] text-gray-400 sm:text-[9px]">
               {brand || "Brand"}
             </span>
 
@@ -270,85 +253,68 @@ const ProductCard = ({ product }: ProductCardProps) => {
               |
             </span>
 
-            <span
-              className="
-        min-w-0 max-w-[45%] truncate
-        text-[7px] font-bold uppercase
-        tracking-[0.8px] text-gray-400
-        sm:text-[9px]
-      "
-            >
+            <span className="min-w-0 max-w-[45%] truncate text-[7px] font-bold uppercase tracking-[0.8px] text-gray-400 sm:text-[9px]">
               {material || "Material"}
             </span>
           </div>
 
-          {/* Stock */}
           <span
             className={`
-      flex shrink-0 items-center gap-1
-      whitespace-nowrap
-      text-[7px] font-semibold
-      sm:text-[9px]
-      ${stock > 0 ? "text-green-600" : "text-red-500"}
-    `}
+              flex shrink-0 items-center gap-1 whitespace-nowrap
+              text-[7px] font-semibold sm:text-[9px]
+              ${inStock ? "text-green-600" : "text-red-500"}
+            `}
           >
-            <FiCheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            {inStock ? (
+              <FiCheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            ) : (
+              <FiXCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            )}
 
             <span className="hidden min-[340px]:inline">
-              {stock > 0 ? "In Stock" : "Out of Stock"}
+              {inStock ? "In Stock" : "Out of Stock"}
             </span>
           </span>
         </div>
 
-        {/* PRODUCT NAME */}
+        {/* Product name */}
         <Link href={productHref} className="block min-w-0">
           <h3
+            title={name}
             className="
-              mt-1.5 line-clamp-2 min-h-5
-              font-serif text-[10px]
-              font-bold leading-4 tracking-wide
-              text-[#202020]
-              hover:text-[#b58b00]
+              mt-1.5 line-clamp-2 min-h-8 font-serif text-[10px] font-bold
+              leading-4 tracking-wide text-[#202020] hover:text-[#b58b00]
               min-[380px]:text-[11px]
-              sm:mt-2 sm:text-[13px] sm:leading-5
+              sm:mt-2 sm:min-h-10 sm:text-[13px] sm:leading-5
               dark:text-white
             "
-            title={name}
           >
-            {name.slice(0, 29)}...
+            {name}
           </h3>
         </Link>
 
-        {/* RATING */}
+        {/* Rating */}
         <div className="mt-1.5 flex min-w-0 items-center gap-1 sm:gap-1.5">
           <div
             className="
-              flex shrink-0 items-center gap-1
-              rounded bg-[#fff7d5]
+              flex shrink-0 items-center gap-1 rounded bg-[#fff7d5]
               px-1.5 py-0.5 text-[#be9100]
               sm:rounded-md sm:px-2 sm:py-1
             "
           >
             <FiStar className="h-2.5 w-2.5" fill="currentColor" />
-
             <span className="text-[8px] font-bold sm:text-[9px]">{rating}</span>
           </div>
 
-          <span
-            className="
-              truncate text-[7px] text-black
-              sm:text-[9px]
-              dark:text-gray-300
-            "
-          >
-            {reviews} Reviews
+          <span className="truncate text-[7px] text-black sm:text-[9px] dark:text-gray-300">
+            {reviews.length} Reviews
           </span>
         </div>
 
-        {/* DIVIDER */}
+        {/* Divider */}
         <div className="my-2 border-b border-dashed border-gray-200 sm:my-3 dark:border-gray-700" />
 
-        {/* PRICE */}
+        {/* Price */}
         <div className="mt-auto flex min-w-0 flex-col gap-1.5 sm:gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <p className="text-[7px] text-black sm:text-[9px] dark:text-gray-300">
@@ -358,53 +324,39 @@ const ProductCard = ({ product }: ProductCardProps) => {
             <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 sm:gap-x-2">
               <span
                 className="
-                  whitespace-nowrap
-                  font-serif text-[13px]
-                  font-bold text-black
-                  min-[380px]:text-[15px]
-                  sm:text-[17px]
+                  whitespace-nowrap font-serif text-[13px] font-bold text-black
+                  min-[380px]:text-[15px] sm:text-[17px]
                   dark:text-white
                 "
               >
-                AED {price.toLocaleString()}
+                {formatAED(price)}
               </span>
 
               {hasSaving && (
-                <span
-                  className="
-                    whitespace-nowrap
-                    font-serif text-[8px]
-                    text-gray-400 line-through
-                    sm:text-[10px]
-                  "
-                >
-                  AED {oldPrice.toLocaleString()}
+                <span className="whitespace-nowrap font-serif text-[8px] text-gray-400 line-through sm:text-[10px]">
+                  {formatAED(oldPrice)}
                 </span>
               )}
             </div>
           </div>
 
-          {/* SAVING */}
           {hasSaving && (
             <span
               className="
-                w-fit shrink-0 rounded
-                bg-green-50 px-1.5 py-0.5
+                w-fit shrink-0 rounded bg-green-50 px-1.5 py-0.5
                 text-[7px] font-bold text-green-600
                 min-[380px]:text-[8px]
-                sm:rounded-md sm:px-2 sm:py-1
-                sm:text-[9px]
+                sm:rounded-md sm:px-2 sm:py-1 sm:text-[9px]
                 dark:bg-green-500/10
               "
             >
-              Save AED {savingAmount.toLocaleString()}
+              Save {formatAED(savingAmount)}
             </span>
           )}
         </div>
 
-        {/* BUY NOW + ADD TO CART */}
+        {/* Buy now + add to cart */}
         <div className="mt-3 flex w-full items-center gap-2 sm:mt-4 sm:gap-2.5">
-          {/* Buy Now */}
           <div className="min-w-0 flex-1">
             <ThemeBtnOne
               text="Buy Now"
@@ -413,34 +365,21 @@ const ProductCard = ({ product }: ProductCardProps) => {
                 <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               }
               className="
-        flex h-10 w-full min-w-0
-        cursor-pointer items-center
-        justify-center gap-1.5
-        overflow-hidden
-        whitespace-nowrap
-        rounded-lg
-        bg-[#ffd83d]
-        px-3
-        font-serif text-[9px]
-        font-bold text-black
-        transition-all duration-200
-        hover:bg-[#ffcc00]
-        hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
-        sm:h-11
-        sm:gap-2
-        sm:rounded-xl
-        sm:px-4
-        sm:text-[11px]
-      "
+                flex h-10 w-full min-w-0 cursor-pointer items-center
+                justify-center gap-1.5 overflow-hidden whitespace-nowrap
+                rounded-lg bg-[#ffd83d] px-3 font-serif text-[9px] font-bold
+                text-black transition-all duration-200
+                hover:bg-[#ffcc00] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
+                sm:h-11 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-[11px]
+              "
             />
           </div>
 
-          {/* Add To Cart (icon only) */}
           <button
             type="button"
-            disabled={isAdding}
+            disabled={isAddingToCart}
             onClick={handleAddToCart}
-            title="Add To Cart"
+            title="Add to cart"
             aria-label="Add to cart"
             className="
               flex h-10 cursor-pointer items-center justify-center
@@ -448,11 +387,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
               transition-all duration-200
               hover:border-[#ffd83d] hover:bg-[#fff7d5]
               disabled:cursor-not-allowed disabled:opacity-60
-              sm:h-11 sm:text-[11px]
+              sm:h-11
               dark:border-gray-700
             "
           >
-            {isAdding ? (
+            {isAddingToCart ? (
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent sm:h-4 sm:w-4" />
             ) : (
               <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />

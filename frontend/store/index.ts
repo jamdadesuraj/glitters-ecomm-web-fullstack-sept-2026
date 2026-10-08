@@ -26,6 +26,7 @@ import { colorsApi } from "./colorsApi";
 import { materialApi } from "./materialApi";
 import { addToCartApi } from "./addToCartApi";
 import { authApi } from "./authApi";
+import { wishlistApi } from "./wishlistApi";
 
 export const store = configureStore({
   reducer: {
@@ -58,6 +59,7 @@ export const store = configureStore({
     colorsApi: colorsApi.reducer,
     materialApi: materialApi.reducer,
     addToCartApi: addToCartApi.reducer,
+    wishlistApi: wishlistApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
@@ -90,6 +92,7 @@ export const store = configureStore({
       colorsApi.middleware,
       materialApi.middleware,
       addToCartApi.middleware,
+      wishlistApi.middleware,
     ),
 });
 

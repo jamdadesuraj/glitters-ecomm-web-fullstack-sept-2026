@@ -43,6 +43,7 @@ import { appBannerRouter } from "../modules/appBanner/appBanner.route";
 import { appSettingsRouter } from "../modules/appSettings/app-settings.routes";
 import { cartRouter } from "../modules/addToCart/addToCart.route";
 import { authRouter } from "../modules/auth/auth.routes";
+import { wishlistRouter } from "../modules/wishlist/wishlist.route";
 
 const router = Router();
 const moduleRoutes = [
@@ -90,6 +91,10 @@ const moduleRoutes = [
   {
     path: "/add-to-cart",
     route: cartRouter,
+  },
+  {
+    path: "/wishlist",
+    route: wishlistRouter,
   },
   {
     path: "/blogs-category",

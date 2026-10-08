@@ -8,6 +8,7 @@ import Link from "next/link";
 import Logo from "./Logo";
 import MyCartSideDrawer from "./MyCartSideDrawer";
 import MyAccountModel from "./MyAccountModel";
+import { useGetWishlistQuery } from "@/store/wishlistApi";
 
 const searchPlaceholders = [
   "Search for iPhone...",
@@ -20,6 +21,10 @@ const searchPlaceholders = [
 ];
 
 const Header = () => {
+  const { data: wishlist = [] } = useGetWishlistQuery();
+
+  const totalItems = wishlist.length;
+
   const router = useRouter();
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -317,7 +322,7 @@ const Header = () => {
                     text-black
                   "
                 >
-                  0
+                  {totalItems}
                 </span>
               </div>
 
