@@ -12,6 +12,13 @@ import { useGetcategoryQuery } from "@/store/categoriesApi";
 import { useGetProductsQuery } from "@/store/productsApi";
 import { useAddToCartMutation } from "@/store/addToCartApi";
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
+import {
+  useAddToWishlistMutation,
+  useGetWishlistQuery,
+  useRemoveWishlistByProductMutation,
+} from "@/store/wishlistApi";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { openAccountMenu } from "@/lib/authPopover";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -97,6 +104,16 @@ const toProduct = (p: ApiProduct): Product => {
     oldPrice: variant.delPrice,
     stock: Number(variant.stock ?? 0),
   };
+};
+
+/** Reads the readable message out of an RTK Query error */
+const getApiErrorMessage = (error: unknown, fallback: string) =>
+  (error as any)?.data?.message || fallback;
+
+/** Wishlist item can hold product as an id string or a populated object */
+const getWishlistProductId = (item: any): string => {
+  const product = item?.product ?? item?.productId;
+  return typeof product === "string" ? product : (product?._id ?? "");
 };
 
 /* -------------------------------------------------------------------------- */
@@ -223,11 +240,55 @@ const CategoryTabs = ({ tabs, active, onChange }: CategoryTabsProps) => (
 /* -------------------------------------------------------------------------- */
 
 const NewArrivalCard = ({ product }: { product: Product }) => {
+  const [imageError, setImageError] = useState(false);
+
+  // auth
+  const { user, authLoading } = useAuthUser();
+
   // api add to cart
   const [addToCart, { isLoading: isAdding }] = useAddToCartMutation();
 
-  const [wishlist, setWishlist] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  // wishlist (only fetched when logged in)
+  const { data: wishlistItems = [] } = useGetWishlistQuery(undefined, {
+    skip: !user,
+  });
+  const [addToWishlist, { isLoading: isAddingToWishlist }] =
+    useAddToWishlistMutation();
+  const [removeFromWishlist, { isLoading: isRemovingFromWishlist }] =
+    useRemoveWishlistByProductMutation();
+
+  const isWishlisted =
+    Boolean(user) &&
+    (wishlistItems as any[]).some(
+      (item) => getWishlistProductId(item) === product.productId,
+    );
+  const isWishlistBusy = isAddingToWishlist || isRemovingFromWishlist;
+
+  const handleWishlistToggle = async () => {
+    // Wait until Firebase has restored the session
+    if (authLoading) return;
+
+    // Not logged in -> open login popover
+    if (!user) {
+      toast.info("Please login to use your wishlist");
+      openAccountMenu();
+      return;
+    }
+
+    try {
+      if (isWishlisted) {
+        await removeFromWishlist(product.productId).unwrap();
+        toast.success("Removed from wishlist");
+      } else {
+        await addToWishlist({ product: product.productId }).unwrap();
+        toast.success("Added to wishlist");
+      }
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Something went wrong. Try again."),
+      );
+    }
+  };
 
   const hasImage = Boolean(product.image?.trim()) && !imageError;
   const oldPrice = product.oldPrice ?? product.price;
@@ -304,16 +365,25 @@ const NewArrivalCard = ({ product }: { product: Product }) => {
         {/* WISHLIST */}
         <button
           type="button"
-          onClick={() => setWishlist((prev) => !prev)}
-          title="Add to wishlist"
-          aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
-          className={`absolute right-2 top-2 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-white bg-white shadow-[0_3px_12px_rgba(0,0,0,0.08)] transition-all duration-200 hover:scale-105 sm:right-3 sm:top-3 sm:h-8 sm:w-8 dark:border-gray-700 dark:bg-[#292929] ${
-            wishlist ? "text-red-500" : "text-gray-400 hover:text-red-500"
-          }`}
+          onClick={handleWishlistToggle}
+          disabled={isWishlistBusy}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          className={`
+            absolute right-2 top-2 z-20
+            flex h-7 w-7 cursor-pointer items-center justify-center
+            rounded-full border border-white bg-white
+            shadow-[0_3px_12px_rgba(0,0,0,0.08)]
+            transition-all duration-200 hover:scale-105
+            disabled:cursor-not-allowed disabled:opacity-60
+            sm:right-3 sm:top-3 sm:h-9 sm:w-9
+            dark:border-gray-700 dark:bg-[#292929]
+            ${isWishlisted ? "text-red-500" : "text-gray-500 hover:text-red-500"}
+          `}
         >
           <FiHeart
             className="h-3.5 w-3.5 sm:h-4 sm:w-4"
-            fill={wishlist ? "currentColor" : "none"}
+            fill={isWishlisted ? "currentColor" : "none"}
           />
         </button>
       </div>
@@ -364,32 +434,32 @@ const NewArrivalCard = ({ product }: { product: Product }) => {
                 <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               }
               className="
-        flex h-10 w-full min-w-0
-        cursor-pointer items-center
-        justify-center gap-1.5
-        overflow-hidden
-        whitespace-nowrap
-        rounded-lg
-        bg-[#ffd83d]
-        px-3
-        font-serif text-[9px]
-        font-bold text-black
-        transition-all duration-200
-        hover:bg-[#ffcc00]
-        hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
-        sm:h-11
-        sm:gap-2
-        sm:rounded-xl
-        sm:px-4
-        sm:text-[11px]
-      "
+                flex h-10 w-full min-w-0
+                cursor-pointer items-center
+                justify-center gap-1.5
+                overflow-hidden
+                whitespace-nowrap
+                rounded-lg
+                bg-[#ffd83d]
+                px-3
+                font-serif text-[9px]
+                font-bold text-black
+                transition-all duration-200
+                hover:bg-[#ffcc00]
+                hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
+                sm:h-11
+                sm:gap-2
+                sm:rounded-xl
+                sm:px-4
+                sm:text-[11px]
+              "
             />
           </div>
 
           {/* Add To Cart (icon only) */}
           <button
             type="button"
-            disabled={outOfStock}
+            disabled={outOfStock || isAdding}
             onClick={handleAddToCart}
             title="Add To Cart"
             aria-label="Add to cart"

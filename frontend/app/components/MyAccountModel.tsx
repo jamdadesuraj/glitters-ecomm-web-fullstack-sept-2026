@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { FiUser, FiPhone, FiMail, FiX } from "react-icons/fi";
 import { auth } from "@/firebase/config";
+import { OPEN_ACCOUNT_MENU_EVENT } from "@/lib/authPopover";
 import MobileOtpLogin from "./MobileOtpLogin";
 import EmailPasswordLogin from "./EmailPasswordLogin";
 import RegisterForm from "./RegisterForm";
@@ -18,6 +19,9 @@ const AccountMenu = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -33,6 +37,44 @@ const AccountMenu = () => {
     return () => unsubscribe();
   }, []);
 
+  // Open popover from anywhere (e.g. wishlist click when logged out)
+  useEffect(() => {
+    const handleOpen = () => {
+      setMode("mobile");
+      setOpen(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    window.addEventListener(OPEN_ACCOUNT_MENU_EVENT, handleOpen);
+    return () =>
+      window.removeEventListener(OPEN_ACCOUNT_MENU_EVENT, handleOpen);
+  }, []);
+
+  // Close on outside click + Escape
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
+
   const firstName = user
     ? (user.displayName || user.email || user.phoneNumber || "Account")
         .split(" ")[0]
@@ -40,7 +82,7 @@ const AccountMenu = () => {
     : "";
 
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapperRef}>
       {/* ACCOUNT BUTTON */}
       <button
         type="button"
@@ -184,6 +226,7 @@ const AccountMenu = () => {
             <button
               type="button"
               onClick={() => setOpen(false)}
+              aria-label="Close"
               className="
                 flex
                 h-8

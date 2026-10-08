@@ -22,6 +22,8 @@ import {
   useGetWishlistQuery,
   useRemoveWishlistByProductMutation,
 } from "@/store/wishlistApi";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { openAccountMenu } from "@/lib/authPopover";
 
 /* ---------- types ---------- */
 
@@ -117,8 +119,18 @@ const ProductCard = ({ product }: ProductCardProps) => {
   );
   const isWishlistBusy = isAddingToWishlist || isRemovingFromWishlist;
 
+  const { user, authLoading } = useAuthUser();
   // handlers
   const handleWishlistToggle = async () => {
+    // Wait until Firebase has restored the session
+    if (authLoading) return;
+
+    // Not logged in -> open login popover
+    if (!user) {
+      toast.info("Please login to use your wishlist");
+      openAccountMenu();
+      return;
+    }
     try {
       if (isWishlisted) {
         await removeFromWishlist(product._id).unwrap();
@@ -187,16 +199,16 @@ const ProductCard = ({ product }: ProductCardProps) => {
           aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           className={`
-            absolute right-2 top-2 z-20
-            flex h-7 w-7 cursor-pointer items-center justify-center
-            rounded-full border border-white bg-white
-            shadow-[0_3px_12px_rgba(0,0,0,0.08)]
-            transition-all duration-200 hover:scale-105
-            disabled:cursor-not-allowed disabled:opacity-60
-            sm:right-3 sm:top-3 sm:h-9 sm:w-9
-            dark:border-gray-700 dark:bg-[#292929]
-            ${isWishlisted ? "text-red-500" : "text-gray-500 hover:text-red-500"}
-          `}
+    absolute right-2 top-2 z-20
+    flex h-7 w-7 cursor-pointer items-center justify-center
+    rounded-full border border-white bg-white
+    shadow-[0_3px_12px_rgba(0,0,0,0.08)]
+    transition-all duration-200 hover:scale-105
+    disabled:cursor-not-allowed disabled:opacity-60
+    sm:right-3 sm:top-3 sm:h-9 sm:w-9
+    dark:border-gray-700 dark:bg-[#292929]
+    ${isWishlisted ? "text-red-500" : "text-gray-500 hover:text-red-500"}
+  `}
         >
           <FiHeart
             className="h-3.5 w-3.5 sm:h-4 sm:w-4"
@@ -285,11 +297,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
               mt-1.5 line-clamp-2 min-h-8 font-serif text-[10px] font-bold
               leading-4 tracking-wide text-[#202020] hover:text-[#b58b00]
               min-[380px]:text-[11px]
-              sm:mt-2 sm:min-h-10 sm:text-[13px] sm:leading-5
+              sm:mt-2 sm:min-h-4 sm:text-[13px] sm:leading-5
               dark:text-white
             "
           >
-            {name}
+            {name.slice(0, 25)}...
           </h3>
         </Link>
 

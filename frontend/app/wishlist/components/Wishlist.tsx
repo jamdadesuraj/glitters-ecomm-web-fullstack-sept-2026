@@ -11,6 +11,7 @@ import {
   FiCheckCircle,
   FiHeart,
   FiHome,
+  FiLogIn,
   FiShoppingBag,
   FiShoppingCart,
   FiStar,
@@ -20,6 +21,7 @@ import {
 
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
 import { useFirebaseUser } from "@/hooks/useFirebaseUser";
+import { openAccountMenu } from "@/lib/authPopover";
 import { useAddToCartMutation } from "@/store/addToCartApi";
 import {
   IWishlist,
@@ -28,6 +30,13 @@ import {
   useGetWishlistQuery,
   useRemoveWishlistByProductMutation,
 } from "@/store/wishlistApi";
+
+/* =========================================================
+   Layout constants (shared by skeleton + real grid)
+========================================================= */
+
+const GRID_CLASSES =
+  "grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5 2xl:grid-cols-6";
 
 /* =========================================================
    Helpers
@@ -137,7 +146,6 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
 ========================================================= */
 
 function WishlistCard({
-  item,
   product,
   onRemove,
   removing,
@@ -183,14 +191,11 @@ function WishlistCard({
   };
 
   return (
-    <article
-      key={item._id}
-      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:border-[#ffe177] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] sm:rounded-2xl dark:border-gray-800 dark:bg-[#181818]"
-    >
+    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:border-[#ffe177] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] sm:rounded-2xl dark:border-gray-800 dark:bg-[#181818]">
       {/* IMAGE */}
       <div className="relative aspect-square overflow-hidden bg-[#f8f8f8] dark:bg-[#202020]">
         {details.discount > 0 && (
-          <span className="absolute left-2 top-2 z-20 rounded-md bg-[#ffd83d] px-2 py-1 text-[8px] font-extrabold text-black sm:left-3 sm:top-3">
+          <span className="absolute left-2 top-2 z-20 rounded-md bg-[#ffd83d] px-1.5 py-0.5 text-[9px] font-extrabold text-black sm:left-3 sm:top-3 sm:px-2 sm:py-1 sm:text-[10px]">
             {details.discount}% OFF
           </span>
         )}
@@ -200,71 +205,68 @@ function WishlistCard({
           disabled={removing}
           onClick={() => onRemove(product._id)}
           aria-label={`Remove ${product.productName} from wishlist`}
-          title="Delete Product"
-          className="absolute right-2 top-2 z-20 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-rose-500 text-white shadow-sm transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50 sm:right-3 sm:top-3"
+          title="Remove from wishlist"
+          className="absolute right-2 top-2 z-20 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-rose-500 text-white shadow-sm transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50 sm:right-3 sm:top-3 sm:h-9 sm:w-9"
         >
           {removing ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
           ) : (
-            <FiTrash2 size={14} />
+            <FiTrash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           )}
         </button>
 
         <Link
           href={href}
-          className="absolute inset-0 flex items-center justify-center p-3 sm:p-4"
+          className="absolute inset-0 flex items-center justify-center p-4 sm:p-5"
         >
           {details.image ? (
             <ProductImage src={details.image} alt={product.productName} />
           ) : (
             <div className="flex h-2/5 w-2/5 flex-col items-center justify-center rounded-xl border border-gray-200 text-gray-400 dark:border-gray-700">
-              <FiBox size={30} />
-              <span className="mt-1 text-xs">Product</span>
+              <FiBox className="h-6 w-6 sm:h-7 sm:w-7" />
+              <span className="mt-1 text-[10px] sm:text-xs">Product</span>
             </div>
           )}
         </Link>
       </div>
 
       {/* CONTENT */}
-      <div className="flex flex-1 flex-col p-2.5 min-[380px]:p-3 sm:p-4">
+      <div className="flex flex-1 flex-col p-2.5 min-[380px]:p-3 sm:p-3.5 lg:p-4">
         {/* BRAND + STOCK */}
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className="truncate text-[8px] font-bold uppercase tracking-wider text-gray-400 sm:text-[9px]">
+        <div className="flex min-w-0 items-center justify-between gap-1.5">
+          <span className="min-w-0 truncate text-[9px] font-bold uppercase tracking-wider text-gray-400 sm:text-[10px]">
             {brand || material || "Product"}
           </span>
 
           {details.inStock ? (
-            <span className="flex shrink-0 items-center gap-1 text-[8px] font-semibold text-green-600 sm:text-[9px]">
-              <FiCheckCircle size={11} />
+            <span className="flex shrink-0 items-center gap-1 text-[9px] font-semibold text-green-600 sm:text-[10px]">
+              <FiCheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
               In Stock
             </span>
           ) : (
-            <span className="flex shrink-0 items-center gap-1 text-[8px] font-semibold text-red-500 sm:text-[9px]">
-              <FiXCircle size={11} />
+            <span className="flex shrink-0 items-center gap-1 text-[9px] font-semibold text-red-500 sm:text-[10px]">
+              <FiXCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
               Out of Stock
             </span>
           )}
         </div>
 
         {/* TITLE */}
-        <Link href={href}>
-          <h2
-            title={product.productName}
-            className="mt-2 line-clamp-2 min-h-4 font-serif text-[11px] font-bold leading-5 text-black transition hover:text-[#b58b00] sm:text-[13px] dark:text-white"
-          >
+        <Link href={href} title={product.productName} className="block">
+          <h2 className="mt-1.5 line-clamp-2 min-h-4 font-serif text-[11px] font-bold leading-4 text-black transition hover:text-[#b58b00] sm:mt-2 sm:min-h-4 sm:text-[13px] sm:leading-5 dark:text-white">
             {product.productName.slice(0, 25)}...
           </h2>
         </Link>
 
         {/* RATING */}
-        <div className="mt-2 flex items-center gap-2">
-          <span className="flex items-center gap-1 rounded-md bg-[#fff7d5] px-2 py-1 text-[9px] font-bold text-[#a77f00]">
-            <FiStar size={10} fill="currentColor" />
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex items-center gap-1 rounded-md bg-[#fff7d5] px-1.5 py-0.5 text-[10px] font-bold text-[#a77f00] sm:px-2 sm:py-1">
+            <FiStar className="h-2.5 w-2.5" fill="currentColor" />
             {rating}
           </span>
 
-          <span className="text-[9px] text-gray-500 dark:text-gray-400">
-            {reviewCount} Reviews
+          <span className="text-[10px] text-gray-500 dark:text-gray-400">
+            {reviewCount} {reviewCount === 1 ? "Review" : "Reviews"}
           </span>
         </div>
 
@@ -272,69 +274,63 @@ function WishlistCard({
         {(details.color || details.size) && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {details.color && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[9px] font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-medium text-gray-700 sm:px-2.5 sm:py-1 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full border border-black/10"
                   style={{ backgroundColor: getColorHex(details.color) }}
                 />
-                {details.color}
+                <span className="truncate">{details.color}</span>
               </span>
             )}
 
             {details.size && (
-              <span className="inline-flex items-center rounded-full border border-[#f1df91] bg-[#fff8d8] px-2.5 py-1 text-[9px] font-bold text-[#806400] dark:border-[#665a22] dark:bg-[#29240f] dark:text-[#ffd83d]">
-                Size: {details.size}
+              <span className="inline-flex max-w-full items-center rounded-full border border-[#f1df91] bg-[#fff8d8] px-2 py-0.5 text-[10px] font-bold text-[#806400] sm:px-2.5 sm:py-1 dark:border-[#665a22] dark:bg-[#29240f] dark:text-[#ffd83d]">
+                <span className="truncate">Size: {details.size}</span>
               </span>
             )}
           </div>
         )}
 
-        <div className="my-3 border-b border-dashed border-gray-200 dark:border-gray-700" />
+        <div className="my-2.5 border-b border-dashed border-gray-200 sm:my-3 dark:border-gray-700" />
 
         {/* PRICE */}
         <div className="mt-auto">
-          <p className="text-[9px] text-gray-500 dark:text-gray-400">
+          <p className="text-[10px] text-gray-500 dark:text-gray-400">
             Special Price
           </p>
 
-          <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-            <span className="font-serif text-[14px] font-extrabold text-black sm:text-[16px] dark:text-white">
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="whitespace-nowrap font-serif text-[14px] font-extrabold text-black sm:text-[16px] dark:text-white">
               {formatAED(details.price)}
             </span>
 
             {details.saving > 0 && (
-              <span className="text-[9px] text-gray-400 line-through">
+              <span className="whitespace-nowrap text-[10px] text-gray-400 line-through">
                 {formatAED(details.oldPrice)}
               </span>
             )}
           </div>
 
           {details.saving > 0 && (
-            <span className="mt-1 inline-flex rounded bg-green-50 px-2 py-1 text-[8px] font-bold text-green-600 dark:bg-green-500/10">
+            <span className="mt-1.5 inline-flex rounded bg-green-50 px-1.5 py-0.5 text-[9px] font-bold text-green-600 sm:px-2 sm:py-1 sm:text-[10px] dark:bg-green-500/10">
               Save {formatAED(details.saving)}
             </span>
           )}
         </div>
 
         {/* ACTIONS */}
-        <div className="mt-3 flex w-full items-center gap-2 sm:mt-4 sm:gap-2.5">
+        <div className="mt-3 flex w-full items-center gap-2 sm:mt-4">
           {details.inStock ? (
             <>
-              <ThemeBtnOne
-                text="Buy Now"
-                url="/checkout"
-                icon={
-                  <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                }
-                className="
-                flex h-10 w-full min-w-0 cursor-pointer items-center
-                justify-center gap-1.5 overflow-hidden whitespace-nowrap
-                rounded-lg bg-[#ffd83d] px-3 font-serif text-[9px] font-bold
-                text-black transition-all duration-200
-                hover:bg-[#ffcc00] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
-                sm:h-11 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-[11px]
-              "
-              />
+              <button
+                type="button"
+                disabled={isAddingToCart}
+                onClick={() => void handleBuyNow()}
+                className="flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-lg bg-[#ffd83d] px-2 font-serif text-[10px] font-bold text-black transition-all duration-200 hover:bg-[#ffcc00] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)] disabled:cursor-not-allowed disabled:opacity-60 min-[380px]:px-3 sm:h-11 sm:gap-2 sm:rounded-xl sm:text-[11px]"
+              >
+                <FiShoppingBag className="hidden h-3.5 w-3.5 shrink-0 min-[380px]:block sm:h-4 sm:w-4" />
+                Buy Now
+              </button>
 
               <button
                 type="button"
@@ -342,7 +338,7 @@ function WishlistCard({
                 onClick={() => void addItemToCart()}
                 title="Add to cart"
                 aria-label="Add to cart"
-                className="flex h-10 cursor-pointer items-center justify-center rounded-lg border border-gray-300 px-3 transition-all duration-200 hover:border-[#ffd83d] hover:bg-[#fff7d5] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 dark:border-gray-700 dark:text-white dark:hover:bg-[#29240f]"
+                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-gray-300 transition-all duration-200 hover:border-[#ffd83d] hover:bg-[#fff7d5] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-11 sm:rounded-xl dark:border-gray-700 dark:text-white dark:hover:bg-[#29240f]"
               >
                 {isAddingToCart ? (
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent sm:h-4 sm:w-4" />
@@ -355,7 +351,7 @@ function WishlistCard({
             <button
               type="button"
               disabled
-              className="h-10 w-full cursor-not-allowed rounded-lg bg-gray-100 text-[9px] font-bold text-gray-400 sm:h-11 dark:bg-[#252525]"
+              className="h-10 w-full cursor-not-allowed rounded-lg bg-gray-100 text-[10px] font-bold text-gray-400 sm:h-11 sm:rounded-xl sm:text-[11px] dark:bg-[#252525]"
             >
               Out of Stock
             </button>
@@ -372,8 +368,8 @@ function WishlistCard({
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-[#f7f7f8] py-10 dark:bg-[#0f0f0f]">
-      <div className="mx-auto flex min-h-100 max-w-[1600px] items-center justify-center px-5">
+    <main className="min-h-screen bg-[#f7f7f8] px-4 py-8 sm:py-10 dark:bg-[#0f0f0f]">
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-[1600px] items-center justify-center">
         {children}
       </div>
     </main>
@@ -382,17 +378,18 @@ function PageShell({ children }: { children: React.ReactNode }) {
 
 function WishlistSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {Array.from({ length: 8 }).map((_, index) => (
+    <div className={GRID_CLASSES}>
+      {Array.from({ length: 12 }).map((_, index) => (
         <div
           key={index}
-          className="animate-pulse overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#181818]"
+          className="animate-pulse overflow-hidden rounded-xl border border-gray-200 bg-white sm:rounded-2xl dark:border-gray-800 dark:bg-[#181818]"
         >
           <div className="aspect-square bg-gray-100 dark:bg-gray-800" />
-          <div className="space-y-3 p-3">
+          <div className="space-y-3 p-3 sm:p-4">
             <div className="h-3 w-1/2 rounded bg-gray-200 dark:bg-gray-700" />
             <div className="h-4 w-full rounded bg-gray-200 dark:bg-gray-700" />
             <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="h-10 w-full rounded-lg bg-gray-200 dark:bg-gray-700" />
           </div>
         </div>
       ))}
@@ -462,34 +459,41 @@ export default function WishlistPage() {
   if (!user) {
     return (
       <PageShell>
-        <div className="flex min-h-[55vh] items-center justify-center px-4 py-10">
-          <div className="w-full max-w-6xl rounded-3xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm sm:px-10 dark:border-gray-800 dark:bg-[#181818]">
-            {/* ICON */}
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fff8d8] dark:bg-[#29240f]">
-              <FiHeart
-                size={30}
-                strokeWidth={1.8}
-                className="text-[#d4a900] dark:text-[#ffd83d]"
-              />
-            </div>
+        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white px-5 py-8 text-center shadow-sm sm:rounded-3xl sm:px-8 sm:py-10 dark:border-gray-800 dark:bg-[#181818]">
+          {/* ICON */}
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#fff8d8] sm:h-16 sm:w-16 dark:bg-[#29240f]">
+            <FiHeart
+              strokeWidth={1.8}
+              className="h-6 w-6 text-[#d4a900] sm:h-7 sm:w-7 dark:text-[#ffd83d]"
+            />
+          </div>
 
-            {/* TITLE */}
-            <h2 className="mt-6 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Please Login
-            </h2>
+          {/* TITLE */}
+          <h2 className="mt-5 text-xl font-bold tracking-tight text-gray-900 sm:mt-6 sm:text-2xl dark:text-white">
+            Please Login
+          </h2>
 
-            {/* DESCRIPTION */}
-            <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-gray-500 dark:text-gray-400">
-              Login to your account to view and manage your saved wishlist
-              items.
-            </p>
+          {/* DESCRIPTION */}
+          <p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-gray-500 sm:text-sm sm:leading-6 dark:text-gray-400">
+            Login to your account to view and manage your saved wishlist items.
+          </p>
 
-            {/* BUTTON */}
+          {/* BUTTONS */}
+          <div className="mt-6 flex flex-col gap-2.5 sm:mt-7 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={openAccountMenu}
+              className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-6 text-sm font-extrabold text-black transition-all duration-200 hover:bg-[#f5cd2f] hover:shadow-md"
+            >
+              <FiLogIn size={17} />
+              Login
+            </button>
+
             <ThemeBtnOne
               text="Go to Home"
               url="/"
               icon={<FiHome size={17} />}
-              className="mx-auto mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-7 text-sm font-extrabold text-black transition-all duration-200 hover:bg-[#f5cd2f] hover:shadow-md"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-6 text-sm font-extrabold text-black transition-all duration-200 hover:border-[#ffd83d] hover:bg-[#fff7d5] dark:border-gray-700 dark:bg-transparent dark:text-white dark:hover:bg-[#29240f]"
             />
           </div>
         </div>
@@ -498,23 +502,23 @@ export default function WishlistPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f7f8] py-5 sm:py-7 lg:py-9 dark:bg-[#0f0f0f]">
+    <main className="min-h-screen bg-[#f7f7f8] py-4 sm:py-6 lg:py-8 dark:bg-[#0f0f0f]">
       <div className="mx-auto w-full max-w-[1600px] px-3 sm:px-5 lg:px-8 xl:px-10">
         {/* HEADER */}
-        <div className="mb-5 flex items-end justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-2 sm:mb-5 min-[480px]:flex-row min-[480px]:items-end min-[480px]:justify-between min-[480px]:gap-3">
           <div>
-            <h1 className="font-serif text-[21px] font-extrabold text-black sm:text-[25px] lg:text-[28px] dark:text-white">
+            <h1 className="font-serif text-[20px] font-extrabold text-black sm:text-[24px] lg:text-[28px] dark:text-white">
               My Wishlist
             </h1>
 
-            <p className="mt-1 text-[10px] text-gray-500 sm:text-xs dark:text-gray-400">
+            <p className="mt-1 text-[11px] text-gray-500 sm:text-xs dark:text-gray-400">
               {totalItems} {totalItems === 1 ? "item" : "items"} saved
             </p>
           </div>
 
           <Link
             href="/products"
-            className="flex items-center gap-1.5 text-[10px] font-bold text-gray-600 transition hover:text-black sm:text-xs dark:text-gray-300 dark:hover:text-white"
+            className="flex w-fit items-center gap-1.5 text-[11px] font-bold text-gray-600 transition hover:text-black sm:text-xs dark:text-gray-300 dark:hover:text-white"
           >
             <FiArrowLeft size={14} />
             Continue Shopping
@@ -526,8 +530,8 @@ export default function WishlistPage() {
 
         {/* ERROR */}
         {!isLoading && isError && (
-          <div className="rounded-xl border border-red-200 bg-white p-8 text-center dark:border-red-900 dark:bg-[#181818]">
-            <p className="font-semibold text-red-600">
+          <div className="rounded-xl border border-red-200 bg-white px-4 py-8 text-center sm:p-10 dark:border-red-900 dark:bg-[#181818]">
+            <p className="text-sm font-semibold text-red-600 sm:text-base">
               Unable to load your wishlist.
             </p>
 
@@ -538,7 +542,7 @@ export default function WishlistPage() {
             <button
               type="button"
               onClick={() => void refetch()}
-              className="mt-4 rounded-lg bg-[#ffd83d] px-5 py-2 text-sm font-bold text-black"
+              className="mt-4 cursor-pointer rounded-lg bg-[#ffd83d] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#ffcc00]"
             >
               Try Again
             </button>
@@ -548,12 +552,12 @@ export default function WishlistPage() {
         {/* CONTENT */}
         {!isLoading && !isError && totalItems > 0 && (
           <>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-[#181818]">
+            <div className="mb-3 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-3.5 py-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:px-4 dark:border-gray-800 dark:bg-[#181818]">
               <div>
                 <p className="text-xs font-bold text-black dark:text-white">
                   Saved Products
                 </p>
-                <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+                <p className="mt-0.5 text-[10px] text-gray-500 sm:mt-1 dark:text-gray-400">
                   Your favorite products in one place.
                 </p>
               </div>
@@ -562,7 +566,7 @@ export default function WishlistPage() {
                 type="button"
                 onClick={handleClear}
                 disabled={clearState.isLoading}
-                className="rounded-lg border border-red-200 px-3 py-2 text-[10px] font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900"
+                className="w-full cursor-pointer rounded-lg border border-red-200 px-3 py-2 text-[11px] font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:border-red-900 dark:hover:bg-red-500/10"
               >
                 {clearState.isLoading ? "Clearing..." : "Clear Wishlist"}
               </button>
@@ -574,7 +578,7 @@ export default function WishlistPage() {
               </p>
             )}
 
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            <div className={GRID_CLASSES}>
               {wishlist.map((item) => (
                 <WishlistCard
                   key={item._id}
@@ -593,12 +597,12 @@ export default function WishlistPage() {
 
         {/* EMPTY */}
         {!isLoading && !isError && totalItems === 0 && (
-          <div className="flex min-h-90 flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-5 text-center dark:border-gray-800 dark:bg-[#181818]">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#fff6ce] text-[#8b6a00] dark:bg-[#2b260f] dark:text-[#ffd83d]">
-              <FiHeart size={26} />
+          <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-5 py-10 text-center sm:min-h-96 dark:border-gray-800 dark:bg-[#181818]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#fff6ce] text-[#8b6a00] sm:h-16 sm:w-16 dark:bg-[#2b260f] dark:text-[#ffd83d]">
+              <FiHeart className="h-6 w-6 sm:h-7 sm:w-7" />
             </div>
 
-            <h2 className="mt-4 font-serif text-xl font-extrabold text-black dark:text-white">
+            <h2 className="mt-4 font-serif text-lg font-extrabold text-black sm:text-xl dark:text-white">
               Your wishlist is empty
             </h2>
 
@@ -610,7 +614,7 @@ export default function WishlistPage() {
               url="/products"
               text="Start Shopping"
               icon={<FiShoppingBag size={14} />}
-              className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-5 text-xs font-extrabold text-black transition hover:bg-[#ffcf12]"
+              className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-5 text-xs font-extrabold text-black transition hover:bg-[#ffcf12] sm:h-11"
             />
           </div>
         )}
