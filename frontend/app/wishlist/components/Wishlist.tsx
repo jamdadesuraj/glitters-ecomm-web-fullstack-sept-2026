@@ -10,6 +10,7 @@ import {
   FiBox,
   FiCheckCircle,
   FiHeart,
+  FiHome,
   FiShoppingBag,
   FiShoppingCart,
   FiStar,
@@ -461,23 +462,36 @@ export default function WishlistPage() {
   if (!user) {
     return (
       <PageShell>
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-[#181818]">
-          <FiHeart size={35} className="mx-auto text-[#d4a900]" />
+        <div className="flex min-h-[55vh] items-center justify-center px-4 py-10">
+          <div className="w-full max-w-6xl rounded-3xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm sm:px-10 dark:border-gray-800 dark:bg-[#181818]">
+            {/* ICON */}
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fff8d8] dark:bg-[#29240f]">
+              <FiHeart
+                size={30}
+                strokeWidth={1.8}
+                className="text-[#d4a900] dark:text-[#ffd83d]"
+              />
+            </div>
 
-          <h2 className="mt-4 text-xl font-bold text-black dark:text-white">
-            Please Login
-          </h2>
+            {/* TITLE */}
+            <h2 className="mt-6 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+              Please Login
+            </h2>
 
-          <p className="mt-2 text-sm text-gray-500">
-            Please login to view your wishlist.
-          </p>
+            {/* DESCRIPTION */}
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-gray-500 dark:text-gray-400">
+              Login to your account to view and manage your saved wishlist
+              items.
+            </p>
 
-          <Link
-            href="/"
-            className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-[#ffd83d] px-6 text-xs font-extrabold text-black"
-          >
-            Go to Home
-          </Link>
+            {/* BUTTON */}
+            <ThemeBtnOne
+              text="Go to Home"
+              url="/"
+              icon={<FiHome size={17} />}
+              className="mx-auto mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-7 text-sm font-extrabold text-black transition-all duration-200 hover:bg-[#f5cd2f] hover:shadow-md"
+            />
+          </div>
         </div>
       </PageShell>
     );
