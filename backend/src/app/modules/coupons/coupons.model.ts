@@ -8,6 +8,18 @@ const couponsSchema: Schema = new Schema(
       required: true,
       trim: true,
     },
+    subTitle: {
+      type: String,
+      trim: true,
+    },
+    couponCode: {
+      type: String,
+      trim: true,
+    },
+    couponAmount: {
+      type: String,
+      trim: true,
+    },
 
     status: {
       type: String,

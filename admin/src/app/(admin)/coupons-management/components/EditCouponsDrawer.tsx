@@ -14,6 +14,9 @@ type CouponStatus = 'active' | 'inactive'
 
 interface CouponFormState {
   couponName: string
+  subTitle: string
+  couponCode: string
+  couponAmount: string
   status: CouponStatus
 }
 
@@ -21,14 +24,34 @@ interface EditCouponsDrawerProps {
   item: {
     _id: string
     couponName?: string
+    subTitle: string
+    couponCode: string
+    couponAmount: string | number
     status?: CouponStatus
   }
 }
 
 const initialFormData: CouponFormState = {
   couponName: '',
+  subTitle: '',
+  couponCode: '',
+  couponAmount: '',
   status: 'active',
 }
+
+const toFormState = (source?: {
+  couponName?: string
+  subTitle?: string
+  couponCode?: string
+  couponAmount?: string | number
+  status?: string
+}): CouponFormState => ({
+  couponName: source?.couponName ?? '',
+  subTitle: source?.subTitle ?? '',
+  couponCode: source?.couponCode ?? '',
+  couponAmount: String(source?.couponAmount ?? ''),
+  status: source?.status === 'inactive' ? 'inactive' : 'active',
+})
 
 const EditCouponsDrawer = ({ item }: EditCouponsDrawerProps) => {
   const [open, setOpen] = useState(false)
@@ -37,13 +60,14 @@ const EditCouponsDrawer = ({ item }: EditCouponsDrawerProps) => {
   // API
   // ============================================
 
+  // Only fetch when the drawer is open, and always get fresh data on open
   const {
     data: couponData,
     isLoading: isCouponLoading,
     isFetching,
-    refetch,
   } = useGetCouponByIdQuery(item?._id, {
-    skip: !item?._id,
+    skip: !open || !item?._id,
+    refetchOnMountOrArgChange: true,
   })
 
   const [updateCoupon, { isLoading: isUpdating }] = useUpdateCouponMutation()
@@ -63,11 +87,7 @@ const EditCouponsDrawer = ({ item }: EditCouponsDrawerProps) => {
       return
     }
 
-    setFormData({
-      couponName: couponData.couponName || '',
-
-      status: couponData.status === 'inactive' ? 'inactive' : 'active',
-    })
+    setFormData(toFormState(couponData))
   }, [couponData])
 
   // ============================================
@@ -99,22 +119,10 @@ const EditCouponsDrawer = ({ item }: EditCouponsDrawerProps) => {
   // OPEN
   // ============================================
 
-  const handleOpen = async () => {
+  const handleOpen = () => {
+    // Start from the row data; fresh API data replaces it when it arrives
+    setFormData(toFormState(item))
     setOpen(true)
-
-    setFormData({
-      couponName: item?.couponName || '',
-
-      status: item?.status === 'inactive' ? 'inactive' : 'active',
-    })
-
-    if (item?._id) {
-      try {
-        await refetch()
-      } catch (error) {
-        console.error('Coupon refetch error:', error)
-      }
-    }
   }
 
   // ============================================
@@ -142,15 +150,41 @@ const EditCouponsDrawer = ({ item }: EditCouponsDrawerProps) => {
       return
     }
 
-    if (!formData.couponName.trim()) {
+    const couponName = formData.couponName.trim()
+    const subTitle = formData.subTitle.trim()
+    const couponCode = formData.couponCode.trim()
+    const couponAmount = formData.couponAmount.trim()
+
+    if (!couponName) {
       toast.error('Coupon name is required')
+
+      return
+    }
+
+    if (!subTitle) {
+      toast.error('Sub title is required')
+
+      return
+    }
+
+    if (!couponCode) {
+      toast.error('Coupon code is required')
+
+      return
+    }
+
+    if (!couponAmount) {
+      toast.error('Coupon amount is required')
 
       return
     }
 
     try {
       const payload = {
-        couponName: formData.couponName.trim(),
+        couponName,
+        subTitle,
+        couponCode,
+        couponAmount,
 
         status: formData.status,
       }
@@ -215,7 +249,7 @@ const EditCouponsDrawer = ({ item }: EditCouponsDrawerProps) => {
           <div>
             <h5 className="mb-1 fw-bold">Edit Coupon</h5>
 
-            <small className="text-muted">Update coupon name and status.</small>
+            <small className="text-muted">Update coupon details and status.</small>
           </div>
 
           <button
@@ -233,7 +267,7 @@ const EditCouponsDrawer = ({ item }: EditCouponsDrawerProps) => {
 
         {/* BODY */}
 
-        {isCouponLoading || isFetching ? (
+        {open && (isCouponLoading || isFetching) ? (
           <div className="p-5 text-center">
             <div className="spinner-border text-primary" />
 
@@ -258,7 +292,69 @@ const EditCouponsDrawer = ({ item }: EditCouponsDrawerProps) => {
                       name="couponName"
                       value={formData.couponName}
                       onChange={handleChange}
-                      placeholder="Example: SAVE20"
+                      autoComplete="off"
+                      disabled={isUpdating}
+                    />
+                  </div>
+                </Col>
+
+                {/* SUB TITLE */}
+
+                <Col md={12}>
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Sub Title
+                      <span className="text-danger ms-1">*</span>
+                    </label>
+
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="subTitle"
+                      value={formData.subTitle}
+                      onChange={handleChange}
+                      autoComplete="off"
+                      disabled={isUpdating}
+                    />
+                  </div>
+                </Col>
+
+                {/* COUPON CODE */}
+
+                <Col md={12}>
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Coupon Code
+                      <span className="text-danger ms-1">*</span>
+                    </label>
+
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="couponCode"
+                      value={formData.couponCode}
+                      onChange={handleChange}
+                      autoComplete="off"
+                      disabled={isUpdating}
+                    />
+                  </div>
+                </Col>
+
+                {/* COUPON AMOUNT */}
+
+                <Col md={12}>
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Coupon Amount
+                      <span className="text-danger ms-1">*</span>
+                    </label>
+
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="couponAmount"
+                      value={formData.couponAmount}
+                      onChange={handleChange}
                       autoComplete="off"
                       disabled={isUpdating}
                     />

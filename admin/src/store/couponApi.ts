@@ -1,20 +1,28 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import { RootState } from '@/store'
 
+export type CouponStatus = 'active' | 'inactive'
+
 export interface ICoupon {
   _id: string
   couponName: string
-  status: 'active' | 'inactive'
+  subTitle: string
+  couponCode: string
+  couponAmount: string
+  status: CouponStatus
   isDeleted: boolean
   createdAt: string
   updatedAt: string
 }
 
-interface CouponResponse {
+/** Fields sent when creating / updating a coupon */
+export type CouponPayload = Pick<ICoupon, 'couponName' | 'subTitle' | 'couponCode' | 'couponAmount' | 'status'>
+
+interface CouponResponse<T = ICoupon | ICoupon[]> {
   success: boolean
   statusCode: number
   message: string
-  data: ICoupon | ICoupon[]
+  data: T
 }
 
 export const couponApi = createApi({
@@ -26,14 +34,12 @@ export const couponApi = createApi({
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState)?.auth?.token
 
-      console.log('TOKEN =>', token)
-
       if (token) {
         headers.set('authorization', `Bearer ${token}`)
       }
 
-      headers.set('Content-Type', 'application/json')
-
+      // Content-Type is set automatically by fetchBaseQuery:
+      // JSON for plain objects, multipart (with boundary) for FormData.
       return headers
     },
   }),
@@ -41,6 +47,7 @@ export const couponApi = createApi({
   tagTypes: ['Coupon'],
 
   endpoints: (builder) => ({
+    // list
     getCoupon: builder.query<ICoupon[], void>({
       query: () => ({
         url: '/coupons',
@@ -51,50 +58,61 @@ export const couponApi = createApi({
         return Array.isArray(response.data) ? response.data : [response.data]
       },
 
-      providesTags: ['Coupon'],
+      providesTags: (result) =>
+        result
+          ? [...result.map(({ _id }) => ({ type: 'Coupon' as const, id: _id })), { type: 'Coupon' as const, id: 'LIST' }]
+          : [{ type: 'Coupon' as const, id: 'LIST' }],
     }),
 
     // single
     getCouponById: builder.query<ICoupon, string>({
       query: (id) => `/coupons/${id}`,
-      transformResponse: (response: CouponResponse) => response.data as ICoupon,
-      providesTags: (result, error, id) => [{ type: 'Coupon', id }],
+      transformResponse: (response: CouponResponse<ICoupon>) => response.data,
+      providesTags: (_result, _error, id) => [{ type: 'Coupon', id }],
     }),
 
-    // create team api
-    createCoupon: builder.mutation<ICoupon, FormData>({
-      query: (formData) => ({
+    // create
+    createCoupon: builder.mutation<ICoupon, CouponPayload>({
+      query: (body) => ({
         url: '/coupons',
         method: 'POST',
-        body: formData,
+        body,
       }),
 
-      transformResponse: (response: CouponResponse) => response.data as ICoupon,
+      transformResponse: (response: CouponResponse<ICoupon>) => response.data,
 
-      invalidatesTags: ['Coupon'],
+      invalidatesTags: [{ type: 'Coupon', id: 'LIST' }],
     }),
 
-    // update team api
-    updateCoupon: builder.mutation<ICoupon, { id: string; data: FormData }>({
+    // update
+    updateCoupon: builder.mutation<ICoupon, { id: string; data: Partial<CouponPayload> }>({
       query: ({ id, data }) => ({
         url: `/coupons/${id}`,
         method: 'PUT',
         body: data,
       }),
-      transformResponse: (response: CouponResponse) => response.data as ICoupon,
-      invalidatesTags: ['Coupon'],
+
+      transformResponse: (response: CouponResponse<ICoupon>) => response.data,
+
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Coupon', id },
+        { type: 'Coupon', id: 'LIST' },
+      ],
     }),
 
-    // delete team api
+    // delete
     deleteCoupon: builder.mutation<ICoupon, string>({
       query: (id) => ({
         url: `/coupons/${id}`,
         method: 'DELETE',
       }),
 
-      transformResponse: (response: CouponResponse) => response.data as ICoupon,
+      transformResponse: (response: CouponResponse<ICoupon>) => response.data,
 
-      invalidatesTags: ['Coupon'],
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Coupon', id },
+        { type: 'Coupon', id: 'LIST' },
+      ],
     }),
   }),
 })

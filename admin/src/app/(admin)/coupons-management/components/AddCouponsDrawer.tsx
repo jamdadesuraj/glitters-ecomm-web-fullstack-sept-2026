@@ -13,15 +13,25 @@ type CouponStatus = 'active' | 'inactive'
 
 interface CouponFormState {
   couponName: string
+  subTitle: string
+  couponCode: string
+  couponAmount: string
   status: CouponStatus
+}
+
+interface AddCouponsDrawerProps {
+  onAdd?: () => void
 }
 
 const initialFormData: CouponFormState = {
   couponName: '',
+  subTitle: '',
+  couponCode: '',
+  couponAmount: '',
   status: 'active',
 }
 
-const AddCouponsDrawer = ({ onAdd }: any) => {
+const AddCouponsDrawer = ({ onAdd }: AddCouponsDrawerProps) => {
   const [open, setOpen] = useState(false)
 
   // ============================================
@@ -89,19 +99,45 @@ const AddCouponsDrawer = ({ onAdd }: any) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (!formData.couponName.trim()) {
+    const couponName = formData.couponName.trim()
+    const subTitle = formData.subTitle.trim()
+    const couponCode = formData.couponCode.trim()
+    const couponAmount = formData.couponAmount.trim()
+
+    if (!couponName) {
       toast.error('Coupon name is required')
+
+      return
+    }
+
+    if (!subTitle) {
+      toast.error('Sub title is required')
+
+      return
+    }
+
+    if (!couponCode) {
+      toast.error('Coupon code is required')
+
+      return
+    }
+
+    if (!couponAmount) {
+      toast.error('Coupon amount is required')
 
       return
     }
 
     try {
       const payload = {
-        couponName: formData.couponName.trim(),
+        couponName,
+        subTitle,
+        couponCode,
+        couponAmount,
 
         status: formData.status,
       }
-      // @ts-ignore
+
       await createCoupon(payload).unwrap()
 
       toast.success('Coupon created successfully')
@@ -165,7 +201,7 @@ const AddCouponsDrawer = ({ onAdd }: any) => {
           <div>
             <h5 className="mb-1 fw-bold">Add Coupon</h5>
 
-            <small className="text-muted">Add coupon name and status.</small>
+            <small className="text-muted">Add coupon details and status.</small>
           </div>
 
           <button
@@ -201,7 +237,69 @@ const AddCouponsDrawer = ({ onAdd }: any) => {
                     name="couponName"
                     value={formData.couponName}
                     onChange={handleChange}
-                    placeholder="Example: SAVE10, WELCOME20"
+                    autoComplete="off"
+                    disabled={isLoading}
+                  />
+                </div>
+              </Col>
+
+              {/* SUB TITLE */}
+
+              <Col md={12}>
+                <div className="mb-3">
+                  <label className="form-label">
+                    Sub Title
+                    <span className="text-danger ms-1">*</span>
+                  </label>
+
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="subTitle"
+                    value={formData.subTitle}
+                    onChange={handleChange}
+                    autoComplete="off"
+                    disabled={isLoading}
+                  />
+                </div>
+              </Col>
+
+              {/* COUPON CODE */}
+
+              <Col md={12}>
+                <div className="mb-3">
+                  <label className="form-label">
+                    Coupon Code
+                    <span className="text-danger ms-1">*</span>
+                  </label>
+
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="couponCode"
+                    value={formData.couponCode}
+                    onChange={handleChange}
+                    autoComplete="off"
+                    disabled={isLoading}
+                  />
+                </div>
+              </Col>
+
+              {/* COUPON AMOUNT */}
+
+              <Col md={12}>
+                <div className="mb-3">
+                  <label className="form-label">
+                    Coupon Amount
+                    <span className="text-danger ms-1">*</span>
+                  </label>
+
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="couponAmount"
+                    value={formData.couponAmount}
+                    onChange={handleChange}
                     autoComplete="off"
                     disabled={isLoading}
                   />

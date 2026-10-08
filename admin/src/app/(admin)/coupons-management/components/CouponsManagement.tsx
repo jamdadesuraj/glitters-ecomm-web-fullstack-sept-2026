@@ -353,6 +353,9 @@ const CouponsManagement = () => {
                     <th className="text-nowrap">Sr No.</th>
 
                     <th className="text-nowrap">Coupon Name</th>
+                    <th className="text-nowrap">Sub-Title</th>
+                    <th className="text-nowrap">Coupon Code</th>
+                    <th className="text-nowrap">Coupon Amount</th>
 
                     <th className="text-nowrap">Status</th>
 
@@ -382,6 +385,18 @@ const CouponsManagement = () => {
                         {/* COUPON NAME */}
 
                         <td className="text-nowrap">{item.couponName || '-'}</td>
+
+                        {/* SUB-TITLE */}
+
+                        <td className="text-nowrap">{item.subTitle || '-'}</td>
+
+                        {/* COUPON CODE */}
+
+                        <td className="text-nowrap">{item.couponCode || '-'}</td>
+
+                        {/* COUPON AMOUNT */}
+
+                        <td className="text-nowrap">{item.couponAmount || '-'}</td>
 
                         {/* STATUS */}
 

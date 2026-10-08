@@ -9,11 +9,14 @@ export const createCoupons = async (
   next: NextFunction,
 ) => {
   try {
-    const { couponName, status } = req.body;
+    const { couponName, subTitle, couponCode, couponAmount, status } = req.body;
 
     // existing
     const existingData = await Coupons.findOne({
       couponName,
+      subTitle,
+      couponCode,
+      couponAmount,
       status,
     });
 
@@ -24,6 +27,9 @@ export const createCoupons = async (
 
     const validateData = await couponsSchema.parse({
       couponName,
+      subTitle,
+      couponCode,
+      couponAmount,
       status,
     });
 
