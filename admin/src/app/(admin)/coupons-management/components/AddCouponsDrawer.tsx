@@ -295,7 +295,7 @@ const AddCouponsDrawer = ({ onAdd }: AddCouponsDrawerProps) => {
                   </label>
 
                   <input
-                    type="text"
+                    type="number"
                     className="form-control"
                     name="couponAmount"
                     value={formData.couponAmount}

@@ -12,6 +12,8 @@ const NewOffer = () => {
 
   const { data: products = [], isLoading, isError } = useGetProductsQuery();
 
+  console.log("products", products);
+
   const newOfferProducts = useMemo(() => {
     return products.filter((product) => {
       if (!product.section) return false;

@@ -9,20 +9,38 @@ export const createProduct = async (
   next: NextFunction,
 ) => {
   try {
-    const parseJsonField = <T = any>(field: any, defaultValue: T): T => {
+    // ============================================
+    // HELPER: PARSE JSON FIELDS
+    // ============================================
+
+    const parseJsonField = <T>(field: unknown, defaultValue: T): T => {
       if (field === undefined || field === null || field === "") {
         return defaultValue;
       }
 
       if (typeof field === "string") {
         try {
-          return JSON.parse(field);
+          return JSON.parse(field) as T;
         } catch {
           throw new appError("Invalid JSON format", 400);
         }
       }
 
-      return field;
+      return field as T;
+    };
+
+    const parseNumber = (value: unknown, defaultValue = 0): number => {
+      if (value === undefined || value === null || value === "") {
+        return defaultValue;
+      }
+
+      const parsed = Number(value);
+
+      if (!Number.isFinite(parsed)) {
+        throw new appError("Invalid numeric value in product variant", 400);
+      }
+
+      return parsed;
     };
 
     // ============================================
@@ -33,32 +51,41 @@ export const createProduct = async (
       [fieldname: string]: Express.Multer.File[];
     };
 
+    const variantImages = files.variantImages?.map((file) => file.path) ?? [];
+
     // ============================================
     // PARSE ARRAYS
     // ============================================
 
     const variants = parseJsonField<any[]>(req.body.variants, []);
-
     const specifications = parseJsonField<any[]>(req.body.specifications, []);
-
     const tags = parseJsonField<string[]>(req.body.tags, []);
 
     // ============================================
-    // ATTACH VARIANT IMAGES
+    // PREPARE VARIANTS
     // ============================================
 
-    const variantImages = files?.variantImages?.map((file) => file.path) || [];
+    const variantsWithImages = variants.map((variant: any, index: number) => {
+      const preparedVariant: Record<string, unknown> = {
+        price: parseNumber(variant.price),
+        delPrice: parseNumber(variant.delPrice),
+        discount: parseNumber(variant.discount),
+        stock: parseNumber(variant.stock),
+        image: variantImages[index] || variant.image || "",
+      };
 
-    const variantsWithImages = variants.map((variant: any, index: number) => ({
-      ...variant,
+      // Size is optional
+      if (variant.size) {
+        preparedVariant.size = variant.size;
+      }
 
-      price: Number(variant.price ?? 0),
-      delPrice: Number(variant.delPrice ?? 0),
-      discount: Number(variant.discount ?? 0),
-      stock: Number(variant.stock ?? 0),
+      // Color is optional
+      if (variant.color) {
+        preparedVariant.color = variant.color;
+      }
 
-      image: variantImages[index] || variant.image || "",
-    }));
+      return preparedVariant;
+    });
 
     // ============================================
     // PREPARE PRODUCT DATA
@@ -70,11 +97,8 @@ export const createProduct = async (
       category: req.body.category,
 
       subCategory: req.body.subCategory || undefined,
-
       material: req.body.material || undefined,
-
       section: req.body.section || undefined,
-
       brand: req.body.brand || undefined,
 
       dealOfTheDay:
@@ -91,7 +115,6 @@ export const createProduct = async (
       variants: variantsWithImages,
 
       shortDesc: req.body.shortDesc,
-
       desc: req.body.desc,
 
       additionalInformation: req.body.additionalInformation || "",
@@ -121,7 +144,7 @@ export const createProduct = async (
     // RESPONSE
     // ============================================
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       statusCode: 201,
       message: "Product created successfully",
@@ -158,7 +181,8 @@ export const getAllProducts = async (
       })
       .populate({
         path: "coupon",
-        select: "_id couponCode discount status",
+        select:
+          "_id couponCode couponAmount couponName subTitle discount status",
       })
       .populate({
         path: "variants.size",
@@ -208,7 +232,8 @@ export const getAllProductsById = async (
       })
       .populate({
         path: "coupon",
-        select: "_id couponCode discount status",
+        select:
+          "_id couponCode couponAmount couponName subTitle discount status",
       })
       .populate({
         path: "variants.size",

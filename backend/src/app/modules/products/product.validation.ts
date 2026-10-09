@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// ============================================
+// MONGODB OBJECT ID SCHEMA
+// ============================================
+
 const objectIdSchema = z
   .string()
   .regex(/^[0-9a-fA-F]{24}$/, "Invalid MongoDB ObjectId");
@@ -9,11 +13,11 @@ const objectIdSchema = z
 // ============================================
 
 const productVariantSchema = z.object({
-  size: objectIdSchema,
+  size: objectIdSchema.optional(),
 
-  color: objectIdSchema,
+  color: objectIdSchema.optional(),
 
-  price: z.number().min(0, "Price cannot be negative"),
+  price: z.number().min(0, "Price cannot be negative").optional().default(0),
 
   delPrice: z
     .number()
@@ -31,7 +35,9 @@ const productVariantSchema = z.object({
   stock: z
     .number()
     .int("Stock must be an integer")
-    .min(0, "Stock cannot be negative"),
+    .min(0, "Stock cannot be negative")
+    .optional()
+    .default(0),
 
   image: z.string().optional().default(""),
 });
@@ -108,6 +114,7 @@ export const productSchema = z.object({
     .optional()
     .or(z.literal("")),
 
+  // Variants are still required, but their individual fields are optional.
   variants: z
     .array(productVariantSchema)
     .min(1, "At least one product variant is required"),
