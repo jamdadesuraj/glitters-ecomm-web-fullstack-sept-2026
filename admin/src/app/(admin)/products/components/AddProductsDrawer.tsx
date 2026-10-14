@@ -796,11 +796,17 @@ const AddProductsDrawer = () => {
       apiFormData.append('productImages', file)
     })
 
-    variants.forEach((variant) => {
+    // CHANGED: also send which variant each image belongs to
+    const variantImageIndexes: number[] = []
+
+    variants.forEach((variant, index) => {
       if (variant.image) {
+        variantImageIndexes.push(index)
         apiFormData.append('variantImages', variant.image)
       }
     })
+
+    apiFormData.append('variantImageIndexes', JSON.stringify(variantImageIndexes))
 
     try {
       await createProduct(apiFormData).unwrap()

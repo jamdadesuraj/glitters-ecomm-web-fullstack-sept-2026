@@ -28,6 +28,9 @@ import { addToCartApi } from "./addToCartApi";
 import { authApi } from "./authApi";
 import { wishlistApi } from "./wishlistApi";
 import { couponApi } from "./couponApi";
+import { addressApi } from "./addressapi";
+import { savedCardsApi } from "./savedcardsapi";
+import { reviewApi } from "./reviewApi";
 
 export const store = configureStore({
   reducer: {
@@ -62,6 +65,9 @@ export const store = configureStore({
     addToCartApi: addToCartApi.reducer,
     wishlistApi: wishlistApi.reducer,
     couponApi: couponApi.reducer,
+    addressApi: addressApi.reducer,
+    savedCardsApi: savedCardsApi.reducer,
+    reviewApi: reviewApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
@@ -96,6 +102,9 @@ export const store = configureStore({
       addToCartApi.middleware,
       wishlistApi.middleware,
       couponApi.middleware,
+      addressApi.middleware,
+      savedCardsApi.middleware,
+      reviewApi.middleware,
     ),
 });
 

@@ -8,12 +8,15 @@ import { sendPhoneOTP, verifyPhoneOTP } from "@/firebase/phoneAuth";
 import { getAuthErrorMessage } from "@/firebase/authErrors";
 import { RecaptchaVerifier } from "firebase/auth";
 import { auth } from "@/firebase/config";
+import { useSyncUserMutation } from "@/store/authApi"; // ADDED
 
 const MobileOtpLogin = () => {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [syncUser] = useSyncUserMutation(); // ADDED
 
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
@@ -97,11 +100,13 @@ const MobileOtpLogin = () => {
     const toastId = toast.loading("Verifying OTP...");
 
     try {
-      const user = await verifyPhoneOTP(otp);
-      const token = await user.getIdToken();
+      // 1. Verify OTP with Firebase (user is now signed in)
+      await verifyPhoneOTP(otp);
 
-      // TODO: Send token to backend
-      // await loginApi({ token }).unwrap();
+      // 2. Sync user with backend (POST /auth/sync)
+      // authApi automatically adds: Authorization: Bearer <firebase token>
+      // Phone number is taken by the backend from the verified token.
+      await syncUser({}).unwrap();
 
       toast.update(toastId, {
         render: "Login successful!",

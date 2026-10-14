@@ -3,50 +3,55 @@
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
 import React, { useEffect, useState } from "react";
 import { FiHome, FiMapPin, FiPhone, FiUser, FiX, FiSave } from "react-icons/fi";
+import { toast } from "react-toastify"; // ADDED
+import {
+  IAddress,
+  useAddAddressMutation,
+  useDeleteAddressMutation,
+  useGetAddressesQuery,
+  useUpdateAddressMutation,
+} from "@/store/addressapi";
 
-interface Address {
-  id: number;
-  type: string;
-  name: string;
-  phone: string;
-  address: string;
-  isDefault: boolean;
-}
+const emptyForm = {
+  type: "Home" as "Home" | "Office",
+  name: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  pincode: "",
+  isDefault: false,
+};
 
-const initialAddresses: Address[] = [
-  {
-    id: 1,
-    type: "Home",
-    name: "Rahul Sharma",
-    phone: "+91 98765 43210",
-    address: "MG Road, Pune, Maharashtra 411001",
-    isDefault: true,
-  },
-  {
-    id: 2,
-    type: "Office",
-    name: "Rahul Sharma",
-    phone: "+91 98765 43210",
-    address: "Baner Road, Pune, Maharashtra 411045",
-    isDefault: false,
-  },
-];
+// ADDED: "+919876543210" -> "+91 98765 43210"
+const formatPhone = (phone: string) => {
+  const digits = phone.replace(/\D/g, "").slice(-10);
+  return digits.length === 10
+    ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`
+    : phone;
+};
+
+// ADDED: read backend error message from RTK Query error
+const getErrorMessage = (error: unknown) => {
+  const err = error as { data?: { message?: string } };
+  return err?.data?.message || "Something went wrong. Please try again.";
+};
 
 const MyAddress = () => {
-  const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
+  // CHANGED: addresses now come from the API (no more dummy data)
+  const { data: addresses = [], isLoading } = useGetAddressesQuery();
+  const [addAddress, { isLoading: isAdding }] = useAddAddressMutation();
+  const [updateAddress, { isLoading: isUpdating }] = useUpdateAddressMutation();
+  const [deleteAddress] = useDeleteAddressMutation();
+
+  const isSaving = isAdding || isUpdating;
 
   const [showModal, setShowModal] = useState(false);
 
-  const [formData, setFormData] = useState({
-    type: "Home",
-    name: "",
-    phone: "",
-    address: "",
-    city: "",
-    state: "",
-    pincode: "",
-    isDefault: false,
-  });
+  // ADDED: id of the address being edited (null = adding new)
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState(emptyForm);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -70,53 +75,64 @@ const MyAddress = () => {
 
   const closeModal = () => {
     setShowModal(false);
-
-    setFormData({
-      type: "Home",
-      name: "",
-      phone: "",
-      address: "",
-      city: "",
-      state: "",
-      pincode: "",
-      isDefault: false,
-    });
+    setEditingId(null);
+    setFormData(emptyForm);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // ADDED: open modal for a new address
+  const openAddModal = () => {
+    setEditingId(null);
+    setFormData(emptyForm);
+    setShowModal(true);
+  };
+
+  // ADDED: open modal pre-filled for editing
+  const openEditModal = (item: IAddress) => {
+    setEditingId(item._id);
+    setFormData({
+      type: item.type,
+      name: item.name,
+      phone: formatPhone(item.phone),
+      address: item.address,
+      city: item.city,
+      state: item.state,
+      pincode: item.pincode,
+      isDefault: item.isDefault,
+    });
+    setShowModal(true);
+  };
+
+  // CHANGED: saves through the API
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const fullAddress = [
-      formData.address,
-      formData.city,
-      formData.state,
-      formData.pincode,
-    ]
-      .filter(Boolean)
-      .join(", ");
+    if (isSaving) return;
 
-    const newAddress: Address = {
-      id: Date.now(),
-      type: formData.type,
-      name: formData.name,
-      phone: formData.phone,
-      address: fullAddress,
-      isDefault: formData.isDefault,
-    };
+    try {
+      if (editingId) {
+        await updateAddress({ id: editingId, body: formData }).unwrap();
+        toast.success("Address updated successfully");
+      } else {
+        await addAddress(formData).unwrap();
+        toast.success("Address added successfully");
+      }
 
-    if (formData.isDefault) {
-      setAddresses((prev) => [
-        ...prev.map((address) => ({
-          ...address,
-          isDefault: false,
-        })),
-        newAddress,
-      ]);
-    } else {
-      setAddresses((prev) => [...prev, newAddress]);
+      closeModal();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     }
+  };
 
-    closeModal();
+  // ADDED: delete through the API
+  const handleRemove = async (id: string) => {
+    if (!window.confirm("Remove this address?")) return;
+
+    try {
+      await deleteAddress(id).unwrap();
+      toast.success("Address removed");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
   };
 
   useEffect(() => {
@@ -188,18 +204,31 @@ const MyAddress = () => {
           {/* Add Address */}
 
           <ThemeBtnOne
-            onClick={() => setShowModal(true)}
+            onClick={openAddModal}
             text=" Add New Address"
             icon={<FiMapPin size={14} />}
             className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-5 text-xs font-extrabold text-black shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ffcf12]"
           />
         </div>
 
+        {/* ADDED: loading + empty states */}
+        {isLoading && (
+          <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            Loading addresses...
+          </p>
+        )}
+
+        {!isLoading && addresses.length === 0 && (
+          <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            You have not added any address yet.
+          </p>
+        )}
+
         {/* Addresses */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {addresses.map((address) => (
             <article
-              key={address.id}
+              key={address._id}
               className="group relative rounded-2xl border border-gray-200 bg-white p-5 transition-all hover:border-[#ffd83d] hover:shadow-sm dark:border-white/10 dark:bg-[#111111]"
             >
               <div className="flex items-start justify-between gap-3">
@@ -235,7 +264,7 @@ const MyAddress = () => {
                   <FiPhone size={13} className="shrink-0 text-gray-400" />
 
                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {address.phone}
+                    {formatPhone(address.phone)}
                   </p>
                 </div>
 
@@ -243,7 +272,14 @@ const MyAddress = () => {
                   <FiMapPin size={13} className="mt-1 shrink-0 text-gray-400" />
 
                   <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">
-                    {address.address}
+                    {[
+                      address.address,
+                      address.city,
+                      address.state,
+                      address.pincode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
                   </p>
                 </div>
               </div>
@@ -251,6 +287,7 @@ const MyAddress = () => {
               <div className="mt-5 flex items-center gap-3 border-t border-gray-100 pt-4 dark:border-white/10">
                 <button
                   type="button"
+                  onClick={() => openEditModal(address)}
                   className="cursor-pointer text-xs font-bold text-[#9d7b00] transition hover:underline dark:text-[#ffd83d]"
                 >
                   Edit
@@ -260,11 +297,7 @@ const MyAddress = () => {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setAddresses((prev) =>
-                      prev.filter((item) => item.id !== address.id),
-                    )
-                  }
+                  onClick={() => handleRemove(address._id)}
                   className="cursor-pointer text-xs font-bold text-red-500 transition hover:underline"
                 >
                   Remove
@@ -275,7 +308,7 @@ const MyAddress = () => {
         </div>
       </section>
 
-      {/* ADD ADDRESS MODAL */}
+      {/* ADD / EDIT ADDRESS MODAL */}
       {showModal && (
         <div
           className="fixed inset-0 z-9999 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
@@ -299,7 +332,7 @@ const MyAddress = () => {
                   id="add-address-title"
                   className="mt-1 text-xl font-black text-gray-950 dark:text-white"
                 >
-                  Add New Address
+                  {editingId ? "Edit Address" : "Add New Address"}
                 </h2>
 
                 <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
@@ -326,7 +359,7 @@ const MyAddress = () => {
                 </label>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {["Home", "Office"].map((type) => (
+                  {(["Home", "Office"] as const).map((type) => (
                     <button
                       key={type}
                       type="button"
@@ -516,7 +549,7 @@ const MyAddress = () => {
 
                 <ThemeBtnOne
                   type="submit"
-                  text="Save Address"
+                  text={isSaving ? "Saving..." : "Save Address"}
                   icon={<FiSave size={15} />}
                   className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-5 text-xs font-extrabold text-black shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ffcf12]"
                 />

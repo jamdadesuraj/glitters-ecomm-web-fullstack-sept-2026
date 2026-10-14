@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import ThemeBtnOne from "@/app/components/ThemeBtnOne";
+import { toast } from "react-toastify"; // ADDED
+import ThemeBtnOne from "../../../../components/ThemeBtnOne";
+import {
+  IReviewItem,
+  useAddReviewMutation,
+  useGetMyReviewQuery,
+  useGetProductReviewsQuery,
+} from "../../../../../store/reviewApi"; // ADDED
+import { useGetMeQuery } from "../../../../../store/authApi"; // ADDED
+import { useAuthUser } from "../../../../../hooks/useAuthUser"; // ADDED
+import { openAccountMenu } from "../../../../../lib/authPopover"; // ADDED
 import {
   FiCheckCircle,
   FiEdit3,
+  FiImage,
   FiSend,
   FiStar,
   FiThumbsUp,
+  FiTrash2,
   FiX,
 } from "react-icons/fi";
 
@@ -15,43 +27,16 @@ import {
 /*  Types                                                                     */
 /* -------------------------------------------------------------------------- */
 
-type ApiReview = {
-  _id?: string;
-  name?: string;
-  userName?: string;
-  user?: { name?: string } | string | null;
-  rating?: number | string;
-  title?: string;
-  comment?: string;
-  review?: string;
-  createdAt?: string;
-  verified?: boolean;
-  isVerified?: boolean;
-  helpful?: number;
-};
-
 type ApiProduct = {
   _id?: string;
   desc?: string;
   additionalInformation?: string;
   shippingReturnPolicy?: string;
   specifications?: unknown;
-  reviews?: ApiReview[];
-};
-
-export type ReviewPayload = {
-  productId?: string;
-  name: string;
-  email: string;
-  title: string;
-  review: string;
-  rating: number;
 };
 
 type ProductTabsProps = {
   product?: ApiProduct | null;
-  /** Connect this to your "create review" API. Throw to show an error. */
-  onSubmitReview?: (payload: ReviewPayload) => Promise<void> | void;
 };
 
 type TabId =
@@ -74,6 +59,7 @@ type Review = {
   comment: string;
   verified: boolean;
   helpful: number;
+  image: string; // ADDED
 };
 
 /* -------------------------------------------------------------------------- */
@@ -177,22 +163,23 @@ const formatDate = (iso?: string) => {
   });
 };
 
-const toReviews = (reviews: ApiReview[] = []): Review[] =>
-  reviews.map((r, index) => {
-    const userName =
-      typeof r.user === "string" ? r.user : (r.user?.name ?? undefined);
+// CHANGED: maps reviews coming from GET /product-reviews/product/:id
+const toReviews = (reviews: IReviewItem[] = []): Review[] =>
+  reviews.map((r) => ({
+    id: r._id,
+    name: r.name || "Customer",
+    rating: Math.min(5, Math.max(0, Number(r.rating) || 0)),
+    date: formatDate(r.createdAt),
+    title: r.reviewTitle ?? "",
+    comment: r.review ?? "",
+    verified: Boolean(r.isVerified),
+    helpful: r.helpfulCount ?? 0,
+    image: r.image ?? "",
+  }));
 
-    return {
-      id: r._id ?? String(index),
-      name: r.name ?? r.userName ?? userName ?? "Customer",
-      rating: Math.min(5, Math.max(0, Number(r.rating) || 0)),
-      date: formatDate(r.createdAt),
-      title: r.title ?? "",
-      comment: r.comment ?? r.review ?? "",
-      verified: Boolean(r.verified ?? r.isVerified),
-      helpful: r.helpful ?? 0,
-    };
-  });
+// ADDED: review photo rules (also enforced by the backend)
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
 
 const getInitials = (name: string) =>
   name
@@ -212,7 +199,7 @@ const INPUT_CLASS =
 /*  Component                                                                 */
 /* -------------------------------------------------------------------------- */
 
-const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
+const ProductTabs = ({ product }: ProductTabsProps) => {
   const [activeTab, setActiveTab] = useState<TabId>("description");
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
@@ -220,19 +207,47 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  // ADDED: optional review photo
+  const [reviewImage, setReviewImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const [imageKey, setImageKey] = useState(0); // resets the file input
+
+  // ADDED: free the preview URL when it changes / on unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   const specs = useMemo(() => toSpecs(product?.specifications), [product]);
-  const reviews = useMemo(() => toReviews(product?.reviews), [product]);
+
+  /* ----- ADDED: reviews from the backend ----- */
+  const productId = product?._id;
+
+  const { user } = useAuthUser();
+  const { data: me } = useGetMeQuery(undefined, { skip: !user });
+
+  const { data: reviewData, isLoading: reviewsLoading } =
+    useGetProductReviewsQuery(
+      { productId: productId ?? "" },
+      { skip: !productId },
+    );
+
+  const { data: myReview } = useGetMyReviewQuery(productId ?? "", {
+    skip: !productId || !user,
+  });
+
+  const [addReview] = useAddReviewMutation();
+
+  const reviews = useMemo(() => toReviews(reviewData?.reviews), [reviewData]);
 
   /* ----- rating summary (1★ - 5★ counts) ----- */
-  const { averageRating, distribution } = useMemo(() => {
-    const total = reviews.length;
+  const { averageRating, totalReviews, distribution } = useMemo(() => {
+    const summary = reviewData?.summary;
+    const total = summary?.total ?? 0;
 
-    const average = total
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / total
-      : 0;
-
-    const dist = [5, 4, 3, 2, 1].map((star) => {
-      const count = reviews.filter((r) => Math.round(r.rating) === star).length;
+    const dist = ([5, 4, 3, 2, 1] as const).map((star) => {
+      const count = summary?.distribution?.[String(star) as "1"] ?? 0;
       return {
         star,
         count,
@@ -240,8 +255,12 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
       };
     });
 
-    return { averageRating: average, distribution: dist };
-  }, [reviews]);
+    return {
+      averageRating: summary?.average ?? 0,
+      totalReviews: total,
+      distribution: dist,
+    };
+  }, [reviewData]);
 
   /* ----- tabs ----- */
   const tabs = useMemo<Tab[]>(() => {
@@ -257,9 +276,9 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
       list.push({ id: "shipping", label: "Shipping & Return" });
     }
 
-    list.push({ id: "reviews", label: "Reviews", count: reviews.length });
+    list.push({ id: "reviews", label: "Reviews", count: totalReviews });
     return list;
-  }, [product, reviews.length]);
+  }, [product, totalReviews]);
 
   const currentTab = tabs.some((t) => t.id === activeTab)
     ? activeTab
@@ -293,6 +312,54 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
     setReviewForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ADDED: login / duplicate checks + pre-fill before opening the modal
+  const handleWriteReviewClick = () => {
+    if (!user) {
+      toast.info("Please login to write a review");
+      openAccountMenu();
+      return;
+    }
+
+    if (myReview) {
+      toast.info("You have already reviewed this product.");
+      return;
+    }
+
+    setReviewForm((prev) => ({
+      ...prev,
+      name: prev.name || me?.data?.name || user.displayName || "",
+      email: prev.email || me?.data?.email || user.email || "",
+    }));
+    setShowReviewModal(true);
+  };
+
+  // ADDED: pick a photo (type + size checked here, and again on the server)
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!IMAGE_TYPES.includes(file.type)) {
+      toast.error("Please choose a JPG, PNG, WEBP or AVIF image.");
+      setImageKey((k) => k + 1);
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast.error("Image must be 5MB or smaller.");
+      setImageKey((k) => k + 1);
+      return;
+    }
+
+    setReviewImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setReviewImage(null);
+    setImagePreview("");
+    setImageKey((k) => k + 1);
+  };
+
   const closeModal = () => {
     setShowReviewModal(false);
     setSubmitError("");
@@ -306,17 +373,32 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
     setSubmitError("");
 
     try {
-      await onSubmitReview?.({
-        productId: product._id,
-        ...reviewForm,
-        rating: reviewRating,
-      });
+      // CHANGED: multipart form so the optional photo can be sent
+      const formData = new FormData();
+      formData.append("name", reviewForm.name);
+      formData.append("email", reviewForm.email);
+      formData.append("rating", String(reviewRating));
+      formData.append("reviewTitle", reviewForm.title);
+      formData.append("review", reviewForm.review);
+      if (reviewImage) formData.append("image", reviewImage);
+
+      const result = await addReview({
+        productId: product._id ?? "",
+        body: formData,
+      }).unwrap();
+
+      toast.success(result.message || "Review submitted");
 
       setReviewForm(EMPTY_FORM);
       setReviewRating(0);
+      removeImage();
       setShowReviewModal(false);
-    } catch {
-      setSubmitError("Could not submit your review. Please try again.");
+    } catch (error) {
+      const err = error as { data?: { message?: string } };
+
+      setSubmitError(
+        err?.data?.message || "Could not submit your review. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -436,7 +518,7 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
 
                 <ThemeBtnOne
                   type="button"
-                  onClick={() => setShowReviewModal(true)}
+                  onClick={handleWriteReviewClick}
                   className="flex h-11 w-fit cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-5 text-xs font-extrabold text-black shadow-[0_6px_18px_rgba(255,216,61,0.2)] transition hover:-translate-y-0.5 hover:bg-[#ffcf12]"
                   icon={<FiEdit3 size={15} />}
                   text="Write a Review"
@@ -446,12 +528,16 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
               {/* Rating summary - always visible, 5★ to 1★ counts */}
               <RatingSummary
                 average={averageRating}
-                total={reviews.length}
+                total={totalReviews}
                 distribution={distribution}
               />
 
               {/* List */}
-              {reviews.length === 0 ? (
+              {reviewsLoading ? (
+                <p className="mt-7 text-center text-sm text-gray-400">
+                  Loading reviews...
+                </p>
+              ) : reviews.length === 0 ? (
                 <div className="mt-7 rounded-2xl border border-dashed border-gray-200 py-12 text-center dark:border-white/10">
                   <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
                     No reviews yet
@@ -591,6 +677,48 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
                 />
               </Field>
 
+              {/* ADDED: optional photo */}
+              <Field label="Add a Photo (optional)">
+                {imagePreview ? (
+                  <div className="relative inline-block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imagePreview}
+                      alt="Review preview"
+                      className="h-24 w-24 rounded-xl border border-gray-200 object-cover dark:border-white/10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      aria-label="Remove photo"
+                      className="absolute -right-2 -top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600"
+                    >
+                      <FiTrash2 size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="review-image"
+                    className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-gray-500 transition hover:border-[#d5ae00] hover:text-[#a58200] dark:border-white/15 dark:bg-[#0c0c0c] dark:text-gray-400"
+                  >
+                    <FiImage size={20} />
+                    <span className="text-xs font-bold">
+                      Click to upload (JPG, PNG, WEBP · max 5MB)
+                    </span>
+                  </label>
+                )}
+
+                <input
+                  key={imageKey}
+                  id="review-image"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </Field>
+
               {submitError && (
                 <p className="text-center text-xs font-semibold text-red-500">
                   {submitError}
@@ -606,7 +734,8 @@ const ProductTabs = ({ product, onSubmitReview }: ProductTabsProps) => {
               />
 
               <p className="text-center text-[10px] leading-5 text-gray-400">
-                Your review may be moderated before being published.
+                Your review will be visible to everyone right after you submit
+                it.
               </p>
             </form>
           </div>
@@ -815,6 +944,24 @@ const ReviewCard = ({ review }: { review: Review }) => (
       <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
         {review.comment}
       </p>
+    )}
+
+    {/* ADDED: photo uploaded with the review */}
+    {review.image && (
+      <a
+        href={review.image}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 inline-block overflow-hidden rounded-xl border border-gray-200 dark:border-white/10"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={review.image}
+          alt={`Photo from ${review.name}`}
+          loading="lazy"
+          className="h-24 w-24 object-cover transition hover:scale-105"
+        />
+      </a>
     )}
 
     <div className="mt-4 flex gap-4 border-t border-gray-100 pt-4 dark:border-white/10">

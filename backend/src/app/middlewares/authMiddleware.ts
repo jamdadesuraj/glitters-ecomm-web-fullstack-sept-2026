@@ -2,6 +2,17 @@ import { Request, Response, NextFunction } from "express";
 
 import { firebaseAdminAuth } from "../config/firebase-admin";
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        uid: string;
+        email?: string;
+        phone?: string;
+      };
+    }
+  }
+}
 export const authMiddleware = async (
   req: Request,
   res: Response,

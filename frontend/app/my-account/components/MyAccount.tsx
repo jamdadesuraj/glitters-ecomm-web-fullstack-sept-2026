@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   FiCreditCard,
   FiLogOut,
@@ -13,12 +14,37 @@ import {
 import MyAddress from "./MyAddress";
 import MyOrders from "./MyOrders";
 import SavedCards from "./SavedCards";
-import Link from "next/link";
+import { useAuthUser } from "@/hooks/useAuthUser"; // ADDED
+import { useGetMeQuery } from "@/store/authApi"; // ADDED
+import { logoutUser } from "@/firebase/auth"; // ADDED
 
 type AccountTab = "address" | "orders" | "cards";
 
 const MyAccount = () => {
   const [activeTab, setActiveTab] = useState<AccountTab>("address");
+
+  const router = useRouter(); // ADDED
+  const { user, authLoading } = useAuthUser(); // ADDED
+
+  // ADDED: fetch logged-in user's data from backend (GET /auth/me)
+  const { data } = useGetMeQuery(undefined, { skip: !user });
+  const profile = data?.data;
+
+  // ADDED: redirect to home if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/");
+    }
+  }, [authLoading, user, router]);
+
+  // ADDED: logout handler
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } finally {
+      router.replace("/");
+    }
+  };
 
   const menuItems: {
     id: AccountTab;
@@ -41,6 +67,14 @@ const MyAccount = () => {
       icon: <FiCreditCard size={17} />,
     },
   ];
+
+  // ADDED: wait for Firebase before rendering (redirect handled above)
+  if (authLoading || !user) return null;
+
+  // ADDED: real user values (backend first, Firebase as fallback)
+  const displayName = profile?.name || user.displayName || "Customer";
+  const displayEmail = profile?.email || user.email || "-";
+  const displayPhone = profile?.phone || user.phoneNumber || "-";
 
   return (
     <main className="min-h-screen bg-[#f7f7f8] py-8 transition-colors dark:bg-[#080808] sm:py-10">
@@ -72,7 +106,7 @@ const MyAccount = () => {
 
                 <div className="min-w-0">
                   <h2 className="truncate text-base font-black text-gray-950 dark:text-white">
-                    Rahul Sharma
+                    {displayName}
                   </h2>
 
                   <p className="mt-1 text-[11px] font-medium text-gray-400">
@@ -88,7 +122,7 @@ const MyAccount = () => {
                   </div>
 
                   <span className="text-xs font-bold text-gray-900 font-serif dark:text-gray-300">
-                    rahul@example.com
+                    {displayEmail}
                   </span>
                 </div>
 
@@ -98,7 +132,7 @@ const MyAccount = () => {
                   </div>
 
                   <span className="text-xs font-bold text-gray-900 font-serif dark:text-gray-300">
-                    +91 98765 43210
+                    {displayPhone}
                   </span>
                 </div>
               </div>
@@ -141,13 +175,16 @@ const MyAccount = () => {
                   </button>
                 );
               })}
-              <Link
-                href="/my-account"
+
+              {/* CHANGED: Link -> button with real logout (same classes) */}
+              <button
+                type="button"
+                onClick={handleLogout}
                 className="flex shrink-0 cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-extrabold transition-all lg:w-full bg-rose-500 text-white  hover:bg-gray-900 dark:text-gray-400 dark:hover:bg-white/5"
               >
                 <FiLogOut size={17} />
                 Logout
-              </Link>
+              </button>
             </nav>
           </aside>
 

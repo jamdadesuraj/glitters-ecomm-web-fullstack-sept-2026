@@ -1,72 +1,46 @@
 "use client";
 
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
+import {
+  CardType,
+  useAddSavedCardMutation,
+  useDeleteSavedCardMutation,
+  useGetSavedCardsQuery,
+  useSetDefaultCardMutation,
+} from "@/store/savedcardsapi";
 import React, { useEffect, useState } from "react";
 import { FiCreditCard, FiLock, FiSave, FiUser, FiX } from "react-icons/fi";
 
-interface Card {
-  id: number;
-  type: string;
-  number: string;
-  expiry: string;
-  holder: string;
-  isDefault: boolean;
-}
-
-const initialCards: Card[] = [
-  {
-    id: 1,
-    type: "Visa",
-    number: "•••• •••• •••• 4242",
-    expiry: "08/29",
-    holder: "Rahul Sharma",
-    isDefault: true,
-  },
-  {
-    id: 2,
-    type: "Mastercard",
-    number: "•••• •••• •••• 8821",
-    expiry: "11/28",
-    holder: "Rahul Sharma",
-    isDefault: false,
-  },
-];
+const emptyForm = {
+  holder: "",
+  number: "",
+  expiry: "",
+  cvv: "",
+  type: "Visa" as CardType,
+  isDefault: false,
+};
 
 const SavedCards = () => {
-  const [cards, setCards] = useState<Card[]>(initialCards);
-  const [showModal, setShowModal] = useState(false);
+  const { data: cards = [], isLoading } = useGetSavedCardsQuery();
+  const [addCard, { isLoading: isSaving }] = useAddSavedCardMutation();
+  const [deleteCard] = useDeleteSavedCardMutation();
+  const [setDefaultCard] = useSetDefaultCardMutation();
 
-  const [formData, setFormData] = useState({
-    holder: "",
-    number: "",
-    expiry: "",
-    cvv: "",
-    type: "Visa",
-    isDefault: false,
-  });
+  const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState(emptyForm);
 
   const closeModal = () => {
     setShowModal(false);
-
-    setFormData({
-      holder: "",
-      number: "",
-      expiry: "",
-      cvv: "",
-      type: "Visa",
-      isDefault: false,
-    });
+    setError("");
+    setFormData(emptyForm);
   };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,63 +49,44 @@ const SavedCards = () => {
       .slice(0, 16)
       .replace(/(.{4})/g, "$1 ")
       .trim();
-
-    setFormData((prev) => ({
-      ...prev,
-      number: value,
-    }));
+    setFormData((prev) => ({ ...prev, number: value }));
   };
 
   const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "").slice(0, 4);
-
-    if (value.length >= 3) {
-      value = `${value.slice(0, 2)}/${value.slice(2)}`;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      expiry: value,
-    }));
+    if (value.length >= 3) value = `${value.slice(0, 2)}/${value.slice(2)}`;
+    setFormData((prev) => ({ ...prev, expiry: value }));
   };
 
   const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 4);
-
-    setFormData((prev) => ({
-      ...prev,
-      cvv: value,
-    }));
+    setFormData((prev) => ({ ...prev, cvv: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
 
-    const cleanNumber = formData.number.replace(/\s/g, "");
-    const lastFour = cleanNumber.slice(-4);
-
-    const newCard: Card = {
-      id: Date.now(),
-      type: formData.type,
-      number: `•••• •••• •••• ${lastFour}`,
-      expiry: formData.expiry,
-      holder: formData.holder,
-      isDefault: formData.isDefault,
-    };
-
-    if (formData.isDefault) {
-      setCards((prev) => [
-        ...prev.map((card) => ({
-          ...card,
-          isDefault: false,
-        })),
-        newCard,
-      ]);
-    } else {
-      setCards((prev) => [...prev, newCard]);
+    const digits = formData.number.replace(/\s/g, "");
+    if (digits.length < 15) {
+      setError("Please enter a valid card number.");
+      return;
     }
 
-    closeModal();
+    // Only safe data goes to our server. Full number and CVV are NEVER sent.
+    try {
+      await addCard({
+        type: formData.type,
+        last4: digits.slice(-4),
+        expiry: formData.expiry,
+        holder: formData.holder,
+        isDefault: formData.isDefault,
+      }).unwrap();
+
+      closeModal();
+    } catch (err: any) {
+      setError(err?.data?.message || "Could not save card. Please try again.");
+    }
   };
 
   useEffect(() => {
@@ -140,11 +95,8 @@ const SavedCards = () => {
     document.body.style.overflow = "hidden";
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeModal();
-      }
+      if (event.key === "Escape") closeModal();
     };
-
     window.addEventListener("keydown", handleEscape);
 
     return () => {
@@ -154,30 +106,11 @@ const SavedCards = () => {
   }, [showModal]);
 
   const inputClass = `
-    h-11
-    w-full
-    rounded-xl
-    border
-    border-gray-200
-    bg-gray-50
-    px-4
-    text-sm
-    font-medium
-    text-gray-900
-    outline-none
-    transition-all
-    placeholder:text-gray-400
-    hover:border-gray-300
-    focus:border-[#d4aa00]
-    focus:bg-white
-    focus:ring-4
-    focus:ring-[#ffd83d]/15
-    dark:border-white/10
-    dark:bg-[#0c0c0c]
-    dark:text-white
-    dark:placeholder:text-gray-600
-    dark:hover:border-white/20
-    dark:focus:border-[#ffd83d]/60
+    h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-medium
+    text-gray-900 outline-none transition-all placeholder:text-gray-400
+    hover:border-gray-300 focus:border-[#d4aa00] focus:bg-white focus:ring-4
+    focus:ring-[#ffd83d]/15 dark:border-white/10 dark:bg-[#0c0c0c] dark:text-white
+    dark:placeholder:text-gray-600 dark:hover:border-white/20 dark:focus:border-[#ffd83d]/60
   `;
 
   return (
@@ -189,11 +122,9 @@ const SavedCards = () => {
             <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#9d7b00] dark:text-[#ffd83d]">
               Payment Methods
             </span>
-
             <h2 className="mt-1.5 text-xl font-black text-gray-950 dark:text-white">
               Saved Cards
             </h2>
-
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Manage your saved payment methods.
             </p>
@@ -207,11 +138,24 @@ const SavedCards = () => {
           />
         </div>
 
+        {/* States */}
+        {isLoading && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Loading your cards...
+          </p>
+        )}
+
+        {!isLoading && cards.length === 0 && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            You have no saved cards yet.
+          </p>
+        )}
+
         {/* Cards */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {cards.map((card) => (
             <article
-              key={card.id}
+              key={card._id}
               className="relative overflow-hidden rounded-2xl bg-[#181818] p-5 text-white shadow-lg"
             >
               <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/5" />
@@ -220,20 +164,18 @@ const SavedCards = () => {
               <div className="relative">
                 <div className="flex items-center justify-between">
                   <FiCreditCard size={23} />
-
                   <div className="flex items-center gap-2">
                     {card.isDefault && (
                       <span className="rounded-full bg-[#ffd83d] px-2.5 py-1 text-[9px] font-black text-black">
                         Default
                       </span>
                     )}
-
                     <span className="text-sm font-black">{card.type}</span>
                   </div>
                 </div>
 
                 <p className="mt-8 text-lg font-bold tracking-[0.12em]">
-                  {card.number}
+                  •••• •••• •••• {card.last4}
                 </p>
 
                 <div className="mt-6 flex items-end justify-between gap-4">
@@ -241,36 +183,33 @@ const SavedCards = () => {
                     <p className="text-[9px] uppercase tracking-widest text-white/50">
                       Card Holder
                     </p>
-
                     <p className="mt-1 text-xs font-bold">{card.holder}</p>
                   </div>
-
                   <div>
                     <p className="text-[9px] uppercase tracking-widest text-white/50">
                       Expires
                     </p>
-
                     <p className="mt-1 text-xs font-bold">{card.expiry}</p>
                   </div>
                 </div>
 
                 <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
+                  {!card.isDefault && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setDefaultCard(card._id)}
+                        className="cursor-pointer text-[11px] font-bold text-[#ffd83d]"
+                      >
+                        Make Default
+                      </button>
+                      <span className="h-3 w-px bg-white/10" />
+                    </>
+                  )}
+
                   <button
                     type="button"
-                    className="cursor-pointer text-[11px] font-bold text-[#ffd83d]"
-                  >
-                    Edit
-                  </button>
-
-                  <span className="h-3 w-px bg-white/10" />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCards((prev) =>
-                        prev.filter((item) => item.id !== card.id),
-                      )
-                    }
+                    onClick={() => deleteCard(card._id)}
                     className="cursor-pointer text-[11px] font-bold text-red-400"
                   >
                     Remove
@@ -301,14 +240,12 @@ const SavedCards = () => {
                 <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#9d7b00] dark:text-[#ffd83d]">
                   Payment Method
                 </span>
-
                 <h2
                   id="add-card-title"
                   className="mt-1 text-xl font-black text-gray-950 dark:text-white"
                 >
                   Add New Card
                 </h2>
-
                 <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
                   Add your card details securely.
                 </p>
@@ -329,34 +266,27 @@ const SavedCards = () => {
               <div className="relative overflow-hidden rounded-2xl bg-[#181818] p-5 text-white shadow-lg">
                 <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/5" />
                 <div className="absolute -bottom-14 -left-8 h-36 w-36 rounded-full bg-[#ffd83d]/10" />
-
                 <div className="relative">
                   <div className="flex items-center justify-between">
                     <FiCreditCard size={23} />
-
                     <span className="text-sm font-black">{formData.type}</span>
                   </div>
-
                   <p className="mt-7 text-lg font-bold tracking-[0.12em]">
                     {formData.number || "•••• •••• •••• ••••"}
                   </p>
-
                   <div className="mt-6 flex items-end justify-between">
                     <div>
                       <p className="text-[9px] uppercase tracking-widest text-white/50">
                         Card Holder
                       </p>
-
                       <p className="mt-1 text-xs font-bold">
                         {formData.holder || "YOUR NAME"}
                       </p>
                     </div>
-
                     <div>
                       <p className="text-[9px] uppercase tracking-widest text-white/50">
                         Expires
                       </p>
-
                       <p className="mt-1 text-xs font-bold">
                         {formData.expiry || "MM/YY"}
                       </p>
@@ -374,13 +304,11 @@ const SavedCards = () => {
                   Card Holder Name
                   <span className="ml-1 text-red-500">*</span>
                 </label>
-
                 <div className="relative">
                   <FiUser
                     size={15}
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                   />
-
                   <input
                     id="holder"
                     type="text"
@@ -403,17 +331,16 @@ const SavedCards = () => {
                   Card Number
                   <span className="ml-1 text-red-500">*</span>
                 </label>
-
                 <div className="relative">
                   <FiCreditCard
                     size={15}
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                   />
-
                   <input
                     id="number"
                     type="text"
                     inputMode="numeric"
+                    autoComplete="off"
                     value={formData.number}
                     onChange={handleCardNumberChange}
                     placeholder="1234 5678 9012 3456"
@@ -431,7 +358,6 @@ const SavedCards = () => {
                 >
                   Card Type
                 </label>
-
                 <select
                   id="type"
                   name="type"
@@ -456,7 +382,6 @@ const SavedCards = () => {
                     Expiry Date
                     <span className="ml-1 text-red-500">*</span>
                   </label>
-
                   <input
                     id="expiry"
                     type="text"
@@ -478,17 +403,16 @@ const SavedCards = () => {
                     CVV
                     <span className="ml-1 text-red-500">*</span>
                   </label>
-
                   <div className="relative">
                     <FiLock
                       size={15}
                       className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                     />
-
                     <input
                       id="cvv"
                       type="password"
                       inputMode="numeric"
+                      autoComplete="off"
                       value={formData.cvv}
                       onChange={handleCvvChange}
                       placeholder="•••"
@@ -512,12 +436,10 @@ const SavedCards = () => {
                   }
                   className="mt-0.5 h-4 w-4 accent-[#ffd83d]"
                 />
-
                 <div>
                   <p className="text-xs font-extrabold text-gray-800 dark:text-gray-200">
                     Set as default payment method
                   </p>
-
                   <p className="mt-1 text-[11px] leading-5 text-gray-500 dark:text-gray-400">
                     This card will be selected automatically during checkout.
                   </p>
@@ -530,11 +452,17 @@ const SavedCards = () => {
                   size={15}
                   className="mt-0.5 shrink-0 text-green-600 dark:text-green-400"
                 />
-
                 <p className="text-[11px] leading-5 text-green-700 dark:text-green-400">
-                  Your payment information is securely protected.
+                  Only the last 4 digits and expiry are stored. Your full card
+                  number and CVV are never saved.
                 </p>
               </div>
+
+              {error && (
+                <p className="rounded-xl bg-red-50 p-3 text-xs font-bold text-red-600 dark:bg-red-500/10 dark:text-red-400">
+                  {error}
+                </p>
+              )}
 
               {/* Footer */}
               <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 dark:border-white/10 sm:flex-row sm:justify-end">
@@ -548,7 +476,7 @@ const SavedCards = () => {
 
                 <ThemeBtnOne
                   type="submit"
-                  text="  Save Card"
+                  text={isSaving ? "  Saving..." : "  Save Card"}
                   icon={<FiSave size={15} />}
                   className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-5 text-xs font-extrabold text-black shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ffcf12]"
                 />

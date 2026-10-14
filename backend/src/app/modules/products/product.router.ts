@@ -17,10 +17,8 @@ const router = express.Router();
 // ============================================
 
 const uploadFields = upload.fields([
-  {
-    name: "variantImages",
-    maxCount: 50,
-  },
+  { name: "productImages", maxCount: 10 },
+  { name: "variantImages", maxCount: 50 },
 ]);
 
 // ============================================

@@ -61,6 +61,25 @@ export const createProduct = async (
     const specifications = parseJsonField<any[]>(req.body.specifications, []);
     const tags = parseJsonField<string[]>(req.body.tags, []);
 
+    // ADDED: which variant each uploaded file belongs to (sent by admin form)
+    const variantImageIndexes = parseJsonField<number[]>(
+      req.body.variantImageIndexes,
+      [],
+    );
+
+    const getUploadedImage = (index: number): string => {
+      // old clients that don't send indexes: keep the previous behaviour
+      if (req.body.variantImageIndexes === undefined) {
+        return variantImages[index] || "";
+      }
+
+      const fileIndex = variantImageIndexes.findIndex(
+        (i) => Number(i) === index,
+      );
+
+      return fileIndex >= 0 ? variantImages[fileIndex] || "" : "";
+    };
+
     // ============================================
     // PREPARE VARIANTS
     // ============================================
@@ -71,7 +90,10 @@ export const createProduct = async (
         delPrice: parseNumber(variant.delPrice),
         discount: parseNumber(variant.discount),
         stock: parseNumber(variant.stock),
-        image: variantImages[index] || variant.image || "",
+        // CHANGED: map the uploaded file to the correct variant
+        image:
+          getUploadedImage(index) ||
+          (typeof variant.image === "string" ? variant.image : ""),
       };
 
       // Size is optional
@@ -303,6 +325,25 @@ export const updateProduct = async (
 
     const variantImages = files?.variantImages?.map((file) => file.path) || [];
 
+    // ADDED: which variant each uploaded file belongs to (sent by admin form)
+    const variantImageIndexes = parseJsonField<number[]>(
+      req.body.variantImageIndexes,
+      [],
+    );
+
+    const getUploadedImage = (index: number): string => {
+      // old clients that don't send indexes: keep the previous behaviour
+      if (req.body.variantImageIndexes === undefined) {
+        return variantImages[index] || "";
+      }
+
+      const fileIndex = variantImageIndexes.findIndex(
+        (i) => Number(i) === index,
+      );
+
+      return fileIndex >= 0 ? variantImages[fileIndex] || "" : "";
+    };
+
     // ============================================
     // PARSE BODY DATA
     // ============================================
@@ -355,8 +396,12 @@ export const updateProduct = async (
             ? Number(variant.stock)
             : Number(existingVariant?.stock ?? 0),
 
+        // CHANGED: map the uploaded file to the correct variant
         image:
-          variantImages[index] || variant.image || existingVariant?.image || "",
+          getUploadedImage(index) ||
+          (typeof variant.image === "string" ? variant.image : "") ||
+          existingVariant?.image ||
+          "",
       };
     });
 

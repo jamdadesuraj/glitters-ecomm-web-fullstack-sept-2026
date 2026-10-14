@@ -44,6 +44,9 @@ import { appSettingsRouter } from "../modules/appSettings/app-settings.routes";
 import { cartRouter } from "../modules/addToCart/addToCart.route";
 import { authRouter } from "../modules/auth/auth.routes";
 import { wishlistRouter } from "../modules/wishlist/wishlist.route";
+import { addressRouter } from "../modules/Address/Address.route";
+import { savedCardsRouter } from "../modules/cards/Savedcards.route";
+import { productReviewRouter } from "../modules/product-reviews/Productreview.route";
 
 const router = Router();
 const moduleRoutes = [
@@ -203,6 +206,9 @@ const moduleRoutes = [
     path: "/settings",
     route: generalSettingsRouter,
   },
+  { path: "/addresses", route: addressRouter },
+  { path: "/saved-cards", route: savedCardsRouter },
+  { path: "/product-reviews", route: productReviewRouter },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
