@@ -31,6 +31,7 @@ import { couponApi } from "./couponApi";
 import { addressApi } from "./addressapi";
 import { savedCardsApi } from "./savedcardsapi";
 import { reviewApi } from "./reviewApi";
+import { ordersApi } from "./ordersApi";
 
 export const store = configureStore({
   reducer: {
@@ -68,6 +69,7 @@ export const store = configureStore({
     addressApi: addressApi.reducer,
     savedCardsApi: savedCardsApi.reducer,
     reviewApi: reviewApi.reducer,
+    ordersApi: ordersApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
@@ -105,6 +107,7 @@ export const store = configureStore({
       addressApi.middleware,
       savedCardsApi.middleware,
       reviewApi.middleware,
+      ordersApi.middleware,
     ),
 });
 

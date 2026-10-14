@@ -14,6 +14,11 @@ const productPopulate = {
     { path: "material", select: "name" },
     { path: "variants.size", select: "size" },
     { path: "variants.color", select: "colorName" },
+    // coupon attached to the product (used by checkout / cart)
+    {
+      path: "coupon",
+      select: "_id couponName subTitle couponCode couponAmount status",
+    },
   ],
 };
 

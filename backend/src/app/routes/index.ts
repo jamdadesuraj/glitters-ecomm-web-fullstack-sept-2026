@@ -47,6 +47,8 @@ import { wishlistRouter } from "../modules/wishlist/wishlist.route";
 import { addressRouter } from "../modules/Address/Address.route";
 import { savedCardsRouter } from "../modules/cards/Savedcards.route";
 import { productReviewRouter } from "../modules/product-reviews/Productreview.route";
+import { orderRouter } from "../modules/orders/order.route";
+import { adminAuthRouter } from "../modules/admin/adminRoute";
 
 const router = Router();
 const moduleRoutes = [
@@ -209,6 +211,8 @@ const moduleRoutes = [
   { path: "/addresses", route: addressRouter },
   { path: "/saved-cards", route: savedCardsRouter },
   { path: "/product-reviews", route: productReviewRouter },
+  { path: "/orders", route: orderRouter },
+  { path: "/admin-auth", route: adminAuthRouter },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

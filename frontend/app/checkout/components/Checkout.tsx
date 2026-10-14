@@ -14,9 +14,16 @@ import {
   FiPlus,
   FiShield,
   FiSmartphone,
-  FiTruck,
 } from "react-icons/fi";
 import OrderSummary from "./OrderSummary";
+import { toast } from "react-toastify";
+import {
+  IAddress,
+  IAddressBody,
+  useAddAddressMutation,
+  useGetAddressesQuery,
+  useUpdateAddressMutation,
+} from "@/store/addressapi";
 
 type PaymentMethod =
   | "card"
@@ -26,41 +33,157 @@ type PaymentMethod =
   | "cod"
   | "apple-pay";
 
-type SavedAddress = {
-  id: number;
-  name: string;
-  type: string;
-  address: string;
-  phone: string;
-  isDefault?: boolean;
+// builds the single address line shown in the UI and sent to OrderSummary
+const formatAddressLine = (a: IAddress) => {
+  const line = [a.address, a.city, a.state].filter(Boolean).join(", ");
+  return a.pincode ? `${line} - ${a.pincode}` : line;
 };
 
-const savedAddresses: SavedAddress[] = [
-  {
-    id: 1,
-    name: "John Doe",
-    type: "Home",
-    address:
-      "Apartment 1204, Marina Heights Tower, Dubai Marina, Dubai, United Arab Emirates",
-    phone: "+971 50 123 4567",
-    isDefault: true,
-  },
-  {
-    id: 2,
-    name: "John Doe",
-    type: "Office",
-    address:
-      "Office 504, Business Bay Tower, Business Bay, Dubai, United Arab Emirates",
-    phone: "+971 55 987 6543",
-  },
-];
+const emptyForm: IAddressBody = {
+  type: "Home",
+  name: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  pincode: "",
+  isDefault: false,
+};
+
+// "+919876543210" -> "+91 98765 43210"
+const formatPhone = (phone: string) => {
+  const digits = phone.replace(/\D/g, "").slice(-10);
+  return digits.length === 10
+    ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`
+    : phone;
+};
+
+// read backend error message from an RTK Query error
+const getErrorMessage = (error: unknown) => {
+  const err = error as { data?: { message?: string } };
+  return err?.data?.message || "Something went wrong. Please try again.";
+};
+
+// same rules as backend Address.validation.ts -> error message or null
+const validateForm = (f: IAddressBody): string | null => {
+  if (!f.name.trim()) return "Name is required";
+
+  const phoneDigits = f.phone.replace(/\D/g, "").slice(-10);
+  if (!/^[6-9]\d{9}$/.test(phoneDigits)) return "Invalid phone number";
+
+  if (!f.address.trim()) return "Address is required";
+  if (!f.city.trim()) return "City is required";
+  if (!f.state.trim()) return "State is required";
+  if (!/^\d{6}$/.test(f.pincode.trim())) return "Pincode must be 6 digits";
+
+  return null;
+};
 
 const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
 
-  const [selectedAddress, setSelectedAddress] = useState(1);
+  // saved addresses now come from the API (no more dummy data)
+  const {
+    data: addresses = [],
+    isLoading: addressesLoading,
+    isError: addressesError,
+  } = useGetAddressesQuery();
 
-  const [useDifferentAddress, setUseDifferentAddress] = useState(false);
+  // null = user has not clicked any address yet -> fall back to default / first
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null,
+  );
+
+  // true = the add / edit address form is open instead of the saved list
+  const [showForm, setShowForm] = useState(false);
+
+  // id of the address being edited (null = adding a new one)
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState<IAddressBody>(emptyForm);
+
+  const [addAddress, { isLoading: isAdding }] = useAddAddressMutation();
+  const [updateAddress, { isLoading: isUpdating }] = useUpdateAddressMutation();
+
+  const isSaving = isAdding || isUpdating;
+
+  const openAddForm = () => {
+    setEditingId(null);
+    setFormData(emptyForm);
+    setShowForm(true);
+  };
+
+  const openEditForm = (item: IAddress) => {
+    setEditingId(item._id);
+    setFormData({
+      type: item.type,
+      name: item.name,
+      phone: formatPhone(item.phone),
+      address: item.address,
+      city: item.city,
+      state: item.state,
+      pincode: item.pincode,
+      isDefault: item.isDefault,
+    });
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormData(emptyForm);
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (isSaving) return;
+
+    const validationError = validateForm(formData);
+
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    try {
+      if (editingId) {
+        await updateAddress({ id: editingId, body: formData }).unwrap();
+        setSelectedAddressId(editingId);
+        toast.success("Address updated successfully");
+      } else {
+        const res = await addAddress(formData).unwrap();
+        // select the address that was just added
+        setSelectedAddressId(res.data._id);
+        toast.success("Address added successfully");
+      }
+
+      closeForm();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const editingIsDefault =
+    !!editingId && !!addresses.find((a) => a._id === editingId)?.isDefault;
+
+  // currently selected address id (derived, so it stays valid after
+  // adding / deleting addresses elsewhere)
+  const activeAddressId =
+    selectedAddressId && addresses.some((a) => a._id === selectedAddressId)
+      ? selectedAddressId
+      : ((addresses.find((a) => a.isDefault) ?? addresses[0])?._id ?? null);
+
+  // address sent with the order (only a saved address can be used for now)
+  const chosenAddress = showForm
+    ? null
+    : (addresses.find((a) => a._id === activeAddressId) ?? null);
 
   return (
     <main
@@ -375,10 +498,10 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {!useDifferentAddress && (
+                {!showForm && (
                   <button
                     type="button"
-                    onClick={() => setUseDifferentAddress(true)}
+                    onClick={openAddForm}
                     className="
                       flex
                       shrink-0
@@ -413,16 +536,37 @@ const Checkout = () => {
                 )}
               </div>
 
-              {!useDifferentAddress ? (
+              {!showForm ? (
                 <div className="space-y-2.5">
-                  {savedAddresses.map((address) => {
-                    const active = selectedAddress === address.id;
+                  {/* LOADING / ERROR / EMPTY STATES */}
+                  {addressesLoading && (
+                    <p className="py-4 text-center text-[10px] text-gray-500 dark:text-gray-400">
+                      Loading your addresses...
+                    </p>
+                  )}
+
+                  {!addressesLoading && addressesError && (
+                    <p className="py-4 text-center text-[10px] text-red-500">
+                      Could not load your addresses. Please refresh the page.
+                    </p>
+                  )}
+
+                  {!addressesLoading &&
+                    !addressesError &&
+                    addresses.length === 0 && (
+                      <p className="py-4 text-center text-[10px] text-gray-500 dark:text-gray-400">
+                        You have no saved addresses yet. Add one to continue.
+                      </p>
+                    )}
+
+                  {addresses.map((address) => {
+                    const active = activeAddressId === address._id;
 
                     return (
                       <button
-                        key={address.id}
+                        key={address._id}
                         type="button"
-                        onClick={() => setSelectedAddress(address.id)}
+                        onClick={() => setSelectedAddressId(address._id)}
                         className={`
                             relative
                             flex
@@ -555,7 +699,7 @@ const Checkout = () => {
                                 dark:text-gray-400
                               "
                           >
-                            {address.address}
+                            {formatAddressLine(address)}
                           </p>
 
                           <p
@@ -568,7 +712,7 @@ const Checkout = () => {
                                 dark:text-gray-300
                               "
                           >
-                            {address.phone}
+                            {formatPhone(address.phone)}
                           </p>
                         </div>
 
@@ -593,7 +737,7 @@ const Checkout = () => {
                           onClick={(event) => {
                             event.stopPropagation();
 
-                            setUseDifferentAddress(true);
+                            openEditForm(address);
                           }}
                         >
                           <FiEdit2 size={11} />
@@ -604,7 +748,7 @@ const Checkout = () => {
 
                   <button
                     type="button"
-                    onClick={() => setUseDifferentAddress(true)}
+                    onClick={openAddForm}
                     className="
                       flex
                       w-full
@@ -637,10 +781,10 @@ const Checkout = () => {
                 </div>
               ) : (
                 /* ============================== */
-                /* DIFFERENT ADDRESS FORM */
+                /* ADD / EDIT ADDRESS FORM */
                 /* ============================== */
 
-                <div>
+                <form onSubmit={handleSubmit} noValidate>
                   <div
                     className="
                       mb-4
@@ -666,7 +810,7 @@ const Checkout = () => {
                           dark:text-white
                         "
                       >
-                        Add Different Address
+                        {editingId ? "Edit Address" : "Add New Address"}
                       </p>
 
                       <p className="mt-0.5 text-[7px] text-gray-400">
@@ -676,7 +820,7 @@ const Checkout = () => {
 
                     <button
                       type="button"
-                      onClick={() => setUseDifferentAddress(false)}
+                      onClick={closeForm}
                       className="
                         cursor-pointer
                         text-[8px]
@@ -702,35 +846,120 @@ const Checkout = () => {
                     "
                   >
                     <CheckoutInput
-                      label="First Name"
-                      placeholder="First name"
-                    />
-
-                    <CheckoutInput label="Last Name" placeholder="Last name" />
-
-                    <CheckoutInput
-                      label="Email Address"
-                      placeholder="example@email.com"
-                      type="email"
+                      label="Full Name"
+                      placeholder="Full name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleFormChange}
                     />
 
                     <CheckoutInput
                       label="Phone Number"
-                      placeholder="+971 50 123 4567"
+                      placeholder="+91 98765 43210"
                       type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleFormChange}
                     />
 
                     <div className="sm:col-span-2">
                       <CheckoutInput
                         label="Address"
                         placeholder="Building, street, apartment"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleFormChange}
                       />
                     </div>
 
                     <CheckoutInput
                       label="City / Area"
                       placeholder="Enter city or area"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleFormChange}
                     />
+
+                    <CheckoutInput
+                      label="State"
+                      placeholder="Enter state"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleFormChange}
+                    />
+
+                    <CheckoutInput
+                      label="Pincode"
+                      placeholder="6 digit pincode"
+                      name="pincode"
+                      value={formData.pincode}
+                      onChange={handleFormChange}
+                      inputMode="numeric"
+                      maxLength={6}
+                    />
+
+                    <div>
+                      <label
+                        className="
+                          mb-1.5
+                          block
+                          text-[10px]
+                          font-semibold
+                          text-gray-900
+                          font-serif
+                          dark:text-gray-300
+                        "
+                      >
+                        Address Type
+                      </label>
+
+                      <div className="flex h-10 gap-2 sm:h-11">
+                        {(["Home", "Office"] as const).map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() =>
+                              setFormData((prev) => ({ ...prev, type: t }))
+                            }
+                            className={`
+                              flex-1
+                              cursor-pointer
+                              rounded-lg
+                              border
+                              text-[9px]
+                              font-bold
+                              font-serif
+                              transition
+
+                              ${
+                                formData.type === t
+                                  ? `
+                                    border-[#ffd83d]
+                                    bg-[#fff4be]
+                                    text-black
+
+                                    dark:bg-[#332c0b]
+                                    dark:text-[#ffd83d]
+                                  `
+                                  : `
+                                    border-gray-200
+                                    bg-white
+                                    text-gray-900
+
+                                    hover:border-gray-300
+
+                                    dark:border-gray-700
+                                    dark:bg-[#202020]
+                                    dark:text-gray-300
+                                  `
+                              }
+                            `}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
                     <div className="sm:col-span-2">
                       <label
@@ -788,106 +1017,89 @@ const Checkout = () => {
                   >
                     <input
                       type="checkbox"
+                      checked={formData.isDefault}
+                      disabled={editingIsDefault}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          isDefault: e.target.checked,
+                        }))
+                      }
                       className="h-3.5 w-3.5 accent-[#ffd83d]"
                     />
 
                     <span className="text-[8px] text-gray-500 dark:text-gray-400">
-                      Save this address for future orders
+                      Set as my default address
                     </span>
                   </label>
-                </div>
+
+                  <div className="mt-4 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={closeForm}
+                      disabled={isSaving}
+                      className="
+                        h-10
+                        cursor-pointer
+                        rounded-lg
+                        border
+                        border-gray-200
+                        bg-white
+                        px-4
+                        text-[9px]
+                        font-bold
+                        font-serif
+                        text-gray-900
+                        transition
+
+                        hover:border-gray-300
+
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+
+                        dark:border-gray-700
+                        dark:bg-[#202020]
+                        dark:text-gray-300
+                      "
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="
+                        h-10
+                        cursor-pointer
+                        rounded-lg
+                        bg-[#ffd83d]
+                        px-5
+                        text-[9px]
+                        font-bold
+                        font-serif
+                        text-black
+                        transition
+
+                        hover:bg-[#ffcf12]
+
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+                      "
+                    >
+                      {isSaving
+                        ? "Saving..."
+                        : editingId
+                          ? "Update Address"
+                          : "Save Address"}
+                    </button>
+                  </div>
+                </form>
               )}
             </section>
 
             {/* ============================== */}
             {/* DELIVERY METHOD */}
             {/* ============================== */}
-
-            <section
-              className="
-                rounded-2xl
-                border
-                border-gray-200
-                bg-white
-                p-4
-
-                sm:p-5
-
-                dark:border-gray-800
-                dark:bg-[#181818]
-              "
-            >
-              <SectionHeading
-                icon={<FiTruck size={15} />}
-                title="Delivery Method"
-                subtitle="Choose your preferred delivery"
-              />
-
-              <label
-                className="
-                  flex
-                  cursor-pointer
-                  items-center
-                  gap-3
-                  rounded-xl
-                  border
-                  border-[#ffd83d]
-                  bg-[#fffdf3]
-                  p-3
-
-                  dark:bg-[#29260f]
-                "
-              >
-                <input
-                  type="radio"
-                  checked
-                  readOnly
-                  className="h-4 w-4 accent-[#ffd83d]"
-                />
-
-                <div
-                  className="
-                    flex
-                    h-9
-                    w-9
-                    shrink-0
-                    items-center
-                    justify-center
-                    rounded-lg
-                    bg-white
-                    shadow-sm
-
-                    dark:bg-[#202020]
-                    dark:text-white
-                  "
-                >
-                  <FiPackage size={16} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div
-                    className="
-                      flex
-                      items-center
-                      justify-between
-                      gap-3
-                    "
-                  >
-                    <p className="text-[12px]  font-serif font-bold text-black dark:text-white">
-                      Standard Delivery
-                    </p>
-
-                    <span className="text-[8px] font-bold text-green-600">
-                      FREE
-                    </span>
-                  </div>
-
-                  <p className="mt-0.5 text-[10px] text-gray-900">
-                    Estimated delivery in 2-4 business days
-                  </p>
-                </div>
-              </label>
-            </section>
 
             {/* ============================== */}
             {/* PAYMENT METHODS */}
@@ -1127,7 +1339,19 @@ const Checkout = () => {
           {/* ORDER SUMMARY */}
           {/* ============================== */}
 
-          <OrderSummary />
+          <OrderSummary
+            shippingAddress={
+              chosenAddress
+                ? {
+                    name: chosenAddress.name,
+                    type: chosenAddress.type,
+                    phone: formatPhone(chosenAddress.phone),
+                    address: formatAddressLine(chosenAddress),
+                  }
+                : null
+            }
+            paymentMethod={paymentMethod}
+          />
         </div>
       </div>
     </main>
@@ -1142,10 +1366,20 @@ const CheckoutInput = ({
   label,
   placeholder,
   type = "text",
+  name,
+  value,
+  onChange,
+  inputMode,
+  maxLength,
 }: {
   label: string;
   placeholder: string;
   type?: string;
+  name?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  maxLength?: number;
 }) => {
   return (
     <div>
@@ -1165,6 +1399,11 @@ const CheckoutInput = ({
 
       <input
         type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        inputMode={inputMode}
+        maxLength={maxLength}
         placeholder={placeholder}
         className="
           h-10

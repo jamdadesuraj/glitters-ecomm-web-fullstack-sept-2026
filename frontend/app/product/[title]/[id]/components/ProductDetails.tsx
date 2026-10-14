@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import ProductImages from "./ProductImages";
 import ProductInfo from "./ProductInfo";
 import ProductTabs from "./ProductTabs";
@@ -11,6 +11,9 @@ const ProductDetails = () => {
   const params = useParams();
 
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+
+  // Selected color is owned here so ProductInfo and ProductImages stay in sync
+  const [selectedColorId, setSelectedColorId] = useState<string | null>(null);
 
   const {
     data: productResponse,
@@ -66,13 +69,23 @@ const ProductDetails = () => {
           {/* Product Images */}
           <div className="w-full min-w-0 lg:sticky lg:top-24 lg:self-start">
             <div className="mx-auto w-full max-w-[650px]">
-              <ProductImages product={productResponse} />
+              <ProductImages
+                product={productResponse}
+                selectedColorId={selectedColorId}
+              />
             </div>
           </div>
 
           {/* Product Information */}
           <div className="w-full min-w-0 lg:max-w-[680px]">
-            <ProductInfo product={productResponse} />
+            <ProductInfo
+              product={
+                productResponse as unknown as React.ComponentProps<
+                  typeof ProductInfo
+                >["product"]
+              }
+              onColorChange={setSelectedColorId}
+            />
           </div>
         </div>
 

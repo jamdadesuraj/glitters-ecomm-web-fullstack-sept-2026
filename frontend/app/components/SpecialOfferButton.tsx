@@ -5,7 +5,7 @@ import { FiArrowUpRight, FiZap } from "react-icons/fi";
 const SpecialOfferButton = () => {
   return (
     <Link
-      href="/special-offers"
+      href="/product-list"
       className="
         group relative
         flex h-11.5

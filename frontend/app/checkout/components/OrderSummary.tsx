@@ -42,6 +42,18 @@ type Coupon = {
   isActive?: boolean;
 };
 
+// coupon exactly as the backend sends it (populated on product.coupon)
+type BackendCoupon = {
+  _id?: string;
+  couponName?: string;
+  subTitle?: string;
+  couponCode?: string;
+  couponAmount?: string | number; // percentage
+  status?: string; // "active" | "inactive"
+};
+
+type RawCoupon = Coupon | BackendCoupon | string;
+
 type Variant = {
   _id?: string;
   price?: number;
@@ -50,7 +62,7 @@ type Variant = {
   color?: Named;
   size?: Named;
   material?: Named;
-  coupon?: Coupon | string | null;
+  coupon?: RawCoupon | null;
 };
 
 type CartItem = {
@@ -62,15 +74,15 @@ type CartItem = {
   color?: Named;
   size?: Named;
   material?: Named;
-  coupon?: Coupon | string | null;
-  coupons?: (Coupon | string)[];
+  coupon?: RawCoupon | null;
+  coupons?: RawCoupon[];
   product?: {
     _id: string;
     productName: string;
     brand?: Named;
     material?: Named;
-    coupon?: Coupon | string | null;
-    coupons?: (Coupon | string)[];
+    coupon?: RawCoupon | null;
+    coupons?: RawCoupon[];
     variants?: Variant[];
   } | null;
 };
@@ -138,7 +150,7 @@ const getImage = (item: CartItem) => {
 };
 
 // every place a coupon might live in the cart response
-const getRawCoupons = (item: CartItem): (Coupon | string)[] => {
+const getRawCoupons = (item: CartItem): RawCoupon[] => {
   const p = item.product;
   return [
     item.coupon,
@@ -146,7 +158,27 @@ const getRawCoupons = (item: CartItem): (Coupon | string)[] => {
     p?.coupon,
     ...(p?.coupons ?? []),
     getVariant(item)?.coupon,
-  ].filter((c): c is Coupon | string => !!c);
+  ].filter((c): c is RawCoupon => !!c);
+};
+
+// backend coupon (couponCode / couponAmount %) -> shape used in this file
+const normalizeCoupon = (c: RawCoupon): Coupon | string => {
+  if (typeof c === "string") return c;
+
+  const b = c as BackendCoupon;
+  if (typeof b.couponCode === "string") {
+    return {
+      _id: b._id ?? b.couponCode,
+      code: b.couponCode,
+      title: b.couponName,
+      description: b.subTitle,
+      discountType: "percentage",
+      discountValue: Number(b.couponAmount),
+      isActive: b.status ? b.status.toLowerCase() === "active" : undefined,
+    };
+  }
+
+  return c as Coupon;
 };
 
 const isCoupon = (c: unknown): c is Coupon =>
@@ -155,17 +187,24 @@ const isCoupon = (c: unknown): c is Coupon =>
 // populated coupons only (an unpopulated id string can't be displayed)
 const getCoupons = (item: CartItem): Coupon[] => {
   const seen = new Set<string>();
-  return getRawCoupons(item).filter((c): c is Coupon => {
-    if (!isCoupon(c)) return false;
-    const id = c._id ?? c.code;
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
+  return getRawCoupons(item)
+    .map(normalizeCoupon)
+    .filter((c): c is Coupon => {
+      if (!isCoupon(c)) return false;
+      const id = c._id ?? c.code;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
 };
 
 const getUnavailableReason = (coupon: Coupon, lineTotal: number) => {
   if (coupon.isActive === false) return "Inactive";
+  if (
+    coupon.discountType === "percentage" &&
+    !(coupon.discountValue > 0 && coupon.discountValue <= 100)
+  )
+    return "Invalid coupon";
   if (coupon.expiryDate && new Date(coupon.expiryDate) < new Date())
     return "Expired";
   if (coupon.minPurchase && lineTotal < coupon.minPurchase)
@@ -178,7 +217,7 @@ const calcCouponDiscount = (coupon: Coupon, lineTotal: number) => {
     coupon.discountType === "fixed"
       ? coupon.discountValue
       : (lineTotal * coupon.discountValue) / 100;
-  return Math.min(Math.round(raw), lineTotal);
+  return Math.min(Math.round(raw * 100) / 100, lineTotal);
 };
 
 const discountLabel = (c: Coupon) =>
@@ -378,7 +417,17 @@ const CouponCard = ({
 /* ORDER SUMMARY */
 /* ====================================================== */
 
-const OrderSummary = () => {
+type OrderSummaryProps = {
+  shippingAddress?: {
+    name: string;
+    type: string;
+    phone: string;
+    address: string;
+  } | null;
+  paymentMethod?: string;
+};
+
+const OrderSummary: React.FC<OrderSummaryProps> = () => {
   const { data, isLoading, isError } = useGetAddToCartQuery();
 
   // skip lines whose product is missing / not populated (they show "AED 0")
@@ -467,9 +516,12 @@ const OrderSummary = () => {
   const total = Math.max(afterDiscount + shipping, 0);
 
   /* ---------- coupon actions ---------- */
-  const applyCoupon = (rawCode: string) => {
+
+  // core logic: validates + applies. Returns true on success.
+  // (does NOT touch the input field, callers decide what to do with it)
+  const applyCoupon = (rawCode: string): boolean => {
     const code = rawCode.trim().toUpperCase();
-    if (!code) return;
+    if (!code) return false;
 
     const match = couponEntries.filter(
       (e) => e.coupon.code.toUpperCase() === code,
@@ -477,21 +529,37 @@ const OrderSummary = () => {
 
     if (match.length === 0) {
       setCouponError("This coupon is not valid for any product in your cart");
-      return;
+      return false;
     }
 
     if (match.every((e) => e.unavailable)) {
       setCouponError(`Coupon unavailable: ${match[0].unavailable}`);
-      return;
+      return false;
     }
 
     setCouponError("");
     setAppliedCodes((prev) => (prev.includes(code) ? prev : [...prev, code]));
-    setCouponInput("");
+    return true;
   };
 
-  const removeCoupon = (code: string) =>
+  // Apply button on a coupon card -> also fills the "Have a coupon?" field
+  const applyFromCard = (code: string) => {
+    setCouponInput(code);
+    applyCoupon(code);
+  };
+
+  // Apply button / Enter inside the "Have a coupon?" field
+  const applyFromInput = () => {
+    if (applyCoupon(couponInput)) setCouponInput("");
+  };
+
+  const removeCoupon = (code: string) => {
     setAppliedCodes((prev) => prev.filter((c) => c !== code.toUpperCase()));
+    // clear the field if it still holds the removed code
+    setCouponInput((cur) =>
+      cur.toUpperCase() === code.toUpperCase() ? "" : cur,
+    );
+  };
 
   return (
     <aside className="min-w-0">
@@ -603,9 +671,7 @@ const OrderSummary = () => {
                       setCouponInput(e.target.value);
                       setCouponError("");
                     }}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && applyCoupon(couponInput)
-                    }
+                    onKeyDown={(e) => e.key === "Enter" && applyFromInput()}
                     placeholder="Enter coupon code"
                     className="h-full min-w-0 flex-1 bg-transparent px-2 text-[11px] text-black outline-none placeholder:text-gray-400 dark:text-white"
                   />
@@ -613,7 +679,7 @@ const OrderSummary = () => {
 
                 <button
                   type="button"
-                  onClick={() => applyCoupon(couponInput)}
+                  onClick={applyFromInput}
                   className="shrink-0 cursor-pointer bg-[#ffd83d] px-3 text-[10px] font-bold text-black transition hover:bg-[#ffcf12]"
                 >
                   Apply
@@ -628,6 +694,24 @@ const OrderSummary = () => {
             </div>
 
             {/* PRODUCT COUPONS — all coupons with Apply button */}
+            {couponEntries.length > 0 && (
+              <div className="border-b border-gray-100 py-4 dark:border-gray-800">
+                <p className="mb-2 text-[10px] font-semibold text-gray-900 dark:text-gray-300">
+                  Available coupons
+                </p>
+
+                <div className="max-h-80 space-y-2.5 overflow-y-auto pr-1">
+                  {couponEntries.map((entry) => (
+                    <CouponCard
+                      key={entry.key}
+                      entry={entry}
+                      onApply={applyFromCard}
+                      onRemove={removeCoupon}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* PRICE BREAKDOWN */}
             <div className="space-y-3 border-b border-gray-100 py-4 dark:border-gray-800">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 
 import {
@@ -35,6 +36,7 @@ type Product = {
   brand?: NamedRef | string;
   material?: NamedRef | string;
   variants?: {
+    _id?: string;
     image?: string;
     price?: number | string;
     delPrice?: number | string;
@@ -73,6 +75,8 @@ const getApiErrorMessage = (error: unknown, fallback: string): string => {
 
 const ProductCard = ({ product }: ProductCardProps) => {
   const [imageError, setImageError] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
+  const router = useRouter();
 
   // cart
   const [addToCart, { isLoading: isAddingToCart }] = useAddToCartMutation();
@@ -162,6 +166,32 @@ const ProductCard = ({ product }: ProductCardProps) => {
       toast.error(
         getApiErrorMessage(error, "Failed to add product to cart. Try again."),
       );
+    }
+  };
+
+  // Buy Now: add this variant to the cart, then go to checkout
+  const handleBuyNow = async () => {
+    if (!inStock) {
+      toast.error("This product is out of stock");
+      return;
+    }
+
+    setIsBuyingNow(true);
+
+    try {
+      await addToCart({
+        product: product._id,
+        variantId: variant?._id,
+        quantity: 1,
+      }).unwrap();
+
+      router.push("/checkout");
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Unable to continue. Please try again."),
+      );
+    } finally {
+      setIsBuyingNow(false);
     }
   };
 
@@ -372,7 +402,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <div className="min-w-0 flex-1">
             <ThemeBtnOne
               text="Buy Now"
-              url="/checkout"
+              onClick={handleBuyNow}
+              disabled={isBuyingNow}
               icon={
                 <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               }

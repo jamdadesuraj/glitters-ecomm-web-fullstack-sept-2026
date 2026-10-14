@@ -9,20 +9,50 @@ import {
   FiX,
 } from "react-icons/fi";
 
-const ProductImages = ({ product, selectedColorId }) => {
+type VariantColor = string | { _id?: string; colorName?: string };
+
+type ProductVariant = {
+  _id?: string;
+  image?: string;
+  color?: VariantColor | null;
+};
+
+type ProductImagesProps = {
+  product?: {
+    productName?: string;
+    variants?: ProductVariant[];
+  } | null;
+  selectedColorId?: string | null;
+};
+
+type GalleryImage = {
+  id: string | number;
+  src: string;
+  alt: string;
+};
+
+const getColorId = (color?: VariantColor | null) =>
+  color && typeof color === "object" ? color._id : undefined;
+
+const getColorName = (color?: VariantColor | null) =>
+  color && typeof color === "object" ? color.colorName : undefined;
+
+const ProductImages = ({ product, selectedColorId }: ProductImagesProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Selected color ke variants ki images
-  const productImages = useMemo(() => {
+  const productImages = useMemo<GalleryImage[]>(() => {
     const variants = (product?.variants ?? []).filter((v) => v?.image);
 
-    const byColor = variants.filter((v) => v.color?._id === selectedColorId);
+    const byColor = variants.filter(
+      (v) => getColorId(v.color) === selectedColorId,
+    );
     // agar color match na ho to saari images dikhao
     const list = byColor.length ? byColor : variants;
 
     // same color ke different sizes ki duplicate image hatao
-    const seen = new Set();
+    const seen = new Set<string | undefined>();
     return list
       .filter((v) => {
         if (seen.has(v.image)) return false;
@@ -31,8 +61,8 @@ const ProductImages = ({ product, selectedColorId }) => {
       })
       .map((v, i) => ({
         id: v._id ?? i,
-        src: v.image,
-        alt: `${product?.productName ?? "Product"} - ${v.color?.colorName ?? ""}`,
+        src: v.image as string,
+        alt: `${product?.productName ?? "Product"} - ${getColorName(v.color) ?? ""}`,
       }));
   }, [product, selectedColorId]);
 
@@ -55,7 +85,7 @@ const ProductImages = ({ product, selectedColorId }) => {
   useEffect(() => {
     if (!isModalOpen) return;
 
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsModalOpen(false);
       if (event.key === "ArrowLeft") showPrevious();
       if (event.key === "ArrowRight") showNext();

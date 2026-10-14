@@ -8,6 +8,11 @@ const addToCartSchema: Schema<IAddToCart> = new Schema(
       ref: "Product",
       required: true,
     },
+    // _id of the selected variant (color + size) inside product.variants
+    variantId: {
+      type: Schema.Types.ObjectId,
+      default: null,
+    },
     quantity: {
       type: Number,
       default: 1,

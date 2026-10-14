@@ -27,6 +27,7 @@ export interface IProduct {
 export interface IAddToCart {
   _id: string;
   product: IProduct; // populate ke baad single object aata hai
+  variantId?: string | null; // selected variant (color + size)
   quantity: number;
   isDeleted: boolean;
   createdAt: string;
@@ -43,6 +44,7 @@ interface IAddToCartResponse<T> {
 
 interface IAddToCartBody {
   product: string; // product ki _id
+  variantId?: string; // selected variant ki _id
   quantity?: number;
 }
 

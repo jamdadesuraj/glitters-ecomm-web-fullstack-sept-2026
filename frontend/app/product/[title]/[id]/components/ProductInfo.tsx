@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
 import {
   FiCheck,
@@ -15,6 +15,9 @@ import {
   FiTruck,
 } from "react-icons/fi";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
+import { useAddToCartMutation } from "@/store/addToCartApi";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -30,6 +33,7 @@ type ApiVariant = {
 };
 
 type ApiProduct = {
+  _id?: string;
   productName?: string;
   brand?: { name?: string } | null;
   material?: { name?: string } | null;
@@ -44,6 +48,8 @@ type SizeOption = { id: string; label: string; inStock: boolean };
 
 type ProductInfoProps = {
   product?: ApiProduct | null;
+  // Optional: lets the parent know which color is currently active
+  onColorChange?: (colorId: string | null) => void;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -53,6 +59,14 @@ type ProductInfoProps = {
 const LOW_STOCK_LIMIT = 5;
 
 const stripHtml = (html = "") => html.replace(/<[^>]*>/g, "").trim();
+
+const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === "object" && error !== null && "data" in error) {
+    const data = (error as { data?: { message?: unknown } }).data;
+    if (typeof data?.message === "string") return data.message;
+  }
+  return fallback;
+};
 
 const getAverageRating = (reviews: ApiProduct["reviews"] = []) => {
   const ratings = reviews
@@ -100,10 +114,13 @@ const getSizeOptions = (variants: ApiVariant[]): SizeOption[] => {
 /*  Component                                                                 */
 /* -------------------------------------------------------------------------- */
 
-const ProductInfo = ({ product }: ProductInfoProps) => {
+const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
   const [colorId, setColorId] = useState<string | null>(null);
   const [sizeId, setSizeId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+
+  const router = useRouter();
+  const [addToCart, { isLoading: isBuying }] = useAddToCartMutation();
 
   const variants = useMemo(() => product?.variants ?? [], [product]);
 
@@ -116,6 +133,11 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
       : (variants.find((v) => (v.stock ?? 0) > 0)?.color?._id ??
         colorOptions[0]?.id ??
         null);
+
+  /* ----- tell parent the active color (drives the image gallery) ----- */
+  useEffect(() => {
+    onColorChange?.(activeColorId);
+  }, [activeColorId, onColorChange]);
 
   /* ----- sizes (only those that exist for the active color) ----- */
   const colorVariants = useMemo(
@@ -189,6 +211,36 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
   const handleSizeChange = (id: string) => {
     setSizeId(id);
     setQuantity(1);
+  };
+
+  // Buy Now: add the selected variant to the cart, then go to checkout
+  const productId = product._id;
+  const variantId = variant?._id;
+
+  const handleBuyNow = async () => {
+    if (!productId || !variantId) {
+      toast.error("Please select a color and size");
+      return;
+    }
+
+    if (!inStock) {
+      toast.error("This product is out of stock");
+      return;
+    }
+
+    try {
+      await addToCart({
+        product: productId,
+        variantId,
+        quantity: quantityValue,
+      }).unwrap();
+
+      router.push("/checkout");
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Unable to continue. Please try again."),
+      );
+    }
   };
 
   return (
@@ -565,12 +617,13 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
                 <ThemeBtnOne
                   text="Buy Now"
                   subtitle={`at AED ${price.toLocaleString()}`}
-                  url="/checkout"
+                  onClick={handleBuyNow}
+                  disabled={isBuying}
                   icon={
                     <FiShoppingBag className="h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
                   }
                   className="
-              flex h-10 w-full min-w-0
+              flex h-10 w-full min-w-0 cursor-pointer
               items-center justify-center
               gap-1 overflow-hidden
               whitespace-nowrap rounded-lg
