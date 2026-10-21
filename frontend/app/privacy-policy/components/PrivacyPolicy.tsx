@@ -148,10 +148,16 @@ const CARD =
 
 /** Styles the raw HTML coming from the database. */
 const PROSE = [
-  "text-[15px] leading-7 text-gray-600 dark:text-gray-300",
+  "min-w-0 text-[15px] leading-7 text-gray-600 dark:text-gray-300",
+  "break-words [overflow-wrap:anywhere]",
+
+  /* headings */
+  "[&_h1]:mt-8 [&_h1]:font-serif [&_h1]:text-2xl [&_h1]:font-extrabold [&_h1]:text-black dark:[&_h1]:text-white sm:[&_h1]:text-3xl",
   "[&_h2]:mt-8 [&_h2]:scroll-mt-28 [&_h2]:font-serif [&_h2]:text-xl [&_h2]:font-extrabold [&_h2]:text-black dark:[&_h2]:text-white sm:[&_h2]:text-2xl",
   "[&_h3]:mt-6 [&_h3]:scroll-mt-28 [&_h3]:font-serif [&_h3]:text-lg [&_h3]:font-bold [&_h3]:text-black dark:[&_h3]:text-white",
-  "[&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0",
+  "[&_h1:first-child]:mt-0 [&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0",
+
+  /* text + lists */
   "[&_p]:mt-3",
   "[&_ul]:mt-3 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5",
   "[&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5",
@@ -159,6 +165,15 @@ const PROSE = [
   "[&_a]:font-semibold [&_a]:text-[#967200] [&_a]:underline dark:[&_a]:text-[#ffd83d]",
   "[&_strong]:font-bold [&_strong]:text-gray-900 dark:[&_strong]:text-white",
   "[&_blockquote]:mt-4 [&_blockquote]:rounded-xl [&_blockquote]:border-l-4 [&_blockquote]:border-[#ffd83d] [&_blockquote]:bg-[#fffdf3] [&_blockquote]:p-4 dark:[&_blockquote]:bg-[#29260f]",
+  "[&_hr]:my-6 [&_hr]:border-gray-200 dark:[&_hr]:border-gray-700",
+
+  /* things that cause horizontal overflow */
+  "[&_img]:mt-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl",
+  "[&_table]:mt-4 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:text-sm",
+  "[&_th]:border [&_th]:border-gray-200 [&_th]:bg-gray-50 [&_th]:p-2 [&_th]:text-left dark:[&_th]:border-gray-700 dark:[&_th]:bg-[#202020]",
+  "[&_td]:border [&_td]:border-gray-200 [&_td]:p-2 dark:[&_td]:border-gray-700",
+  "[&_pre]:mt-4 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-gray-100 [&_pre]:p-4 [&_pre]:text-sm dark:[&_pre]:bg-[#202020]",
+  "[&_iframe]:max-w-full",
 ].join(" ");
 
 /* ============================================================
@@ -211,7 +226,7 @@ const PolicySkeleton = () => (
           </div>
         </aside>
 
-        <section className={`${CARD} p-5 sm:p-6 lg:p-8`}>
+        <section className={`${CARD} min-w-0 p-5 sm:p-6 lg:p-8`}>
           {[1, 2, 3].map((item) => (
             <div key={item} className={item > 1 ? "mt-8" : ""}>
               <Bar className="h-6 w-1/2" />
@@ -403,7 +418,7 @@ const PrivacyPolicy = () => {
               </div>
             )}
 
-            <div className={`${CARD} p-5 sm:p-6 lg:p-8`}>
+            <div className={`${CARD} min-w-0 p-5 sm:p-6 lg:p-8`}>
               {html ? (
                 <div
                   className={PROSE}

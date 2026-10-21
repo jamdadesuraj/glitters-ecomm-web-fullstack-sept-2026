@@ -17,6 +17,7 @@ import {
 } from "react-icons/fi";
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
 import { useGetAboutUsQuery } from "@/store/aboutUsApi";
+import AboutUsSkeleton from "./AboutUsSkeleton";
 
 /* ============================================================
    TYPES
@@ -154,13 +155,7 @@ const AboutUs = () => {
 
   const about = React.useMemo(() => extractAboutUs(data), [data]);
 
-  if (isLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f7f7f8] dark:bg-[#0f0f0f]">
-        <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
-      </main>
-    );
-  }
+ if (isLoading) return <AboutUsSkeleton />;
 
   if (isError || !about) {
     return (

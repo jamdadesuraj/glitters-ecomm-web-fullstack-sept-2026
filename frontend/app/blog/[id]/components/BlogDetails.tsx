@@ -461,12 +461,6 @@ const BlogDetails = () => {
 
           {/* SHORT DESCRIPTION */}
 
-          {blogs.shortDesc && (
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-gray-500 dark:text-gray-400 sm:text-base">
-              {blogs.shortDesc}
-            </p>
-          )}
-
           {/* META */}
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-xs font-medium text-gray-400 dark:text-gray-500">
@@ -526,14 +520,12 @@ const BlogDetails = () => {
                     {blogs.title ?? "About This Article"}
                   </h2>
 
-                  <div className="space-y-5">
-                    {blogs.description
-                      .split(/\n+/)
-                      .filter(Boolean)
-                      .map((paragraph, index) => (
-                        <p key={`${paragraph}-${index}`}>{paragraph}</p>
-                      ))}
-                  </div>
+                  <div
+                    className="space-y-5"
+                    dangerouslySetInnerHTML={{
+                      __html: blogs.description,
+                    }}
+                  />
                 </>
               )}
 
@@ -551,9 +543,12 @@ const BlogDetails = () => {
                     </p>
                   </div>
 
-                  <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
-                    {blogs.QuickTips}
-                  </p>
+                  <div
+                    className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400 [&_p]:mb-2 [&_ul]:ml-5 [&_ul]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal [&_a]:text-blue-600 [&_a]:underline [&_strong]:font-bold"
+                    dangerouslySetInnerHTML={{
+                      __html: blogs.QuickTips,
+                    }}
+                  />
                 </div>
               )}
 
@@ -563,9 +558,15 @@ const BlogDetails = () => {
                 <blockquote className="relative overflow-hidden rounded-2xl bg-gray-950 px-6 py-7 text-white dark:bg-[#1a1a1a]">
                   <div className="absolute left-0 top-0 h-full w-1.5 bg-[#ffd83d]" />
 
-                  <p className="text-lg font-bold leading-8 sm:text-xl">
-                    “{blogs.blackQuote}”
-                  </p>
+                  <div className="text-lg font-bold leading-8 sm:text-xl">
+                    “
+                    <span
+                      dangerouslySetInnerHTML={{
+                        __html: blogs.blackQuote,
+                      }}
+                    />
+                    ”
+                  </div>
                 </blockquote>
               )}
 

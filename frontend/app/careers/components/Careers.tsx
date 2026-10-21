@@ -19,6 +19,7 @@ import {
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
 import { useGetCareerInfoQuery } from "@/store/careerinfoApi";
 import { useGetCurrentOpeningsQuery } from "@/store/currentOpeningsApi";
+import CareersSkeleton from "./CareersSkeleton";
 
 /* ============================================================
    TYPES
@@ -233,13 +234,7 @@ const Careers = () => {
 
   /* ---------- STATES ---------- */
 
-  if (careerLoading || jobsLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f7f7f8] dark:bg-[#0f0f0f]">
-        <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
-      </main>
-    );
-  }
+if (careerLoading || jobsLoading) return <CareersSkeleton />;
 
   if (careerError || !career) {
     return (

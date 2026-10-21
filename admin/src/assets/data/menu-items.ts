@@ -231,12 +231,12 @@ export const MENU_ITEMS: MenuItemType[] = [
     icon: 'solar:info-circle-bold-duotone',
     url: '/about-us',
   },
-  {
-    key: 'counter',
-    label: 'Counter',
-    icon: 'solar:graph-up-bold-duotone',
-    url: '/counter',
-  },
+  // {
+  //   key: 'counter',
+  //   label: 'Counter',
+  //   icon: 'solar:graph-up-bold-duotone',
+  //   url: '/counter',
+  // },
   // {
   //   key: 'our-team',
   //   label: 'Our Team',
