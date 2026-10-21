@@ -52,6 +52,24 @@ export interface IOrder extends Document {
   subtotal: number;
   shipping: number;
   total: number;
+
+  // ---- online payment (Razorpay / Tabby) ----
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  tabbyPaymentId?: string;
+  paidAt?: Date;
+  // cart lines this order was created from (removed from the cart once paid)
+  cartItemIds?: Types.ObjectId[];
+
+  // ---- shipping (Shiprocket) ----
+  shiprocketOrderId?: string;
+  shiprocketShipmentId?: string;
+  awbCode?: string; // courier tracking number
+  courierName?: string;
+  shipmentStatus?: string; // creating | failed | AWB Assigned | Shiprocket status
+  trackingUrl?: string;
+  shipmentError?: string; // last Shiprocket error (never sent to customers)
+
   createdAt: Date;
   updatedAt: Date;
 }

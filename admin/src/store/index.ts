@@ -38,6 +38,7 @@ import { materialApi } from './materialApi'
 import { couponApi } from './couponApi'
 import { appBannerApi } from './appBannerApi'
 import { appSettingApi } from './appSettingsApi'
+import { generalSettingsApi } from './generalSettingsApi'
 
 export const store = configureStore({
   reducer: {
@@ -85,6 +86,7 @@ export const store = configureStore({
     [seoPagesApi.reducerPath]: seoPagesApi.reducer,
 
     [settingApi.reducerPath]: settingApi.reducer,
+    [generalSettingsApi.reducerPath]: generalSettingsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
@@ -130,6 +132,7 @@ export const store = configureStore({
 
       settingApi.middleware,
       seoPagesApi.middleware,
+      generalSettingsApi.middleware,
     ),
 })
 

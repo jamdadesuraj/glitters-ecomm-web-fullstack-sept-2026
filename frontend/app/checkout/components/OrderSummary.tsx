@@ -1,6 +1,7 @@
 "use client";
 
 import { useGetAddToCartQuery } from "@/store/addToCartApi";
+import PlaceOrderButton from "./PlaceOrderButton";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useMemo, useState } from "react";
@@ -11,7 +12,6 @@ import {
   FiLock,
   FiPercent,
   FiShield,
-  FiShoppingBag,
   FiTag,
 } from "react-icons/fi";
 
@@ -423,11 +423,14 @@ type OrderSummaryProps = {
     type: string;
     phone: string;
     address: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
   } | null;
   paymentMethod?: string;
 };
 
-const OrderSummary: React.FC<OrderSummaryProps> = () => {
+const OrderSummary: React.FC<OrderSummaryProps> = ({ shippingAddress }) => {
   const { data, isLoading, isError } = useGetAddToCartQuery();
 
   // skip lines whose product is missing / not populated (they show "AED 0")
@@ -767,12 +770,10 @@ const OrderSummary: React.FC<OrderSummaryProps> = () => {
             </div>
 
             {/* PLACE ORDER */}
-            <button
-              type="button"
-              className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] text-[11px] font-extrabold text-black transition-all hover:bg-[#ffcf12] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)] active:scale-[0.99] sm:h-12"
-            >
-              <FiShoppingBag size={14} /> Place Order
-            </button>
+            <PlaceOrderButton
+              shippingAddress={shippingAddress}
+              disabled={cartItems.length === 0}
+            />
 
             <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-gray-900 dark:text-gray-400">
               <FiLock size={9} />

@@ -49,6 +49,8 @@ import { savedCardsRouter } from "../modules/cards/Savedcards.route";
 import { productReviewRouter } from "../modules/product-reviews/Productreview.route";
 import { orderRouter } from "../modules/orders/order.route";
 import { adminAuthRouter } from "../modules/admin/adminRoute";
+import { paymentRouter } from "../modules/payment/payment.route";
+import { shippingRouter } from "../modules/shipping/shipping.route";
 
 const router = Router();
 const moduleRoutes = [
@@ -212,6 +214,8 @@ const moduleRoutes = [
   { path: "/saved-cards", route: savedCardsRouter },
   { path: "/product-reviews", route: productReviewRouter },
   { path: "/orders", route: orderRouter },
+  { path: "/payments", route: paymentRouter },
+  { path: "/shipping", route: shippingRouter },
   { path: "/admin-auth", route: adminAuthRouter },
 ];
 

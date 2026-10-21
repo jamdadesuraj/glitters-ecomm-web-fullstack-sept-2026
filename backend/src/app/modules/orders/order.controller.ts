@@ -6,7 +6,9 @@ import { User } from "../auth/auth.model";
 import { AddToCart } from "../addToCart/addToCart.model";
 import { Product } from "../products/product.model";
 
+import { IOrder } from "./order.interface";
 import { Order } from "./order.model";
+import { createShipmentSafely } from "../shipping/shiprocket.service";
 import { createOrderSchema } from "./order.validation";
 
 /* =========================================================
@@ -20,7 +22,7 @@ const catchAsync =
   };
 
 // Firebase UID (from verified token) -> MongoDB user _id
-const getUserId = async (req: Request): Promise<string> => {
+export const getUserId = async (req: Request): Promise<string> => {
   const firebaseUid = req.user?.uid;
 
   if (!firebaseUid) {
@@ -60,6 +62,45 @@ const releaseStock = async (reserved: Reserved[]) => {
   );
 };
 
+// payment methods that are paid online. Their order is created as "pending"
+// and the cart is emptied only after the payment is confirmed.
+const ONLINE_PAYMENT_METHODS: string[] = ["razorpay", "tabby"];
+
+// give the stock of a whole order back (payment failed / cancelled)
+export const releaseOrderStock = (order: IOrder) =>
+  releaseStock(
+    order.items.map((item) => ({
+      productId: String(item.product),
+      variantId: String(item.variantId),
+      quantity: item.quantity,
+    })),
+  );
+
+// unpaid online orders keep their stock reserved. Before a new online order
+// is created, free the stock of this user's old unpaid ones.
+const STALE_PENDING_MINUTES = 30;
+
+const expireStalePendingOrders = async (userId: string) => {
+  const cutoff = new Date(Date.now() - STALE_PENDING_MINUTES * 60 * 1000);
+
+  const stale = await Order.find({
+    user: userId,
+    paymentMethod: { $in: ONLINE_PAYMENT_METHODS },
+    paymentStatus: "pending",
+    createdAt: { $lt: cutoff },
+  });
+
+  for (const old of stale) {
+    // the status filter makes sure the stock is released only once
+    const claimed = await Order.findOneAndUpdate(
+      { _id: old._id, paymentStatus: "pending" },
+      { $set: { paymentStatus: "failed", orderStatus: "cancelled" } },
+    );
+
+    if (claimed) await releaseOrderStock(old);
+  }
+};
+
 /* =========================================================
    CREATE ORDER (from the current cart)
    Prices, stock and totals are always calculated on the server.
@@ -68,6 +109,12 @@ const releaseStock = async (reserved: Reserved[]) => {
 export const createOrder = catchAsync(async (req, res) => {
   const userId = await getUserId(req);
   const { shippingAddress, paymentMethod } = createOrderSchema.parse(req.body);
+
+  const isOnlinePayment = ONLINE_PAYMENT_METHODS.includes(paymentMethod);
+
+  if (isOnlinePayment) {
+    await expireStalePendingOrders(userId);
+  }
 
   const cartItems = await AddToCart.find({ isDeleted: false }).populate({
     path: "product",
@@ -184,6 +231,7 @@ export const createOrder = catchAsync(async (req, res) => {
       subtotal,
       shipping,
       total,
+      cartItemIds: validCartItems.map((item) => item._id),
     });
   } catch (error) {
     await releaseStock(reserved);
@@ -191,14 +239,24 @@ export const createOrder = catchAsync(async (req, res) => {
   }
 
   // ---------- empty the cart lines that were ordered ----------
-  await AddToCart.deleteMany({
-    _id: { $in: validCartItems.map((item) => item._id) },
-  });
+  // online payments (Razorpay / Tabby): the cart is emptied after the payment
+  // is confirmed (see payments module), so a failed payment keeps the cart.
+  if (!isOnlinePayment) {
+    await AddToCart.deleteMany({
+      _id: { $in: validCartItems.map((item) => item._id) },
+    });
+
+    // COD orders are shipped right away (does not wait, never fails the order).
+    // Paid online orders are shipped from the payments module instead.
+    void createShipmentSafely(order.id);
+  }
 
   res.status(201).json({
     success: true,
     statusCode: 201,
-    message: "Order placed successfully",
+    message: isOnlinePayment
+      ? "Order created, waiting for payment"
+      : "Order placed successfully",
     data: order,
   });
 });

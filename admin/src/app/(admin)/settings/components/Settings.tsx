@@ -7,7 +7,12 @@ import { Card, CardBody, CardHeader, CardTitle, Col, Row } from 'react-bootstrap
 import Image from 'next/image'
 import { toast } from 'react-toastify'
 
-import { useCreateSettingMutation, useGetSettingsQuery, useUpdateSettingMutation } from '@/store/settingApi'
+import {
+  GeneralSettingsPayload,
+  useCreateGeneralSettingsMutation,
+  useGetAllGeneralSettingsQuery,
+  useUpdateGeneralSettingsMutation,
+} from '@/store/generalSettingsApi'
 
 // =====================================================
 // TYPES
@@ -84,17 +89,18 @@ const Settings = () => {
   // API
   // ===================================================
 
-  const [createSettings, { isLoading: isCreating }] = useCreateSettingMutation()
+  const [createSettings, { isLoading: isCreating }] = useCreateGeneralSettingsMutation()
 
-  const [updateSettings, { isLoading: isUpdating }] = useUpdateSettingMutation()
+  const [updateSettings, { isLoading: isUpdating }] = useUpdateGeneralSettingsMutation()
 
-  const { data: settingsData, isLoading, isError, refetch } = useGetSettingsQuery()
+  const { data: settingsData, isLoading, isError } = useGetAllGeneralSettingsQuery()
 
   // ===================================================
   // SETTINGS DATA
   // ===================================================
 
-  const settings = Array.isArray(settingsData) ? settingsData[0] : settingsData
+  // single settings record -> first item of the list
+  const settings = settingsData?.[0]
 
   // ===================================================
   // FORM
@@ -234,59 +240,34 @@ const Settings = () => {
     e.preventDefault()
 
     try {
-      const payload = new FormData()
+      // the API slice converts this object to FormData
+      // (files are sent only when a new image was picked)
+      const payload: GeneralSettingsPayload = {
+        // FILES
+        logo: formData.logo,
+        favicon: formData.favicon,
+        footerImg: formData.footerImg,
 
-      // FILES
-
-      if (formData.logo) {
-        payload.append('logo', formData.logo)
+        // TEXT FIELDS
+        mobileNo: formData.mobileNo,
+        alternateMobileNo: formData.alternateMobileNo,
+        mail: formData.mail,
+        alternateEmail: formData.alternateEmail,
+        address: formData.address,
+        addressIframe: formData.addressIframe,
+        workingHrs: formData.workingHrs,
+        facebook: formData.facebook,
+        instagram: formData.instagram,
+        youtube: formData.youtube,
+        linkedin: formData.linkedin,
+        twitter: formData.twitter,
+        whatsApp: formData.whatsApp,
+        topHeaderTitle: formData.topHeaderTitle,
+        footerInfo: formData.footerInfo,
+        footerCopyrights: formData.footerCopyrights,
+        googlePlayUrl: formData.googlePlayUrl,
+        appStoreUrl: formData.appStoreUrl,
       }
-
-      if (formData.favicon) {
-        payload.append('favicon', formData.favicon)
-      }
-
-      if (formData.footerImg) {
-        payload.append('footerImg', formData.footerImg)
-      }
-
-      // TEXT FIELDS
-
-      payload.append('mobileNo', formData.mobileNo)
-
-      payload.append('alternateMobileNo', formData.alternateMobileNo)
-
-      payload.append('mail', formData.mail)
-
-      payload.append('alternateEmail', formData.alternateEmail)
-
-      payload.append('address', formData.address)
-
-      payload.append('addressIframe', formData.addressIframe)
-
-      payload.append('workingHrs', formData.workingHrs)
-
-      payload.append('facebook', formData.facebook)
-
-      payload.append('instagram', formData.instagram)
-
-      payload.append('youtube', formData.youtube)
-
-      payload.append('linkedin', formData.linkedin)
-
-      payload.append('twitter', formData.twitter)
-
-      payload.append('whatsApp', formData.whatsApp)
-
-      payload.append('topHeaderTitle', formData.topHeaderTitle)
-
-      payload.append('footerInfo', formData.footerInfo)
-
-      payload.append('footerCopyrights', formData.footerCopyrights)
-
-      payload.append('googlePlayUrl', formData.googlePlayUrl)
-
-      payload.append('appStoreUrl', formData.appStoreUrl)
 
       // =============================================
       // UPDATE
@@ -295,7 +276,7 @@ const Settings = () => {
       if (settings?._id) {
         await updateSettings({
           id: settings._id,
-          formData: payload,
+          body: payload,
         }).unwrap()
 
         toast.success('Settings updated successfully')
@@ -303,13 +284,13 @@ const Settings = () => {
         // =============================================
         // CREATE
         // =============================================
-        // @ts-ignore
         await createSettings(payload).unwrap()
 
         toast.success('Settings created successfully')
       }
 
-      await refetch()
+      // no manual refetch needed: the slice invalidates the
+      // "GeneralSettings" tag so the query reloads automatically
     } catch (error: any) {
       console.error('Settings Error:', error)
 

@@ -69,6 +69,39 @@ export interface ICreateOrderBody {
   paymentMethod: PaymentMethod;
 }
 
+/* ---------- online payments (Razorpay / Tabby) ---------- */
+
+// what the backend returns to open the Razorpay window
+export interface IRazorpayPayment {
+  orderId: string;
+  orderNumber: string;
+  razorpayOrderId: string;
+  amount: number; // smallest currency unit
+  currency: string;
+  keyId: string; // public key id
+  prefill: { name: string; contact: string; email: string };
+}
+
+// what Razorpay gives back after a successful payment
+export interface IRazorpayVerifyBody {
+  orderId: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+export interface ITabbySession {
+  orderId: string;
+  webUrl: string; // Tabby hosted payment page
+}
+
+export type OnlinePaymentStatus = "paid" | "failed" | "pending";
+
+export interface IPaymentResult {
+  orderId: string;
+  status: OnlinePaymentStatus;
+}
+
 interface IOrderResponse<T> {
   success: boolean;
   statusCode: number;
@@ -133,6 +166,89 @@ export const ordersApi = createApi({
       },
     }),
 
+    // RAZORPAY: step 1 - create the Razorpay order for an existing order
+    createRazorpayPayment: builder.mutation<
+      IOrderResponse<IRazorpayPayment>,
+      { orderId: string }
+    >({
+      query: (body) => ({
+        url: "/payments/razorpay/create",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    // RAZORPAY: step 2 - backend checks the signature and marks the order paid
+    verifyRazorpayPayment: builder.mutation<
+      IOrderResponse<IPaymentResult>,
+      IRazorpayVerifyBody
+    >({
+      query: (body) => ({
+        url: "/payments/razorpay/verify",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Orders"],
+
+      // the cart is emptied once the payment is confirmed
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(addToCartApi.util.invalidateTags(["AddToCart"]));
+        } catch {
+          /* not confirmed - cart stays as it is */
+        }
+      },
+    }),
+
+    // TABBY: step 1 - create a Tabby session, returns the page to redirect to
+    createTabbyPayment: builder.mutation<
+      IOrderResponse<ITabbySession>,
+      { orderId: string }
+    >({
+      query: (body) => ({
+        url: "/payments/tabby/create",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    // TABBY: step 2 - after the redirect back, backend asks Tabby for the status
+    verifyTabbyPayment: builder.mutation<
+      IOrderResponse<IPaymentResult>,
+      { orderId: string }
+    >({
+      query: (body) => ({
+        url: "/payments/tabby/verify",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Orders"],
+
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(addToCartApi.util.invalidateTags(["AddToCart"]));
+        } catch {
+          /* not confirmed - cart stays as it is */
+        }
+      },
+    }),
+
+    // customer closed the payment window / cancelled: frees the stock,
+    // the cart is kept so they can try again
+    cancelPayment: builder.mutation<
+      IOrderResponse<IPaymentResult>,
+      { orderId: string }
+    >({
+      query: (body) => ({
+        url: "/payments/cancel",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Orders"],
+    }),
+
     // MY ORDERS
     getMyOrders: builder.query<IOrder[], void>({
       query: () => "/orders",
@@ -151,6 +267,11 @@ export const ordersApi = createApi({
 
 export const {
   useCreateOrderMutation,
+  useCreateRazorpayPaymentMutation,
+  useVerifyRazorpayPaymentMutation,
+  useCreateTabbyPaymentMutation,
+  useVerifyTabbyPaymentMutation,
+  useCancelPaymentMutation,
   useGetMyOrdersQuery,
   useGetOrderByIdQuery,
 } = ordersApi;

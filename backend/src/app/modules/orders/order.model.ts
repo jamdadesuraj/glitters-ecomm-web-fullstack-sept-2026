@@ -67,6 +67,30 @@ const orderSchema: Schema<IOrder> = new Schema(
     subtotal: { type: Number, required: true, min: 0 },
     shipping: { type: Number, required: true, min: 0, default: 0 },
     total: { type: Number, required: true, min: 0 },
+
+    // ---- online payment (Razorpay / Tabby) ----
+    razorpayOrderId: { type: String, default: "", trim: true },
+    razorpayPaymentId: { type: String, default: "", trim: true },
+    tabbyPaymentId: { type: String, default: "", trim: true },
+    paidAt: { type: Date },
+
+    // cart lines this order was created from. Hidden from normal queries;
+    // they are removed from the cart only after the payment is confirmed.
+    cartItemIds: {
+      type: [Schema.Types.ObjectId],
+      default: [],
+      select: false,
+    },
+
+    // ---- shipping (Shiprocket) ----
+    shiprocketOrderId: { type: String, default: "", trim: true },
+    shiprocketShipmentId: { type: String, default: "", trim: true },
+    awbCode: { type: String, default: "", trim: true, index: true },
+    courierName: { type: String, default: "", trim: true },
+    shipmentStatus: { type: String, default: "", trim: true },
+    trackingUrl: { type: String, default: "", trim: true },
+    // last Shiprocket error. Hidden from normal queries (internal details).
+    shipmentError: { type: String, default: "", select: false },
   },
   { timestamps: true },
 );

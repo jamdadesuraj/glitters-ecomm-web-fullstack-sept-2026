@@ -2,21 +2,29 @@
 
 import avatar1 from '@/assets/images/users/avatar-1.jpg'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import { useAppDispatch } from '@/hooks/useAppDispatch'
+import { logout } from '@/store/authSlice'
 import { useGetSettingsQuery } from '@/store/settingApi'
 import Image from 'next/image'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Dropdown, DropdownHeader, DropdownItem, DropdownMenu, DropdownToggle } from 'react-bootstrap'
 
 const ProfileDropdown = () => {
-  const { data: settingsResponse } = useGetSettingsQuery()
+  const dispatch = useAppDispatch()
+  const router = useRouter()
 
-  // Safely get settings data
-  // @ts-ignore
-  const settingsData = Array.isArray(settingsResponse?.data) ? settingsResponse.data : settingsResponse?.data ? [settingsResponse.data] : []
+  // getSettings already returns ISetting[] (unwrapped in transformResponse)
+  const { data: settingsData } = useGetSettingsQuery()
 
-  const favicon = typeof settingsData[0]?.favicon === 'string' ? settingsData[0].favicon : null
+  const favicon = typeof settingsData?.[0]?.favicon === 'string' ? settingsData[0].favicon : null
 
   const profileImage = favicon || avatar1
+
+  const handleLogout = (e: React.MouseEvent) => {
+    e.preventDefault()
+    dispatch(logout()) // clears token from state, localStorage and cookie
+    router.replace('/auth/sign-in')
+  }
 
   return (
     <Dropdown className="topbar-item">
@@ -49,7 +57,7 @@ const ProfileDropdown = () => {
 
         <div className="dropdown-divider my-1" />
 
-        <DropdownItem as={Link} className="text-danger" href="/auth/sign-in">
+        <DropdownItem as="a" href="#" className="text-danger" onClick={handleLogout}>
           <IconifyIcon icon="bx:log-out" className="fs-18 align-middle me-1" />
           <span className="align-middle">Logout</span>
         </DropdownItem>
