@@ -499,7 +499,7 @@ const ContactUs = () => {
 
               <div className="mt-4 space-y-2">
                 <QuickHelp
-                  href="/orders"
+                  href="/track-order"
                   icon={<FiShoppingBag size={14} />}
                   title="Track Your Order"
                 />

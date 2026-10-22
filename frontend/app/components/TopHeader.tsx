@@ -80,6 +80,7 @@ const TopHeader = () => {
 
       height: "28px",
       padding: "0 4px",
+     
     }),
 
     input: (base) => ({

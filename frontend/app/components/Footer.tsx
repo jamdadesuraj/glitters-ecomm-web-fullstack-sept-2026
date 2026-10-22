@@ -151,7 +151,7 @@ const Footer = () => {
         `/product-list?category=${category._id}`,
       ]) || []),
     // @ts-ignore
-    ["All Categories", "/product-list"],
+    ["All Categories", "/categories"],
   ];
 
   // The settings endpoint returns an array; use the first document.

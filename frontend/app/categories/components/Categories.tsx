@@ -164,13 +164,7 @@ const Categories = () => {
             })}
           </div>
 
-          <Link
-            href="/products"
-            className="mt-3 hidden items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs font-bold text-gray-700 transition hover:border-[#ffd83d] sm:flex dark:border-white/10 dark:bg-transparent dark:text-gray-300"
-          >
-            View All Products
-            <FiArrowRight size={14} />
-          </Link>
+  
         </aside>
 
         {/* RIGHT: sub categories */}
