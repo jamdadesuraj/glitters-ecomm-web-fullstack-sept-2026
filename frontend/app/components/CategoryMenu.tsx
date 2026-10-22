@@ -354,13 +354,14 @@ const CategoryMenu = () => {
                               : "bg-[#eeeeee] text-gray-500 dark:bg-[#242424] dark:text-gray-300"
                           }`}
                         >
-                          <FiGrid size={16} />
+                        
+                          <Image src={category.img} alt="category-img" width={50} height={50} className=" p-1"  />
                         </span>
 
                         {/* TEXT */}
                         <div className="min-w-0 flex-1">
                           <p
-                            className={`truncate text-[11px] font-bold ${
+                            className={`truncate text-[10px] tracking-wider font-bold font-serif ${
                               active
                                 ? "text-black dark:text-white"
                                 : "text-gray-600 dark:text-gray-300"
@@ -370,7 +371,7 @@ const CategoryMenu = () => {
                           </p>
 
                           {category.description && (
-                            <p className="mt-0.5 truncate text-[9px] text-gray-400">
+                            <p className="mt-0.5 truncate text-[10px] text-gray-900 dark:text-white">
                               {category.description}
                             </p>
                           )}

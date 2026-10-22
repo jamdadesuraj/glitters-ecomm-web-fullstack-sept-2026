@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
 import {
   FiCheck,
-  FiCreditCard,
   FiHeart,
   FiMinus,
   FiPlus,
@@ -165,16 +164,20 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
   const activeColorName =
     colorOptions.find((c) => c.id === activeColorId)?.name ?? "";
 
-  /* ----- price ----- */
+  /* ----- price (per item) ----- */
   const price = variant?.price ?? 0;
   const oldPrice = variant?.delPrice ?? price;
-  const saving = Math.max(0, oldPrice - price);
 
   /* ----- stock ----- */
   const stock = variant?.stock ?? 0;
   const isActive = product.status === "active";
   const inStock = isActive && stock > 0;
   const quantityValue = Math.min(quantity, Math.max(stock, 1));
+
+  /* ----- totals (price x quantity) ----- */
+  const totalPrice = price * quantityValue;
+  const totalOldPrice = oldPrice * quantityValue;
+  const saving = Math.max(0, totalOldPrice - totalPrice);
 
   const stockLabel = !isActive
     ? "Unavailable"
@@ -200,6 +203,7 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
   const reviewCount = product.reviews?.length ?? 0;
   const rating = getAverageRating(product.reviews);
   const description = stripHtml(product.shortDesc);
+  const cleanDescription = description.replace(/&nbsp;/g, " ").trim();
 
   /* ----- handlers ----- */
   const handleColorChange = (id: string) => {
@@ -243,8 +247,6 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
     }
   };
 
-  const cleanDescription = description?.replace(/&nbsp;/g, " ").trim();
-  
   return (
     <div className="w-full">
       {/* Brand + Material + Stock */}
@@ -316,13 +318,13 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
           {/* Price Details */}
           <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
             <span className="font-serif text-xl font-black tracking-tight text-gray-950 dark:text-white">
-              AED {price.toLocaleString()}
+              AED {totalPrice.toLocaleString()}
             </span>
 
-            {saving > 0 && oldPrice > 0 && (
+            {saving > 0 && totalOldPrice > 0 && (
               <>
                 <del className="pb-1 text-sm font-semibold text-gray-400">
-                  AED {oldPrice.toLocaleString()}
+                  AED {totalOldPrice.toLocaleString()}
                 </del>
 
                 <span className="mb-0.5 rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-extrabold text-green-700 dark:bg-green-500/10 dark:text-green-400">
@@ -332,7 +334,7 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
             )}
           </div>
 
-          {/* % OFF - Right Corner */}
+          {/* % OFF - Right Corner (same % for any quantity) */}
           {saving > 0 && oldPrice > 0 && (
             <span className="shrink-0 rounded-full bg-red-100 px-3 py-1.5 text-[10px] font-extrabold text-red-600 dark:bg-red-500/10 dark:text-red-400">
               {Math.round(((oldPrice - price) / oldPrice) * 100)}% OFF
@@ -340,19 +342,24 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
           )}
         </div>
 
+        {/* Per-item breakdown, only when quantity > 1 */}
+        {quantityValue > 1 && (
+          <p className="mt-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+            AED {price.toLocaleString()} × {quantityValue}
+          </p>
+        )}
+
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           Inclusive of all taxes
         </p>
       </div>
 
       {/* Description */}
-
-
-{cleanDescription && (
-  <p className="mt-5 w-full max-w-full wrap-break-word text-[12px] leading-7 text-gray-500 dark:text-gray-400">
-    {cleanDescription}
-  </p>
-)}
+      {cleanDescription && (
+        <p className="mt-5 w-full max-w-full wrap-break-word text-[12px] leading-7 text-gray-500 dark:text-gray-400">
+          {cleanDescription}
+        </p>
+      )}
 
       <div className="my-6 h-px bg-gray-100 dark:bg-white/10" />
 
@@ -545,163 +552,135 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
       </div>
 
       {/* Actions */}
-      <>
-        <div
-          className="
-      sticky bottom-0 z-40 mt-6
-      border-t border-gray-200 bg-white/95
-      px-0 py-3 backdrop-blur
-      pb-[max(0.75rem,env(safe-area-inset-bottom))]
-      dark:border-white/10 dark:bg-[#0f0f0f]/95
-      sm:mt-7 sm:py-3.5 
-    "
-        >
-          {/* Action Header */}
-          <div className="mb-2.5 flex items-center justify-between gap-2 sm:mb-3">
-            <div className="min-w-0">
-              <h3 className="text-xs font-extrabold leading-tight text-gray-950 dark:text-white sm:text-sm">
-                Buy this product
-              </h3>
+      <div
+        className="
+          sticky bottom-0 z-40 mt-6
+          border-t border-gray-200 bg-white/95
+          px-0 py-3 backdrop-blur
+          pb-[max(0.75rem,env(safe-area-inset-bottom))]
+          dark:border-white/10 dark:bg-[#0f0f0f]/95
+          sm:mt-7 sm:py-3.5
+        "
+      >
+        {/* Action Header */}
+        <div className="mb-2.5 flex items-center justify-between gap-2 sm:mb-3">
+          <div className="min-w-0">
+            <h3 className="text-xs font-extrabold leading-tight text-gray-950 dark:text-white sm:text-sm">
+              Buy this product
+            </h3>
 
-              <p className="mt-0.5 truncate text-[9px] leading-tight text-gray-500 dark:text-gray-400 sm:text-[10px]">
-                Choose your preferred purchase option
-              </p>
-            </div>
-
-            {inStock && (
-              <span
-                className="
-            shrink-0 rounded-full
-            bg-emerald-50 px-2 py-1
-            text-[8px] font-bold leading-none
-            text-emerald-600
-            dark:bg-emerald-400/10
-            dark:text-emerald-400
-            sm:px-2.5 sm:text-[9px]
-          "
-              >
-                In Stock
-              </span>
-            )}
+            <p className="mt-0.5 truncate text-[9px] leading-tight text-gray-500 dark:text-gray-400 sm:text-[10px]">
+              Choose your preferred purchase option
+            </p>
           </div>
 
-          {/* Action Buttons */}
-          {inStock ? (
-            <div className="grid w-full md:grid-cols-8 grid-cols-12 gap-1.5 sm:gap-2 md:gap-2.5">
-              {/* Buy With EMI */}
-              <div className="md:col-span-2 col-span-6 min-w-0">
-                <ThemeBtnOne
-                  text="Buy With EMI"
-                  subtitle="from AED 200/m"
-                  url="/cart"
-                  icon={
-                    <FiCreditCard className="h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
-                  }
-                  className="
-              flex h-10 w-full min-w-0
-              items-center justify-center
-              gap-1 overflow-hidden
-              whitespace-nowrap rounded-lg
-              bg-[#ffd83d]
-              px-1 font-serif
-              text-[7px] font-bold text-black
-              transition-all duration-200
-              hover:bg-[#ffcc00]
-              sm:h-11 sm:gap-1.5 sm:rounded-xl
-              sm:px-1.5 sm:text-[9px]
-              md:h-12 md:px-2.5 md:text-[11px]
-            "
-                />
-              </div>
-
-              {/* Buy Now */}
-              <div className="md:col-span-2 col-span-6 min-w-0">
-                <ThemeBtnOne
-                  text="Buy Now"
-                  subtitle={`at AED ${price.toLocaleString()}`}
-                  onClick={handleBuyNow}
-                  disabled={isBuying}
-                  icon={
-                    <FiShoppingBag className="h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
-                  }
-                  className="
-              flex h-10 w-full min-w-0 cursor-pointer
-              items-center justify-center
-              gap-1 overflow-hidden
-              whitespace-nowrap rounded-lg
-              bg-[#ffd83d]
-              px-1 font-serif
-              text-[7px] font-bold text-black
-              transition-all duration-200
-              hover:bg-[#ffcc00]
-              sm:h-11 sm:gap-1.5 sm:rounded-xl
-              sm:px-1.5 sm:text-[9px]
-              md:h-12 md:px-2.5 md:text-[11px]
-            "
-                />
-              </div>
-
-              {/* Add to Cart */}
-              <div className="md:col-span-2 col-span-6 min-w-0">
-                <ThemeBtnOne
-                  text=""
-                  url="/cart"
-                  icon={<FiShoppingBag className="h-4 w-4 sm:h-4.5 sm:w-4.5" />}
-                  className="
-              flex h-10 w-full min-w-0
-              items-center justify-center
-              rounded-lg bg-gray-100
-              p-0 text-black
-              transition-all duration-200
-              hover:bg-[#ffd83d]
-              dark:bg-white/10 dark:text-white
-              sm:h-11 sm:rounded-xl
-              md:h-12
-            "
-                />
-              </div>
-
-              {/* Wishlist */}
-              <div className="md:col-span-2 col-span-6 min-w-0">
-                <ThemeBtnOne
-                  text=""
-                  url="/wishlist"
-                  icon={<FiHeart className="h-4 w-4 sm:h-4.5 sm:w-4.5" />}
-                  className="
-              flex h-10 w-full min-w-0
-              items-center justify-center
-              rounded-lg bg-gray-100
-              p-0 text-black
-              transition-all duration-200
-              hover:bg-[#ffd83d]
-              dark:bg-white/10 dark:text-white
-              sm:h-11 sm:rounded-xl
-              md:h-12
-            "
-                />
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled
+          {inStock && (
+            <span
               className="
-          flex h-10 w-full
-          items-center justify-center gap-2
-          rounded-lg bg-gray-200
-          px-4 text-xs font-extrabold
-          text-gray-500
-          dark:bg-white/10 dark:text-gray-500
-          sm:h-11 sm:rounded-xl
-          md:h-12
-        "
+                shrink-0 rounded-full
+                bg-emerald-50 px-2 py-1
+                text-[8px] font-bold leading-none
+                text-emerald-600
+                dark:bg-emerald-400/10
+                dark:text-emerald-400
+                sm:px-2.5 sm:text-[9px]
+              "
             >
-              <FiShoppingBag size={16} />
-              <span className="truncate">{stockLabel}</span>
-            </button>
+              In Stock
+            </span>
           )}
         </div>
-      </>
+
+        {/* Action Buttons */}
+        {inStock ? (
+          <div className="grid w-full grid-cols-12 gap-1.5 sm:gap-2 md:grid-cols-8 md:gap-2.5">
+            {/* Buy Now */}
+            <div className="col-span-12 min-w-0 md:col-span-4">
+              <ThemeBtnOne
+                text="Buy Now"
+                subtitle={`at AED ${totalPrice.toLocaleString()}`}
+                onClick={handleBuyNow}
+                disabled={isBuying}
+                icon={
+                  <FiShoppingBag className="h-3 w-3 shrink-0 sm:h-4 sm:w-4" />
+                }
+                className="
+                  flex h-10 w-full min-w-0 cursor-pointer
+                  items-center justify-center
+                  gap-1 overflow-hidden
+                  whitespace-nowrap rounded-lg
+                  bg-[#ffd83d]
+                  px-1 font-serif
+                  text-[9px] font-bold text-black
+                  transition-all duration-200
+                  hover:bg-[#ffcc00]
+                  sm:h-11 sm:gap-1.5 sm:rounded-xl
+                  sm:px-1.5 sm:text-[10px]
+                  md:h-12 md:px-2.5 md:text-[12px]
+                "
+              />
+            </div>
+
+            {/* Add to Cart */}
+            <div className="col-span-6 min-w-0 md:col-span-2">
+              <ThemeBtnOne
+                text=""
+                url="/cart"
+                icon={<FiShoppingBag className="h-4 w-4 sm:h-4.5 sm:w-4.5" />}
+                className="
+                  flex h-10 w-full min-w-0
+                  items-center justify-center
+                  rounded-lg bg-gray-100
+                  p-0 text-black
+                  transition-all duration-200
+                  hover:bg-[#ffd83d]
+                  dark:bg-white/10 dark:text-white
+                  sm:h-11 sm:rounded-xl
+                  md:h-12
+                "
+              />
+            </div>
+
+            {/* Wishlist */}
+            <div className="col-span-6 min-w-0 md:col-span-2">
+              <ThemeBtnOne
+                text=""
+                url="/wishlist"
+                icon={<FiHeart className="h-4 w-4 sm:h-4.5 sm:w-4.5" />}
+                className="
+                  flex h-10 w-full min-w-0
+                  items-center justify-center
+                  rounded-lg bg-gray-100
+                  p-0 text-black
+                  transition-all duration-200
+                  hover:bg-[#ffd83d]
+                  dark:bg-white/10 dark:text-white
+                  sm:h-11 sm:rounded-xl
+                  md:h-12
+                "
+              />
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="
+              flex h-10 w-full
+              items-center justify-center gap-2
+              rounded-lg bg-gray-200
+              px-4 text-xs font-extrabold
+              text-gray-500
+              dark:bg-white/10 dark:text-gray-500
+              sm:h-11 sm:rounded-xl
+              md:h-12
+            "
+          >
+            <FiShoppingBag size={16} />
+            <span className="truncate">{stockLabel}</span>
+          </button>
+        )}
+      </div>
 
       {/* Benefits */}
       <div className="mt-6 grid grid-cols-1 gap-3 border-t border-gray-100 pt-6 sm:grid-cols-3 dark:border-white/10">
