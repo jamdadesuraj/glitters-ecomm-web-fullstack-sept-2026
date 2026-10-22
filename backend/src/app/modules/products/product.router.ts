@@ -14,40 +14,21 @@ const router = express.Router();
 
 // ============================================
 // PRODUCT UPLOAD FIELDS
+// variantImages: many files per variant, mapped by `variantImageIndexes`
 // ============================================
 
 const uploadFields = upload.fields([
   { name: "productImages", maxCount: 10 },
-  { name: "variantImages", maxCount: 50 },
+  { name: "variantImages", maxCount: 200 },
 ]);
-
-// ============================================
-// CREATE PRODUCT
-// ============================================
 
 router.post("/", uploadFields, createProduct);
 
-// ============================================
-// GET ALL PRODUCTS
-// ============================================
-
 router.get("/", getAllProducts);
-
-// ============================================
-// GET SINGLE PRODUCT
-// ============================================
 
 router.get("/:id", getAllProductsById);
 
-// ============================================
-// UPDATE PRODUCT
-// ============================================
-
 router.put("/:id", uploadFields, updateProduct);
-
-// ============================================
-// DELETE PRODUCT
-// ============================================
 
 router.delete("/:id", deleteProduct);
 

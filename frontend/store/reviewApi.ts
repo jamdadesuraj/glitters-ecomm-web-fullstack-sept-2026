@@ -13,7 +13,8 @@ export interface IReviewItem {
   rating: number;
   reviewTitle: string;
   review: string;
-  image?: string; // Cloudinary URL, empty when no photo
+  image?: string; 
+  video?:string;// Cloudinary URL, empty when no photo
   isVerified: boolean;
   helpfulCount: number;
   createdAt: string;

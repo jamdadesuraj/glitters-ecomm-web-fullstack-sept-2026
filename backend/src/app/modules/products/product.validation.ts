@@ -13,6 +13,8 @@ const objectIdSchema = z
 // ============================================
 
 const productVariantSchema = z.object({
+  _id: objectIdSchema.optional(),
+
   size: objectIdSchema.optional(),
 
   color: objectIdSchema.optional(),
@@ -39,6 +41,10 @@ const productVariantSchema = z.object({
     .optional()
     .default(0),
 
+  // Multiple images per variant
+  images: z.array(z.string()).optional().default([]),
+
+  // Legacy single image (mirrors images[0])
   image: z.string().optional().default(""),
 });
 
@@ -114,7 +120,6 @@ export const productSchema = z.object({
     .optional()
     .or(z.literal("")),
 
-  // Variants are still required, but their individual fields are optional.
   variants: z
     .array(productVariantSchema)
     .min(1, "At least one product variant is required"),

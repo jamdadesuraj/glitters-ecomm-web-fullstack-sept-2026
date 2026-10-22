@@ -1,7 +1,7 @@
 import { Document, Types } from "mongoose";
 
 export interface IProductVariant {
-  size: Types.ObjectId;
+  size?: Types.ObjectId;
   color: Types.ObjectId;
 
   price: number;
@@ -9,6 +9,10 @@ export interface IProductVariant {
   discount: number;
   stock: number;
 
+  // Multiple images per variant
+  images: string[];
+
+  // Legacy single image. Always mirrors images[0] so old code keeps working.
   image?: string;
 }
 

@@ -1,7 +1,8 @@
 'use client'
 
-import React, { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
+import { ChangeEvent, FormEvent, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
+import Image from 'next/image'
 import Select, { SingleValue, StylesConfig } from 'react-select'
 import CreatableSelect from 'react-select/creatable'
 import Swal from 'sweetalert2'
@@ -18,7 +19,6 @@ import { useGetBrandQuery } from '@/store/brandApi'
 import { useGetCouponQuery } from '@/store/couponApi'
 import { useGetSizeQuery } from '@/store/sizeApi'
 import { useGetColorsQuery } from '@/store/colorsApi'
-import Image from 'next/image'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
   ssr: false,
@@ -35,18 +35,42 @@ type SelectOption = {
 
 type TagOption = SelectOption
 
+type ApiItem = {
+  _id: string
+  status?: string
+  isDeleted?: boolean
+  categoryName?: string
+  subCategoryName?: string
+  materialName?: string
+  brandName?: string
+  couponCode?: string
+  couponName?: string
+  code?: string
+  colorName?: string
+  size?: string
+  name?: string
+  category?: string | { _id?: string } | null
+}
+
+type ApiError = {
+  data?: { message?: string }
+  error?: string
+  message?: string
+}
+
+type SectionValue = '' | 'New Offers' | 'Popular Products' | 'New Arrivals'
+
 type ProductFormData = {
   productName: string
   category: string
   subCategory: string
   material: string
-  section: '' | 'New Offers' | 'Popular Products' | 'New Arrivals'
+  section: SectionValue
   brand: string
   coupon: string
   dealOfTheDay: boolean
   tags: string[]
   videoUrl: string
-
   shortDescription: string
   productDescription: string
   additionalInformation: string
@@ -61,8 +85,8 @@ type ProductVariant = {
   price: string
   delPrice: string
   discount: string
-  image: File | null
-  imagePreview: string
+  images: File[]
+  imagePreviews: string[]
 }
 
 type VariantField = 'size' | 'color' | 'stock' | 'price' | 'delPrice' | 'discount'
@@ -75,66 +99,31 @@ type ProductSpecification = {
 
 type SpecificationField = 'specificationName' | 'value'
 
+type SimpleSelectField = 'category' | 'subCategory' | 'material' | 'section' | 'brand' | 'coupon'
+
 // =====================================================
 // STATIC OPTIONS
 // =====================================================
 
 const sections: SelectOption[] = [
-  {
-    value: 'New Offers',
-    label: 'New Offers',
-  },
-  {
-    value: 'Popular Products',
-    label: 'Popular Products',
-  },
-  {
-    value: 'New Arrivals',
-    label: 'New Arrivals',
-  },
+  { value: 'New Offers', label: 'New Offers' },
+  { value: 'Popular Products', label: 'Popular Products' },
+  { value: 'New Arrivals', label: 'New Arrivals' },
 ]
 
 const dealOptions: SelectOption[] = [
-  {
-    value: 'true',
-    label: 'Yes',
-  },
-  {
-    value: 'false',
-    label: 'No',
-  },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' },
 ]
 
 const defaultTagOptions: TagOption[] = [
-  {
-    value: 'new-arrival',
-    label: 'New Arrival',
-  },
-  {
-    value: 'best-seller',
-    label: 'Best Seller',
-  },
-  {
-    value: 'trending',
-    label: 'Trending',
-  },
-  {
-    value: 'premium',
-    label: 'Premium',
-  },
-  {
-    value: 'summer',
-    label: 'Summer',
-  },
-  {
-    value: 'winter',
-    label: 'Winter',
-  },
+  { value: 'new-arrival', label: 'New Arrival' },
+  { value: 'best-seller', label: 'Best Seller' },
+  { value: 'trending', label: 'Trending' },
+  { value: 'premium', label: 'Premium' },
+  { value: 'summer', label: 'Summer' },
+  { value: 'winter', label: 'Winter' },
 ]
-
-// =====================================================
-// SELECT STYLES
-// =====================================================
 
 const selectStyles: StylesConfig<SelectOption, false> = {
   control: (base, state) => ({
@@ -146,21 +135,9 @@ const selectStyles: StylesConfig<SelectOption, false> = {
       borderColor: state.isFocused ? '#86b7fe' : '#dee2e6',
     },
   }),
-
-  menuPortal: (base) => ({
-    ...base,
-    zIndex: 99999,
-  }),
-
-  menu: (base) => ({
-    ...base,
-    zIndex: 99999,
-  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menu: (base) => ({ ...base, zIndex: 99999 }),
 }
-
-// =====================================================
-// QUILL CONFIG
-// =====================================================
 
 const quillModules = {
   toolbar: [
@@ -187,8 +164,8 @@ const createEmptyVariant = (): ProductVariant => ({
   price: '',
   delPrice: '',
   discount: '',
-  image: null,
-  imagePreview: '',
+  images: [],
+  imagePreviews: [],
 })
 
 const createEmptySpecification = (): ProductSpecification => ({
@@ -206,6 +183,33 @@ const hasRichTextContent = (value: string): boolean => {
   )
 }
 
+// Accepts `[...]` or `{ data: [...] }`
+const toList = (data: unknown): ApiItem[] => {
+  if (Array.isArray(data)) return data as ApiItem[]
+
+  const nested = (data as { data?: unknown } | null | undefined)?.data
+
+  return Array.isArray(nested) ? (nested as ApiItem[]) : []
+}
+
+const toActiveOptions = (list: ApiItem[], getLabel: (item: ApiItem) => string | undefined): SelectOption[] =>
+  list
+    .filter((item) => item.status === 'active' && !item.isDeleted)
+    .map((item) => ({
+      value: item._id,
+      label: getLabel(item) ?? '',
+    }))
+
+const getErrorMessage = (err: unknown, fallback: string): string => {
+  const e = err as ApiError | null | undefined
+
+  return e?.data?.message || e?.error || e?.message || fallback
+}
+
+const getSelectedOption = (options: SelectOption[], value: string): SelectOption | null => {
+  return options.find((option) => option.value === value) ?? null
+}
+
 const AddProductsDrawer = () => {
   // =====================================================
   // API
@@ -213,33 +217,20 @@ const AddProductsDrawer = () => {
 
   const [createProduct, { isLoading: createLoading }] = useCreateProductsMutation()
 
-  const { data: categoryData = [], isLoading: categoryLoading } = useGetcategoryQuery()
-
-  const { data: subCategoryData = [], isLoading: subCategoryLoading } = useGetSubCategoryQuery()
-
-  const { data: materialData = [], isLoading: materialLoading } = useGetMaterialQuery()
-
-  const { data: brandData = [], isLoading: brandLoading } = useGetBrandQuery()
-
-  const { data: couponData = [], isLoading: couponLoading } = useGetCouponQuery()
-
-  const { data: sizeData = [], isLoading: sizeLoading } = useGetSizeQuery()
-
-  const { data: colorData = [], isLoading: colorLoading } = useGetColorsQuery()
-
-  console.log('COLOR DATA:', colorData)
+  const { data: categoryData, isLoading: categoryLoading } = useGetcategoryQuery()
+  const { data: subCategoryData, isLoading: subCategoryLoading } = useGetSubCategoryQuery()
+  const { data: materialData, isLoading: materialLoading } = useGetMaterialQuery()
+  const { data: brandData, isLoading: brandLoading } = useGetBrandQuery()
+  const { data: couponData, isLoading: couponLoading } = useGetCouponQuery()
+  const { data: sizeData, isLoading: sizeLoading } = useGetSizeQuery()
+  const { data: colorData, isLoading: colorLoading } = useGetColorsQuery()
 
   // =====================================================
   // STATE
   // =====================================================
 
   const [open, setOpen] = useState<boolean>(false)
-
   const [error, setError] = useState<string>('')
-
-  const [productImages, setProductImages] = useState<File[]>([])
-
-  const [productImagePreviews, setProductImagePreviews] = useState<string[]>([])
 
   const [formData, setFormData] = useState<ProductFormData>({
     productName: '',
@@ -258,26 +249,19 @@ const AddProductsDrawer = () => {
     shippingReturnPolicy: '',
   })
 
-  const [variants, setVariants] = useState<ProductVariant[]>([createEmptyVariant()])
+  const [variants, setVariants] = useState<ProductVariant[]>(() => [createEmptyVariant()])
 
-  const [specifications, setSpecifications] = useState<ProductSpecification[]>([createEmptySpecification()])
+  const [specifications, setSpecifications] = useState<ProductSpecification[]>(() => [createEmptySpecification()])
 
   // =====================================================
   // DYNAMIC OPTIONS
   // =====================================================
 
-  const categories = useMemo<SelectOption[]>(() => {
-    return categoryData
-      .filter((item: any) => item.status === 'active' && !item.isDeleted)
-      .map((item: any) => ({
-        value: item._id,
-        label: item.categoryName,
-      }))
-  }, [categoryData])
+  const categories = useMemo(() => toActiveOptions(toList(categoryData), (item) => item.categoryName), [categoryData])
 
   const subCategories = useMemo<SelectOption[]>(() => {
-    return subCategoryData
-      .filter((item: any) => {
+    return toList(subCategoryData)
+      .filter((item) => {
         if (item.status !== 'active' || item.isDeleted) {
           return false
         }
@@ -290,207 +274,56 @@ const AddProductsDrawer = () => {
 
         return categoryId === formData.category
       })
-      .map((item: any) => ({
+      .map((item) => ({
         value: item._id,
-        label: item.subCategoryName,
+        label: item.subCategoryName ?? '',
       }))
   }, [subCategoryData, formData.category])
 
-  const materials = useMemo<SelectOption[]>(() => {
-    return materialData
-      .filter((item: any) => item.status === 'active' && !item.isDeleted)
-      .map((item: any) => ({
-        value: item._id,
-        label: item.materialName || item.name,
-      }))
-  }, [materialData])
+  const materials = useMemo(() => toActiveOptions(toList(materialData), (item) => item.materialName || item.name), [materialData])
 
-  const brands = useMemo<SelectOption[]>(() => {
-    return brandData
-      .filter((item: any) => item.status === 'active' && !item.isDeleted)
-      .map((item: any) => ({
-        value: item._id,
-        label: item.brandName || item.name,
-      }))
-  }, [brandData])
+  const brands = useMemo(() => toActiveOptions(toList(brandData), (item) => item.brandName || item.name), [brandData])
 
-  const coupons = useMemo<SelectOption[]>(() => {
-    return couponData
-      .filter((item: any) => item.status === 'active' && !item.isDeleted)
-      .map((item: any) => ({
-        value: item._id,
-        label: item.couponCode || item.code || item.couponName,
-      }))
-  }, [couponData])
+  const coupons = useMemo(() => toActiveOptions(toList(couponData), (item) => item.couponCode || item.code || item.couponName), [couponData])
 
-  // =====================================================
-  // COLOR OPTIONS
-  // =====================================================
+  const colorOptions = useMemo(() => toActiveOptions(toList(colorData), (item) => item.colorName), [colorData])
 
-  const colorOptions = useMemo<SelectOption[]>(() => {
-    const list = Array.isArray(colorData) ? colorData : Array.isArray((colorData as any)?.data) ? (colorData as any).data : []
-
-    return list
-      .filter((item: any) => item.status === 'active' && item.isDeleted !== true)
-      .map((item: any) => ({
-        value: item._id,
-        label: item.colorName,
-      }))
-  }, [colorData])
-
-  // =====================================================
-  // SIZE OPTIONS
-  // =====================================================
-
-  const sizeOptions = useMemo<SelectOption[]>(() => {
-    const list = Array.isArray(sizeData) ? sizeData : Array.isArray((sizeData as any)?.data) ? (sizeData as any).data : []
-
-    return list
-      .filter((item: any) => item.status === 'active' && item.isDeleted !== true)
-      .map((item: any) => ({
-        value: item._id,
-        label: item.size,
-      }))
-  }, [sizeData])
-
-  // =====================================================
-  // SELECTED TAGS
-  // =====================================================
+  const sizeOptions = useMemo(() => toActiveOptions(toList(sizeData), (item) => item.size), [sizeData])
 
   const selectedTags = useMemo<TagOption[]>(() => {
     return formData.tags.map((tag) => {
       const found = defaultTagOptions.find((option) => option.value === tag)
 
-      return (
-        found || {
-          value: tag,
-          label: tag,
-        }
-      )
+      return found || { value: tag, label: tag }
     })
   }, [formData.tags])
-
-  // =====================================================
-  // PORTAL
-  // =====================================================
 
   const portalTarget = typeof document !== 'undefined' ? document.body : undefined
 
   // =====================================================
-  // CLEANUP
-  // =====================================================
-
-  useEffect(() => {
-    return () => {
-      productImagePreviews.forEach((url) => URL.revokeObjectURL(url))
-    }
-  }, [productImagePreviews])
-
-  // =====================================================
-  // GET SELECTED OPTION
-  // =====================================================
-
-  const getSelectedOption = (options: SelectOption[], value: string): SelectOption | null => {
-    return options.find((option) => option.value === value) ?? null
-  }
-
-  // =====================================================
-  // TEXT CHANGE
+  // FORM HANDLERS
   // =====================================================
 
   const handleTextChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  // =====================================================
-  // SELECT CHANGE
-  // =====================================================
-
-  const handleSelectChange = (field: 'category' | 'subCategory' | 'material' | 'section' | 'brand' | 'coupon', option: SingleValue<SelectOption>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: option?.value ?? '',
-    }))
+  const handleSelectChange = (field: SimpleSelectField, option: SingleValue<SelectOption>) => {
+    setFormData((prev) => ({ ...prev, [field]: option?.value ?? '' }))
   }
-
-  // =====================================================
-  // CATEGORY CHANGE
-  // =====================================================
 
   const handleCategoryChange = (option: SingleValue<SelectOption>) => {
-    setFormData((prev) => ({
-      ...prev,
-      category: option?.value ?? '',
-      subCategory: '',
-    }))
+    setFormData((prev) => ({ ...prev, category: option?.value ?? '', subCategory: '' }))
   }
-
-  // =====================================================
-  // DEAL CHANGE
-  // =====================================================
 
   const handleDealChange = (option: SingleValue<SelectOption>) => {
-    setFormData((prev) => ({
-      ...prev,
-      dealOfTheDay: option?.value === 'true',
-    }))
+    setFormData((prev) => ({ ...prev, dealOfTheDay: option?.value === 'true' }))
   }
-
-  // =====================================================
-  // TAG CHANGE
-  // =====================================================
 
   const handleTagChange = (options: readonly TagOption[]) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: options.map((option) => option.value),
-    }))
-  }
-
-  // =====================================================
-  // PRODUCT IMAGES
-  // =====================================================
-
-  const handleProductImagesChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-
-    if (!files.length) {
-      return
-    }
-
-    const validFiles = files.filter((file) => file.type.startsWith('image/'))
-
-    if (!validFiles.length) {
-      setError('Please select valid image files.')
-      return
-    }
-
-    productImagePreviews.forEach((url) => URL.revokeObjectURL(url))
-
-    setProductImages(validFiles)
-
-    setProductImagePreviews(validFiles.map((file) => URL.createObjectURL(file)))
-
-    setError('')
-  }
-
-  const removeProductImage = (index: number) => {
-    setProductImages((prev) => prev.filter((_, i) => i !== index))
-
-    setProductImagePreviews((prev) => {
-      const target = prev[index]
-
-      if (target) {
-        URL.revokeObjectURL(target)
-      }
-
-      return prev.filter((_, i) => i !== index)
-    })
+    setFormData((prev) => ({ ...prev, tags: options.map((option) => option.value) }))
   }
 
   // =====================================================
@@ -498,53 +331,50 @@ const AddProductsDrawer = () => {
   // =====================================================
 
   const handleVariantChange = (id: number, field: VariantField, value: string) => {
+    setVariants((prev) => prev.map((variant) => (variant.id === id ? { ...variant, [field]: value } : variant)))
+  }
+
+  // Append one or many selected files to a variant
+  const handleVariantImagesChange = (id: number, e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith('image/'))
+
+    // allow selecting the same file again
+    e.target.value = ''
+
+    if (!files.length) {
+      return
+    }
+
     setVariants((prev) =>
       prev.map((variant) =>
         variant.id === id
           ? {
               ...variant,
-              [field]: value,
+              images: [...variant.images, ...files],
+              imagePreviews: [...variant.imagePreviews, ...files.map((file) => URL.createObjectURL(file))],
             }
           : variant,
       ),
     )
   }
 
-  const handleVariantImageChange = (id: number, file: File | null) => {
+  const removeVariantImage = (id: number, imageIndex: number) => {
     setVariants((prev) =>
       prev.map((variant) => {
         if (variant.id !== id) {
           return variant
         }
 
-        if (variant.imagePreview) {
-          URL.revokeObjectURL(variant.imagePreview)
+        const preview = variant.imagePreviews[imageIndex]
+
+        if (preview) {
+          URL.revokeObjectURL(preview)
         }
 
         return {
           ...variant,
-          image: file,
-          imagePreview: file ? URL.createObjectURL(file) : '',
-        }
-      }),
-    )
-  }
-
-  const removeVariantImage = (id: number) => {
-    setVariants((prev) =>
-      prev.map((variant) => {
-        if (variant.id !== id) {
-          return variant
-        }
-
-        if (variant.imagePreview) {
-          URL.revokeObjectURL(variant.imagePreview)
-        }
-
-        return {
-          ...variant,
-          image: null,
-          imagePreview: '',
+          images: variant.images.filter((_, i) => i !== imageIndex),
+          imagePreviews: variant.imagePreviews.filter((_, i) => i !== imageIndex),
         }
       }),
     )
@@ -562,9 +392,7 @@ const AddProductsDrawer = () => {
     setVariants((prev) => {
       const target = prev.find((variant) => variant.id === id)
 
-      if (target?.imagePreview) {
-        URL.revokeObjectURL(target.imagePreview)
-      }
+      target?.imagePreviews.forEach((url) => URL.revokeObjectURL(url))
 
       return prev.filter((variant) => variant.id !== id)
     })
@@ -575,16 +403,7 @@ const AddProductsDrawer = () => {
   // =====================================================
 
   const handleSpecificationChange = (id: number, field: SpecificationField, value: string) => {
-    setSpecifications((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              [field]: value,
-            }
-          : item,
-      ),
-    )
+    setSpecifications((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
   }
 
   const addSpecification = () => {
@@ -601,14 +420,10 @@ const AddProductsDrawer = () => {
   }
 
   // =====================================================
-  // RESET
+  // RESET / CLOSE
   // =====================================================
 
   const resetForm = () => {
-    productImagePreviews.forEach((url) => URL.revokeObjectURL(url))
-
-    setProductImages([])
-    setProductImagePreviews([])
     setError('')
 
     setFormData({
@@ -629,19 +444,12 @@ const AddProductsDrawer = () => {
     })
 
     variants.forEach((variant) => {
-      if (variant.imagePreview) {
-        URL.revokeObjectURL(variant.imagePreview)
-      }
+      variant.imagePreviews.forEach((url) => URL.revokeObjectURL(url))
     })
 
     setVariants([createEmptyVariant()])
-
     setSpecifications([createEmptySpecification()])
   }
-
-  // =====================================================
-  // CLOSE
-  // =====================================================
 
   const closeDrawer = () => {
     if (createLoading) {
@@ -681,20 +489,17 @@ const AddProductsDrawer = () => {
       return false
     }
 
-    const invalidVariant = variants.some((variant) =>   !variant.color || variant.price === '' || variant.stock === '')
+    const invalidVariant = variants.some((variant) => !variant.color || variant.price === '' || variant.stock === '')
 
     if (invalidVariant) {
-      setError('Please complete  Color, Price and Stock for all variants.')
+      setError('Please complete Color, Price and Stock for all variants.')
       return false
     }
 
     const invalidNumber = variants.some((variant) => {
       const price = Number(variant.price)
-
       const delPrice = variant.delPrice ? Number(variant.delPrice) : 0
-
       const discount = variant.discount ? Number(variant.discount) : 0
-
       const stock = Number(variant.stock)
 
       return (
@@ -732,7 +537,6 @@ const AddProductsDrawer = () => {
     const apiFormData = new FormData()
 
     apiFormData.append('productName', formData.productName)
-
     apiFormData.append('category', formData.category)
 
     if (formData.subCategory) {
@@ -761,11 +565,8 @@ const AddProductsDrawer = () => {
       apiFormData.append('videoUrl', formData.videoUrl.trim())
     }
 
-    // REQUIRED BACKEND FIELDS
     apiFormData.append('shortDesc', formData.shortDescription)
-
     apiFormData.append('desc', formData.productDescription)
-
     apiFormData.append('shippingReturnPolicy', formData.shippingReturnPolicy)
 
     if (formData.additionalInformation) {
@@ -779,6 +580,7 @@ const AddProductsDrawer = () => {
       delPrice: variant.delPrice ? Number(variant.delPrice) : 0,
       discount: variant.discount ? Number(variant.discount) : 0,
       stock: Number(variant.stock),
+      images: [] as string[],
     }))
 
     apiFormData.append('variants', JSON.stringify(cleanVariants))
@@ -792,18 +594,15 @@ const AddProductsDrawer = () => {
 
     apiFormData.append('specifications', JSON.stringify(cleanSpecifications))
 
-    productImages.forEach((file) => {
-      apiFormData.append('productImages', file)
-    })
-
-    // CHANGED: also send which variant each image belongs to
+    // Every file goes under `variantImages`; `variantImageIndexes` holds the
+    // owning variant index for each file (same order), e.g. [0, 0, 1, 2, 2]
     const variantImageIndexes: number[] = []
 
     variants.forEach((variant, index) => {
-      if (variant.image) {
+      variant.images.forEach((file) => {
         variantImageIndexes.push(index)
-        apiFormData.append('variantImages', variant.image)
-      }
+        apiFormData.append('variantImages', file)
+      })
     })
 
     apiFormData.append('variantImageIndexes', JSON.stringify(variantImageIndexes))
@@ -821,8 +620,8 @@ const AddProductsDrawer = () => {
 
       resetForm()
       setOpen(false)
-    } catch (err: any) {
-      const message = err?.data?.message || err?.error || err?.message || 'Unable to add product.'
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Unable to add product.')
 
       setError(message)
 
@@ -868,11 +667,7 @@ const AddProductsDrawer = () => {
         }}>
         {/* HEADER */}
 
-        <div
-          className="p-3 border-bottom bg-light d-flex justify-content-between align-items-center position-sticky top-0"
-          style={{
-            zIndex: 50,
-          }}>
+        <div className="p-3 border-bottom bg-light d-flex justify-content-between align-items-center position-sticky top-0" style={{ zIndex: 50 }}>
           <div>
             <h5 className="mb-1 fw-bold">Add Product</h5>
 
@@ -882,10 +677,7 @@ const AddProductsDrawer = () => {
           <button
             type="button"
             className="btn btn-sm btn-danger rounded-circle d-flex align-items-center justify-content-center"
-            style={{
-              width: 32,
-              height: 32,
-            }}
+            style={{ width: 32, height: 32 }}
             onClick={closeDrawer}
             disabled={createLoading}>
             ✕
@@ -912,8 +704,6 @@ const AddProductsDrawer = () => {
 
               <div className="card-body">
                 <div className="row g-3">
-                  {/* PRODUCT NAME */}
-
                   <div className="col-xl-4 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">
                       Product Name
@@ -930,8 +720,6 @@ const AddProductsDrawer = () => {
                       required
                     />
                   </div>
-
-                  {/* CATEGORY */}
 
                   <div className="col-xl-4 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">
@@ -954,8 +742,6 @@ const AddProductsDrawer = () => {
                     />
                   </div>
 
-                  {/* SUB CATEGORY */}
-
                   <div className="col-xl-4 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Sub-Category</label>
 
@@ -976,8 +762,6 @@ const AddProductsDrawer = () => {
                     />
                   </div>
 
-                  {/* MATERIAL */}
-
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Material</label>
 
@@ -995,8 +779,6 @@ const AddProductsDrawer = () => {
                       menuPosition="fixed"
                     />
                   </div>
-
-                  {/* SECTION */}
 
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">
@@ -1017,8 +799,6 @@ const AddProductsDrawer = () => {
                     />
                   </div>
 
-                  {/* BRAND */}
-
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Brand</label>
 
@@ -1037,8 +817,6 @@ const AddProductsDrawer = () => {
                     />
                   </div>
 
-                  {/* DEAL */}
-
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Deal of the Day</label>
 
@@ -1055,9 +833,7 @@ const AddProductsDrawer = () => {
                     />
                   </div>
 
-                  {/* COUPON */}
-
-                  <div className="col-xl-4 col-lg-4 col-md-6">
+                  <div className="col-xl-6 col-lg-6 col-md-6">
                     <label className="form-label fw-semibold">Coupon</label>
 
                     <Select<SelectOption>
@@ -1075,9 +851,7 @@ const AddProductsDrawer = () => {
                     />
                   </div>
 
-                  {/* TAGS */}
-
-                  <div className="col-xl-4 col-lg-4 col-md-12">
+                  {/* <div className="col-xl-4 col-lg-4 col-md-12">
                     <label className="form-label fw-semibold">Tags</label>
 
                     <CreatableSelect<TagOption, true>
@@ -1091,11 +865,9 @@ const AddProductsDrawer = () => {
                       menuPortalTarget={portalTarget}
                       menuPosition="fixed"
                     />
-                  </div>
+                  </div> */}
 
-                  {/* VIDEO URL */}
-
-                  <div className="col-md-4">
+                  <div className="col-md-6">
                     <label className="form-label fw-semibold">Video URL</label>
 
                     <input
@@ -1107,53 +879,6 @@ const AddProductsDrawer = () => {
                       placeholder="https://www.youtube.com/watch?v=..."
                     />
                   </div>
-
-                  {/* PRODUCT IMAGES */}
-
-                  {/* <div className="col-md-6">
-                    <label className="form-label fw-semibold">Product Images</label>
-
-                    <input type="file" className="form-control" accept="image/*" multiple onChange={handleProductImagesChange} />
-                  </div> */}
-
-                  {productImagePreviews.length > 0 && (
-                    <div className="col-12">
-                      <div className="d-flex gap-2 flex-wrap">
-                        {productImagePreviews.map((preview, index) => (
-                          <div
-                            key={preview}
-                            className="position-relative border rounded overflow-hidden"
-                            style={{
-                              width: 90,
-                              height: 90,
-                            }}>
-                            <Image
-                              src={preview}
-                              alt={`Product ${index + 1}`}
-                              width={90}
-                              height={90}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                              }}
-                            />
-
-                            <button
-                              type="button"
-                              className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 rounded-circle"
-                              style={{
-                                width: 22,
-                                height: 22,
-                              }}
-                              onClick={() => removeProductImage(index)}>
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -1165,7 +890,7 @@ const AddProductsDrawer = () => {
                 <div>
                   <h6 className="mb-1 fw-bold">Product Variants</h6>
 
-                  <small className="text-muted">Add multiple size, color, price, discount and stock combinations.</small>
+                  <small className="text-muted">Add multiple size, color, price, stock and image combinations.</small>
                 </div>
 
                 <button type="button" className="btn btn-primary btn-sm d-flex align-items-center gap-1" onClick={addVariant}>
@@ -1176,29 +901,16 @@ const AddProductsDrawer = () => {
 
               <div className="card-body p-0">
                 <div className="table-responsive">
-                  <table
-                    className="table table-bordered align-middle mb-0"
-                    style={{
-                      minWidth: 1250,
-                    }}>
+                  <table className="table table-bordered align-middle mb-0" style={{ minWidth: 1250 }}>
                     <thead className="table-light">
                       <tr>
                         <th className="text-center">#</th>
-
                         <th>Size</th>
-
                         <th>Color</th>
-
                         <th>Price</th>
-
                         <th>Del Price</th>
-
-                        {/* <th>Discount</th> */}
-
                         <th>Stock</th>
-
-                        <th>Image</th>
-
+                        <th>Images</th>
                         <th className="text-center">Action</th>
                       </tr>
                     </thead>
@@ -1208,12 +920,7 @@ const AddProductsDrawer = () => {
                         <tr key={variant.id}>
                           <td className="text-center fw-semibold">{index + 1}</td>
 
-                          {/* SIZE */}
-
-                          <td
-                            style={{
-                              minWidth: 170,
-                            }}>
+                          <td style={{ minWidth: 170 }}>
                             <Select<SelectOption>
                               options={sizeOptions}
                               value={getSelectedOption(sizeOptions, variant.size)}
@@ -1229,12 +936,7 @@ const AddProductsDrawer = () => {
                             />
                           </td>
 
-                          {/* COLOR */}
-
-                          <td
-                            style={{
-                              minWidth: 180,
-                            }}>
+                          <td style={{ minWidth: 180 }}>
                             <Select<SelectOption>
                               options={colorOptions}
                               value={getSelectedOption(colorOptions, variant.color)}
@@ -1250,8 +952,6 @@ const AddProductsDrawer = () => {
                             />
                           </td>
 
-                          {/* PRICE */}
-
                           <td>
                             <input
                               type="number"
@@ -1264,8 +964,6 @@ const AddProductsDrawer = () => {
                             />
                           </td>
 
-                          {/* DEL PRICE */}
-
                           <td>
                             <input
                               type="number"
@@ -1276,22 +974,6 @@ const AddProductsDrawer = () => {
                               onChange={(e) => handleVariantChange(variant.id, 'delPrice', e.target.value)}
                             />
                           </td>
-
-                          {/* DISCOUNT */}
-
-                          {/* <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={variant.discount}
-                              onChange={(e) => handleVariantChange(variant.id, 'discount', e.target.value)}
-                            />
-                          </td> */}
-
-                          {/* STOCK */}
 
                           <td>
                             <input
@@ -1305,60 +987,54 @@ const AddProductsDrawer = () => {
                             />
                           </td>
 
-                          {/* IMAGE */}
+                          {/* MULTIPLE IMAGES */}
 
-                          <td
-                            style={{
-                              minWidth: 220,
-                            }}>
-                            {variant.imagePreview ? (
-                              <div className="d-flex align-items-center gap-2">
+                          <td style={{ minWidth: 260 }}>
+                            <div className="d-flex align-items-center flex-wrap gap-2">
+                              {variant.imagePreviews.map((preview, imageIndex) => (
                                 <div
+                                  key={preview}
                                   className="position-relative border rounded overflow-hidden flex-shrink-0"
-                                  style={{
-                                    width: 58,
-                                    height: 58,
-                                  }}>
+                                  style={{ width: 54, height: 54 }}>
                                   <Image
-                                    src={variant.imagePreview}
-                                    alt="Variant"
-                                    width={58}
-                                    height={58}
-                                    style={{
-                                      width: '100%',
-                                      height: '100%',
-                                      objectFit: 'cover',
-                                    }}
+                                    src={preview}
+                                    alt={`Variant ${index + 1} image ${imageIndex + 1}`}
+                                    width={54}
+                                    height={54}
+                                    unoptimized
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                   />
-                                </div>
 
-                                <div className="d-flex flex-column gap-1">
-                                  <label className="btn btn-soft-dark btn-sm mb-0" style={{ cursor: 'pointer' }}>
-                                    Change
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      hidden
-                                      onChange={(e) => handleVariantImageChange(variant.id, e.target.files?.[0] || null)}
-                                    />
-                                  </label>
-
-                                  <button type="button" className="btn btn-soft-danger btn-sm" onClick={() => removeVariantImage(variant.id)}>
-                                    Remove
+                                  <button
+                                    type="button"
+                                    disabled={createLoading}
+                                    className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 rounded-circle d-flex align-items-center justify-content-center"
+                                    style={{ width: 18, height: 18, fontSize: 12, lineHeight: 1 }}
+                                    onClick={() => removeVariantImage(variant.id, imageIndex)}>
+                                    ×
                                   </button>
                                 </div>
-                              </div>
-                            ) : (
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="form-control"
-                                onChange={(e) => handleVariantImageChange(variant.id, e.target.files?.[0] || null)}
-                              />
-                            )}
-                          </td>
+                              ))}
 
-                          {/* ACTION */}
+                              <label
+                                className="btn btn-soft-dark btn-sm mb-0 d-flex align-items-center justify-content-center"
+                                style={{
+                                  cursor: createLoading ? 'not-allowed' : 'pointer',
+                                  minHeight: 54,
+                                  minWidth: variant.imagePreviews.length === 0 ? 120 : 54,
+                                }}>
+                                {variant.imagePreviews.length === 0 ? '+ Add Images' : '+'}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  hidden
+                                  disabled={createLoading}
+                                  onChange={(e) => handleVariantImagesChange(variant.id, e)}
+                                />
+                              </label>
+                            </div>
+                          </td>
 
                           <td className="text-center">
                             <button
@@ -1386,8 +1062,6 @@ const AddProductsDrawer = () => {
 
               <div className="card-body">
                 <div className="row g-4">
-                  {/* SHORT DESCRIPTION */}
-
                   <div className="col-12">
                     <label className="form-label fw-semibold">
                       Short Description
@@ -1398,20 +1072,13 @@ const AddProductsDrawer = () => {
                       <ReactQuill
                         theme="snow"
                         value={formData.shortDescription}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            shortDescription: value,
-                          }))
-                        }
+                        onChange={(value) => setFormData((prev) => ({ ...prev, shortDescription: value }))}
                         modules={quillModules}
                         formats={quillFormats}
                         placeholder="Enter short product description..."
                       />
                     </div>
                   </div>
-
-                  {/* PRODUCT DESCRIPTION */}
 
                   <div className="col-12">
                     <label className="form-label fw-semibold">
@@ -1423,20 +1090,13 @@ const AddProductsDrawer = () => {
                       <ReactQuill
                         theme="snow"
                         value={formData.productDescription}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            productDescription: value,
-                          }))
-                        }
+                        onChange={(value) => setFormData((prev) => ({ ...prev, productDescription: value }))}
                         modules={quillModules}
                         formats={quillFormats}
                         placeholder="Enter complete product description..."
                       />
                     </div>
                   </div>
-
-                  {/* ADDITIONAL */}
 
                   <div className="col-xl-6 col-lg-6 col-md-12">
                     <label className="form-label fw-semibold">Additional Information</label>
@@ -1445,33 +1105,21 @@ const AddProductsDrawer = () => {
                       <ReactQuill
                         theme="snow"
                         value={formData.additionalInformation}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            additionalInformation: value,
-                          }))
-                        }
+                        onChange={(value) => setFormData((prev) => ({ ...prev, additionalInformation: value }))}
                         modules={quillModules}
                         formats={quillFormats}
                       />
                     </div>
                   </div>
 
-                  {/* SHIPPING */}
-
                   <div className="col-xl-6 col-lg-6 col-md-12">
-                    <label className="form-label fw-semibold">Shipping & Return Policy</label>
+                    <label className="form-label fw-semibold">Shipping &amp; Return Policy</label>
 
                     <div className="product-quill-editor">
                       <ReactQuill
                         theme="snow"
                         value={formData.shippingReturnPolicy}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            shippingReturnPolicy: value,
-                          }))
-                        }
+                        onChange={(value) => setFormData((prev) => ({ ...prev, shippingReturnPolicy: value }))}
                         modules={quillModules}
                         formats={quillFormats}
                       />
@@ -1534,9 +1182,7 @@ const AddProductsDrawer = () => {
                       <button
                         type="button"
                         className="btn btn-soft-danger w-100 d-flex align-items-center justify-content-center"
-                        style={{
-                          minHeight: 38,
-                        }}
+                        style={{ minHeight: 38 }}
                         onClick={() => removeSpecification(specification.id)}>
                         <IconifyIcon icon="solar:trash-bin-trash-broken" width={18} />
                       </button>
@@ -1549,11 +1195,7 @@ const AddProductsDrawer = () => {
 
           {/* FOOTER */}
 
-          <div
-            className="p-3 border-top bg-white d-flex justify-content-end gap-2 position-sticky bottom-0"
-            style={{
-              zIndex: 40,
-            }}>
+          <div className="p-3 border-top bg-white d-flex justify-content-end gap-2 position-sticky bottom-0" style={{ zIndex: 40 }}>
             <button
               type="button"
               className="btn btn-light px-4"
@@ -1581,8 +1223,6 @@ const AddProductsDrawer = () => {
           </div>
         </form>
       </div>
-
-      {/* CSS */}
 
       <style jsx global>{`
         .product-quill-editor .ql-toolbar.ql-snow {

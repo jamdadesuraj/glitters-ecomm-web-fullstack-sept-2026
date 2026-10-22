@@ -1,51 +1,44 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
-
+import { useMemo, useState } from 'react'
 import Image from 'next/image'
-
+import Link from 'next/link'
 import { Card, CardBody, CardFooter, CardTitle, Col, Row } from 'react-bootstrap'
-
 import Swal from 'sweetalert2'
 
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
-
 import AddProductsDrawer from './AddProductsDrawer'
-
 import { IProduct, useDeleteProductsMutation, useGetProductsQuery } from '@/store/productsApi'
-import EditProductsDrawer from './ProductsEdit'
-import ProductsDetails from './ProductsDetails'
-import Link from 'next/link'
 
 type RefValue =
   | string
   | {
       _id?: string
-
       categoryName?: string
-
       subCategoryName?: string
-
       brandName?: string
-
       materialName?: string
-
       size?: string
-
       sizeName?: string
-
       colorName?: string
-
       couponCode?: string
-
       name?: string
-
       title?: string
-
       hexCode?: string
     }
   | null
   | undefined
+
+type ApiError = {
+  data?: { message?: string }
+  message?: string
+}
+
+const getErrorMessage = (err: unknown, fallback: string): string => {
+  const e = err as ApiError | null | undefined
+
+  return e?.data?.message || e?.message || fallback
+}
 
 const getRefLabel = (value: RefValue, fallback = 'N/A') => {
   if (!value) return fallback
@@ -73,18 +66,14 @@ const Products = () => {
   const [deleteProduct] = useDeleteProductsMutation()
 
   const [search, setSearch] = useState('')
-
   const [currentPage, setCurrentPage] = useState(1)
-
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
 
   const productsPerPage = 9
 
   // =====================================================
-
   // FILTER
-
   // =====================================================
 
   const filteredProducts = useMemo(() => {
@@ -97,26 +86,16 @@ const Products = () => {
 
       const searchableText = [
         product.productName,
-
-        getRefLabel(product.category as RefValue, ''),
-
-        getRefLabel(product.subCategory as RefValue, ''),
-
-        getRefLabel(product.brand as RefValue, ''),
-
-        getRefLabel(product.material as RefValue, ''),
-
+        getRefLabel(product.category as unknown as RefValue, ''),
+        getRefLabel(product.subCategory as unknown as RefValue, ''),
+        getRefLabel(product.brand as unknown as RefValue, ''),
+        getRefLabel(product.material as unknown as RefValue, ''),
         product.section || '',
-
         product.status || '',
-
         getRefLabel(firstVariant?.size as unknown as RefValue, ''),
-
         getRefLabel(firstVariant?.color as unknown as RefValue, ''),
       ]
-
         .join(' ')
-
         .toLowerCase()
 
       return searchableText.includes(keyword)
@@ -124,9 +103,7 @@ const Products = () => {
   }, [products, search])
 
   // =====================================================
-
   // PAGINATION
-
   // =====================================================
 
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
@@ -140,9 +117,7 @@ const Products = () => {
   const currentProducts = filteredProducts.slice(startIndex, endIndex)
 
   // =====================================================
-
   // SELECT
-
   // =====================================================
 
   const isAllCurrentPageSelected = currentProducts.length > 0 && currentProducts.every((product) => selectedProducts.includes(product._id))
@@ -163,12 +138,6 @@ const Products = () => {
     })
   }
 
-  // =====================================================
-
-  // PAGINATION CHANGE
-
-  // =====================================================
-
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return
 
@@ -176,32 +145,35 @@ const Products = () => {
   }
 
   // =====================================================
-
   // PRODUCT HELPERS
-
   // =====================================================
 
-  const getProductImage = (product: IProduct) => {
+  // supports new `variant.images[]` and old single `variant.image`
+  const getProductImage = (product: IProduct): string => {
     if (product.productImages?.length) {
       return product.productImages[0]
     }
 
-    const variantWithImage = product.variants?.find((variant) => variant.image)
+    for (const variant of product.variants || []) {
+      const list = (variant as unknown as { images?: string[] }).images
 
-    return variantWithImage?.image || ''
+      if (Array.isArray(list) && list.length > 0 && list[0]) {
+        return list[0]
+      }
+
+      if (variant.image) {
+        return variant.image
+      }
+    }
+
+    return ''
   }
 
   const getPriceData = (product: IProduct) => {
     const variants = product.variants || []
 
     if (!variants.length) {
-      return {
-        price: 0,
-
-        delPrice: 0,
-
-        discount: 0,
-      }
+      return { price: 0, delPrice: 0, discount: 0 }
     }
 
     const prices = variants.map((variant) => Number(variant.price || 0)).filter((price) => price > 0)
@@ -212,9 +184,7 @@ const Products = () => {
 
     return {
       price: Number(selectedVariant?.price || 0),
-
       delPrice: Number(selectedVariant?.delPrice || 0),
-
       discount: Number(selectedVariant?.discount || 0),
     }
   }
@@ -256,25 +226,17 @@ const Products = () => {
   }
 
   // =====================================================
-
   // DELETE
-
   // =====================================================
 
   const handleDelete = async (product: IProduct) => {
     const result = await Swal.fire({
       title: 'Delete Product?',
-
       text: `Are you sure you want to delete "${product.productName}"?`,
-
       icon: 'warning',
-
       showCancelButton: true,
-
       confirmButtonText: 'Yes, delete it',
-
       cancelButtonText: 'Cancel',
-
       reverseButtons: true,
     })
 
@@ -287,50 +249,31 @@ const Products = () => {
 
       await Swal.fire({
         title: 'Deleted!',
-
         text: 'Product deleted successfully.',
-
         icon: 'success',
-
         timer: 1600,
-
         showConfirmButton: false,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       await Swal.fire({
         title: 'Delete Failed',
-
-        text: error?.data?.message || error?.message || 'Unable to delete product.',
-
+        text: getErrorMessage(error, 'Unable to delete product.'),
         icon: 'error',
       })
     }
   }
-
-  // =====================================================
-
-  // BULK DELETE
-
-  // =====================================================
 
   const handleBulkDelete = async () => {
     if (selectedProducts.length === 0) return
 
     const result = await Swal.fire({
       title: 'Delete Selected Products?',
-
       html: `You are about to delete <strong>${selectedProducts.length}</strong> selected product${selectedProducts.length > 1 ? 's' : ''}.`,
-
       icon: 'warning',
-
       showCancelButton: true,
-
       confirmButtonText: `Yes, delete ${selectedProducts.length}`,
-
       cancelButtonText: 'Cancel',
-
       reverseButtons: true,
-
       focusCancel: true,
     })
 
@@ -352,40 +295,27 @@ const Products = () => {
       if (failedCount === 0) {
         await Swal.fire({
           title: 'Deleted!',
-
           text: `${successCount} product${successCount > 1 ? 's' : ''} deleted successfully.`,
-
           icon: 'success',
-
           timer: 1800,
-
           showConfirmButton: false,
         })
       } else {
         await Swal.fire({
           title: 'Bulk Delete Completed',
-
           html: `
-
             <div class="text-start">
-
               <p class="mb-1"><strong>${successCount}</strong> deleted successfully.</p>
-
               <p class="mb-0 text-danger"><strong>${failedCount}</strong> failed to delete.</p>
-
             </div>
-
           `,
-
           icon: successCount > 0 ? 'warning' : 'error',
         })
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       await Swal.fire({
         title: 'Bulk Delete Failed',
-
-        text: error?.data?.message || error?.message || 'Unable to delete selected products.',
-
+        text: getErrorMessage(error, 'Unable to delete selected products.'),
         icon: 'error',
       })
     } finally {
@@ -394,11 +324,7 @@ const Products = () => {
   }
 
   // =====================================================
-
-  // LOADING / ERROR
-
-  // IMPORTANT: all hooks are above these returns
-
+  // LOADING / ERROR (all hooks are above these returns)
   // =====================================================
 
   if (isLoading) {
@@ -458,11 +384,7 @@ const Products = () => {
                 )}
               </button>
 
-              <div
-                className="position-relative"
-                style={{
-                  minWidth: 250,
-                }}>
+              <div className="position-relative" style={{ minWidth: 250 }}>
                 <input
                   type="search"
                   className="form-control ps-5"
@@ -471,7 +393,6 @@ const Products = () => {
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value)
-
                     setCurrentPage(1)
                   }}
                 />
@@ -501,12 +422,7 @@ const Products = () => {
                   onChange={handleSelectAll}
                 />
 
-                <label
-                  htmlFor="selectAllProducts"
-                  className="mb-0 text-muted"
-                  style={{
-                    cursor: 'pointer',
-                  }}>
+                <label htmlFor="selectAllProducts" className="mb-0 text-muted" style={{ cursor: 'pointer' }}>
                   Select all on this page
                 </label>
               </div>
@@ -567,7 +483,16 @@ const Products = () => {
                           {discount > 0 && <div className="product-discount-badge">-{discount}%</div>}
 
                           {productImage ? (
-                            <Image src={productImage} alt={product.productName} width={500} height={320} unoptimized className="product-card-image" />
+                            <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-[#f8f8f8] dark:bg-[#0d0d0d]">
+                              <Image
+                                src={productImage}
+                                alt={product.productName}
+                                fill
+                                unoptimized
+                                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                className="object-fill p-3 transition-transform duration-300 group-hover:scale-105"
+                              />
+                            </div>
                           ) : (
                             <div className="product-image-placeholder">
                               <div className="text-center">
@@ -711,7 +636,8 @@ const Products = () => {
                               <Link href={`/products/view/${product._id}`} className="btn btn-soft-info btn-sm product-action-btn">
                                 <IconifyIcon icon="solar:eye-bold-duotone" width={18} />
                               </Link>
-                              <Link href={`/products/edit/${product._id}`} className="btn btn-soft-dark btn-sm  product-action-btn">
+
+                              <Link href={`/products/edit/${product._id}`} className="btn btn-soft-dark btn-sm product-action-btn">
                                 <IconifyIcon icon="solar:pen-2-broken" />
                               </Link>
 
@@ -720,7 +646,7 @@ const Products = () => {
                                 className="btn btn-soft-danger btn-sm product-action-btn"
                                 title="Delete Product"
                                 onClick={() => handleDelete(product)}>
-                                <IconifyIcon icon="solar:trash-bin-minimalistic-2-broken" />{' '}
+                                <IconifyIcon icon="solar:trash-bin-minimalistic-2-broken" />
                               </button>
                             </div>
                           </div>
@@ -763,13 +689,7 @@ const Products = () => {
                       </button>
                     </li>
 
-                    {Array.from(
-                      {
-                        length: totalPages,
-                      },
-
-                      (_, index) => index + 1,
-                    ).map((page) => (
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
                       <li key={page} className={`page-item ${safeCurrentPage === page ? 'active' : ''}`}>
                         <button type="button" className="page-link" onClick={() => handlePageChange(page)}>
                           {page}
@@ -792,15 +712,10 @@ const Products = () => {
         <style jsx global>{`
           .product-modern-card {
             position: relative;
-
             overflow: hidden;
-
             border: 1px solid #e7ebf0;
-
             border-radius: 16px;
-
             background: #ffffff;
-
             transition:
               transform 0.2s ease,
               box-shadow 0.2s ease,
@@ -809,37 +724,27 @@ const Products = () => {
 
           .product-modern-card:hover {
             transform: translateY(-3px);
-
             border-color: #cbd5e1;
-
             box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
           }
 
           .product-card-selected {
             border-color: var(--bs-primary);
-
             box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.08);
           }
 
           .product-card-image-area {
             position: relative;
-
             width: 100%;
-
             height: 220px;
-
             overflow: hidden;
-
             background: #f7f8fa;
           }
 
           .product-card-image {
             width: 100%;
-
             height: 100%;
-
             object-fit: cover;
-
             transition: transform 0.3s ease;
           }
 
@@ -849,255 +754,164 @@ const Products = () => {
 
           .product-image-placeholder {
             width: 100%;
-
             height: 100%;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             color: #a1a9b7;
-
             background: linear-gradient(135deg, #f8fafc, #f1f4f8);
           }
 
           .product-card-checkbox {
             position: absolute;
-
             top: 13px;
-
             left: 13px;
-
             z-index: 5;
-
             width: 34px;
-
             height: 34px;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             border-radius: 9px;
-
             background: rgba(255, 255, 255, 0.94);
-
             box-shadow: 0 4px 12px rgba(15, 23, 42, 0.09);
           }
 
           .product-card-status {
             position: absolute;
-
             top: 13px;
-
             right: 13px;
-
             z-index: 5;
           }
 
           .product-discount-badge {
             position: absolute;
-
             left: 13px;
-
             bottom: 13px;
-
             z-index: 5;
-
             padding: 5px 9px;
-
             border-radius: 7px;
-
             color: #ffffff;
-
             background: #dc3545;
-
             font-size: 12px;
-
             font-weight: 700;
-
             box-shadow: 0 4px 12px rgba(220, 53, 69, 0.18);
           }
 
           .product-category-badge {
             display: inline-flex;
-
             align-items: center;
-
             padding: 4px 8px;
-
             border-radius: 6px;
-
             color: var(--bs-primary);
-
             background: rgba(var(--bs-primary-rgb), 0.08);
-
             font-size: 11px;
-
             font-weight: 600;
           }
 
           .product-card-name {
             min-height: 28px;
-
             color: #263244;
-
             font-size: 16px;
-
             line-height: 1.4;
-
             font-weight: 700;
           }
 
           .product-price-area {
             padding-bottom: 13px;
-
             border-bottom: 1px solid #edf0f4;
           }
 
           .product-current-price {
             color: #1e293b;
-
             font-size: 21px;
-
             font-weight: 700;
           }
 
           .product-old-price {
             color: #9aa4b2;
-
             font-size: 13px;
           }
 
           .product-off-text {
             color: #198754;
-
             font-size: 11px;
-
             font-weight: 700;
           }
 
           .product-detail-box {
             height: 100%;
-
             display: flex;
-
             align-items: center;
-
             gap: 8px;
-
             padding: 9px;
-
             border-radius: 9px;
-
             border: 1px solid #edf0f4;
-
             background: #fafbfc;
           }
 
           .product-detail-icon {
             width: 31px;
-
             height: 31px;
-
             min-width: 31px;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             border-radius: 7px;
-
             color: var(--bs-primary);
-
             background: rgba(var(--bs-primary-rgb), 0.08);
           }
 
           .product-detail-box span {
             display: block;
-
             color: #8b95a5;
-
             font-size: 10px;
           }
 
           .product-detail-box strong {
             display: block;
-
             overflow: hidden;
-
             color: #3b4657;
-
             font-size: 12px;
-
             font-weight: 600;
-
             white-space: nowrap;
-
             text-overflow: ellipsis;
           }
 
           .product-stock-box {
             padding: 10px;
-
             border-radius: 9px;
-
             background: #f8fafc;
-
             border: 1px solid #edf0f4;
           }
 
           .product-stock-icon {
             width: 34px;
-
             height: 34px;
-
             min-width: 34px;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             border-radius: 8px;
-
             color: var(--bs-primary);
-
             background: #ffffff;
-
             border: 1px solid #e6eaf0;
           }
 
           .product-coupon {
             display: flex;
-
             align-items: center;
-
             justify-content: space-between;
-
             gap: 10px;
-
             padding: 9px 11px;
-
             border: 1px dashed rgba(var(--bs-primary-rgb), 0.35);
-
             border-radius: 8px;
-
             color: var(--bs-primary);
-
             background: rgba(var(--bs-primary-rgb), 0.035);
           }
 
           .product-coupon strong {
             font-size: 12px;
-
             letter-spacing: 0.3px;
           }
 
@@ -1107,33 +921,21 @@ const Products = () => {
 
           .product-action-btn {
             width: 34px;
-
             height: 34px;
-
             padding: 0;
-
             display: inline-flex;
-
             align-items: center;
-
             justify-content: center;
           }
 
           .product-empty-icon {
             width: 72px;
-
             height: 72px;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             border-radius: 50%;
-
             color: var(--bs-primary);
-
             background: rgba(var(--bs-primary-rgb), 0.08);
           }
 

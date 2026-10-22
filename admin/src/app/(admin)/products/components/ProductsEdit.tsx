@@ -1,257 +1,201 @@
 'use client'
 
-import React, { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
-
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
-
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
-
 import Select, { SingleValue, StylesConfig } from 'react-select'
-
 import CreatableSelect from 'react-select/creatable'
-
 import Swal from 'sweetalert2'
 
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
-
 // @ts-ignore
-
 import 'react-quill-new/dist/quill.snow.css'
 
 import { useGetProductsByIdQuery, useUpdateProductsMutation } from '@/store/productsApi'
-
 import { useGetcategoryQuery } from '@/store/categoriesApi'
-
 import { useGetSubCategoryQuery } from '@/store/subCategoryApi'
-
 import { useGetMaterialQuery } from '@/store/materialApi'
-
 import { useGetBrandQuery } from '@/store/brandApi'
-
 import { useGetCouponQuery } from '@/store/couponApi'
-
 import { useGetSizeQuery } from '@/store/sizeApi'
-
 import { useGetColorsQuery } from '@/store/colorsApi'
-
-import Image from 'next/image'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
   ssr: false,
 })
 
 // =====================================================
-
 // TYPES
-
 // =====================================================
 
 type SelectOption = {
   value: string
-
   label: string
 }
 
 type TagOption = SelectOption
 
+type ApiItem = {
+  _id: string
+  status?: string
+  isDeleted?: boolean
+  categoryName?: string
+  subCategoryName?: string
+  materialName?: string
+  brandName?: string
+  couponCode?: string
+  couponName?: string
+  code?: string
+  colorName?: string
+  size?: string
+  sizeName?: string
+  name?: string
+  category?: string | { _id?: string } | null
+}
+
+type ApiError = {
+  data?: { message?: string }
+  error?: string
+  message?: string
+}
+
+type RefLike = string | { _id?: string } | null | undefined
+
+type VariantApi = {
+  _id?: string
+  size?: RefLike
+  color?: RefLike
+  stock?: number | string
+  price?: number | string
+  delPrice?: number | string
+  discount?: number | string
+  images?: string[]
+  image?: string
+}
+
+type SpecificationApi = {
+  specificationName?: string
+  value?: string
+}
+
+type SectionValue = '' | 'New Offers' | 'Popular Products' | 'New Arrivals'
+
+type ProductApi = {
+  _id?: string
+  productName?: string
+  category?: RefLike
+  subCategory?: RefLike
+  material?: RefLike
+  section?: string
+  brand?: RefLike
+  coupon?: RefLike
+  dealOfTheDay?: boolean
+  tags?: string[]
+  videoUrl?: string
+  productImages?: string[]
+  shortDesc?: string
+  desc?: string
+  additionalInformation?: string
+  shippingReturnPolicy?: string
+  status?: string
+  variants?: VariantApi[]
+  specifications?: SpecificationApi[]
+}
+
 type ProductFormData = {
   productName: string
-
   category: string
-
   subCategory: string
-
   material: string
-
-  section: '' | 'New Offers' | 'Popular Products' | 'New Arrivals'
-
+  section: SectionValue
   brand: string
-
   coupon: string
-
   dealOfTheDay: boolean
-
   tags: string[]
-
   videoUrl: string
-
   shortDescription: string
-
   productDescription: string
-
   additionalInformation: string
-
   shippingReturnPolicy: string
-
   status: 'active' | 'inactive'
 }
 
 type ProductVariant = {
   id: number
-
   _id?: string
-
   size: string
-
   color: string
-
   stock: string
-
   price: string
-
   delPrice: string
-
   discount: string
 
-  image: File | null
+  // images already saved on the server (can be removed)
+  existingImages: string[]
 
-  imagePreview: string
-
-  existingImage: string
+  // newly selected files + their blob previews
+  images: File[]
+  imagePreviews: string[]
 }
 
 type VariantField = 'size' | 'color' | 'stock' | 'price' | 'delPrice' | 'discount'
 
 type ProductSpecification = {
   id: number
-
   specificationName: string
-
   value: string
 }
 
 type SpecificationField = 'specificationName' | 'value'
 
+type SimpleSelectField = 'category' | 'subCategory' | 'material' | 'section' | 'brand' | 'coupon'
+
 // =====================================================
-
 // STATIC OPTIONS
-
 // =====================================================
 
 const sections: SelectOption[] = [
-  {
-    value: 'New Offers',
-
-    label: 'New Offers',
-  },
-
-  {
-    value: 'Popular Products',
-
-    label: 'Popular Products',
-  },
-
-  {
-    value: 'New Arrivals',
-
-    label: 'New Arrivals',
-  },
+  { value: 'New Offers', label: 'New Offers' },
+  { value: 'Popular Products', label: 'Popular Products' },
+  { value: 'New Arrivals', label: 'New Arrivals' },
 ]
 
 const dealOptions: SelectOption[] = [
-  {
-    value: 'true',
-
-    label: 'Yes',
-  },
-
-  {
-    value: 'false',
-
-    label: 'No',
-  },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' },
 ]
 
 const defaultTagOptions: TagOption[] = [
-  {
-    value: 'new-arrival',
-
-    label: 'New Arrival',
-  },
-
-  {
-    value: 'best-seller',
-
-    label: 'Best Seller',
-  },
-
-  {
-    value: 'trending',
-
-    label: 'Trending',
-  },
-
-  {
-    value: 'premium',
-
-    label: 'Premium',
-  },
-
-  {
-    value: 'summer',
-
-    label: 'Summer',
-  },
-
-  {
-    value: 'winter',
-
-    label: 'Winter',
-  },
+  { value: 'new-arrival', label: 'New Arrival' },
+  { value: 'best-seller', label: 'Best Seller' },
+  { value: 'trending', label: 'Trending' },
+  { value: 'premium', label: 'Premium' },
+  { value: 'summer', label: 'Summer' },
+  { value: 'winter', label: 'Winter' },
 ]
-
-// =====================================================
-
-// SELECT STYLES
-
-// =====================================================
 
 const selectStyles: StylesConfig<SelectOption, false> = {
   control: (base, state) => ({
     ...base,
-
     minHeight: '38px',
-
     borderColor: state.isFocused ? '#86b7fe' : '#dee2e6',
-
     boxShadow: state.isFocused ? '0 0 0 0.15rem rgba(13, 110, 253, 0.15)' : 'none',
-
     '&:hover': {
       borderColor: state.isFocused ? '#86b7fe' : '#dee2e6',
     },
   }),
-
-  menuPortal: (base) => ({
-    ...base,
-
-    zIndex: 99999,
-  }),
-
-  menu: (base) => ({
-    ...base,
-
-    zIndex: 99999,
-  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menu: (base) => ({ ...base, zIndex: 99999 }),
 }
-
-// =====================================================
-
-// QUILL CONFIG
-
-// =====================================================
 
 const quillModules = {
   toolbar: [
     [{ header: [1, 2, 3, false] }],
-
     ['bold', 'italic', 'underline', 'strike'],
-
     [{ list: 'ordered' }, { list: 'bullet' }],
-
     ['blockquote', 'link'],
-
     [{ align: [] }],
-
     ['clean'],
   ],
 }
@@ -259,54 +203,38 @@ const quillModules = {
 const quillFormats = ['header', 'bold', 'italic', 'underline', 'strike', 'list', 'blockquote', 'link', 'align']
 
 // =====================================================
-
 // HELPERS
-
 // =====================================================
 
 const createEmptyVariant = (): ProductVariant => ({
   id: Date.now() + Math.random(),
-
   size: '',
-
   color: '',
-
   stock: '',
-
   price: '',
-
   delPrice: '',
-
   discount: '',
-
-  image: null,
-
-  imagePreview: '',
-
-  existingImage: '',
+  existingImages: [],
+  images: [],
+  imagePreviews: [],
 })
 
 const createEmptySpecification = (): ProductSpecification => ({
   id: Date.now() + Math.random(),
-
   specificationName: '',
-
   value: '',
 })
 
 const hasRichTextContent = (value: string): boolean => {
   return (
     value
-
       .replace(/<[^>]*>/g, '')
-
       .replace(/&nbsp;/g, ' ')
-
       .trim().length > 0
   )
 }
 
-const getRefId = (value: any): string => {
+const getRefId = (value: RefLike): string => {
   if (!value) return ''
 
   if (typeof value === 'string') return value
@@ -314,7 +242,54 @@ const getRefId = (value: any): string => {
   return value._id ? String(value._id) : ''
 }
 
-const isBlobUrl = (value: string) => value.startsWith('blob:')
+const isBlobUrl = (value: string): boolean => value.startsWith('blob:')
+
+// supports new `images[]` and old single `image`
+const getVariantImages = (variant: VariantApi): string[] => {
+  if (Array.isArray(variant.images) && variant.images.length > 0) {
+    return variant.images.filter(Boolean)
+  }
+
+  return variant.image ? [variant.image] : []
+}
+
+const unwrapProduct = (response: unknown): ProductApi | null => {
+  const res = response as (ProductApi & { data?: ProductApi }) | null | undefined
+
+  return res?.data ?? res ?? null
+}
+
+// Accepts `[...]` or `{ data: [...] }`
+const toList = (data: unknown): ApiItem[] => {
+  if (Array.isArray(data)) return data as ApiItem[]
+
+  const nested = (data as { data?: unknown } | null | undefined)?.data
+
+  return Array.isArray(nested) ? (nested as ApiItem[]) : []
+}
+
+// Edit page lists inactive items too, marked "(Inactive)"
+const toOptions = (list: ApiItem[], getLabel: (item: ApiItem) => string | undefined): SelectOption[] =>
+  list
+    .filter((item) => !item.isDeleted)
+    .map((item) => {
+      const label = getLabel(item) ?? ''
+
+      return {
+        value: item._id,
+        label: item.status === 'inactive' ? `${label} (Inactive)` : label,
+      }
+    })
+
+const getErrorMessage = (err: unknown, fallback: string): string => {
+  const e = err as ApiError | null | undefined
+
+  return e?.data?.message || e?.error || e?.message || fallback
+}
+
+const getSelectedOption = (options: SelectOption[], value: string): SelectOption | null => {
+  return options.find((option) => option.value === value) ?? null
+}
 
 const ProductsEdit = () => {
   const router = useRouter()
@@ -324,16 +299,12 @@ const ProductsEdit = () => {
   const productId = params?.id || ''
 
   // =====================================================
-
   // API
-
   // =====================================================
 
   const {
     data: productResponse,
-
     isLoading: productLoading,
-
     isFetching: productFetching,
   } = useGetProductsByIdQuery(productId, {
     skip: !productId,
@@ -341,228 +312,90 @@ const ProductsEdit = () => {
 
   const [updateProduct, { isLoading: updateLoading }] = useUpdateProductsMutation()
 
-  const { data: categoryData = [], isLoading: categoryLoading } = useGetcategoryQuery()
-
-  const { data: subCategoryData = [], isLoading: subCategoryLoading } = useGetSubCategoryQuery()
-
-  const { data: materialData = [], isLoading: materialLoading } = useGetMaterialQuery()
-
-  const { data: brandData = [], isLoading: brandLoading } = useGetBrandQuery()
-
-  const { data: couponData = [], isLoading: couponLoading } = useGetCouponQuery()
-
-  const { data: sizeData = [], isLoading: sizeLoading } = useGetSizeQuery()
-
-  const { data: colorData = [], isLoading: colorLoading } = useGetColorsQuery()
+  const { data: categoryData, isLoading: categoryLoading } = useGetcategoryQuery()
+  const { data: subCategoryData, isLoading: subCategoryLoading } = useGetSubCategoryQuery()
+  const { data: materialData, isLoading: materialLoading } = useGetMaterialQuery()
+  const { data: brandData, isLoading: brandLoading } = useGetBrandQuery()
+  const { data: couponData, isLoading: couponLoading } = useGetCouponQuery()
+  const { data: sizeData, isLoading: sizeLoading } = useGetSizeQuery()
+  const { data: colorData, isLoading: colorLoading } = useGetColorsQuery()
 
   // =====================================================
-
   // STATE
-
   // =====================================================
 
   const [error, setError] = useState<string>('')
-
-  const [productImages, setProductImages] = useState<File[]>([])
-
-  const [productImagePreviews, setProductImagePreviews] = useState<string[]>([])
 
   const [existingProductImages, setExistingProductImages] = useState<string[]>([])
 
   const [formData, setFormData] = useState<ProductFormData>({
     productName: '',
-
     category: '',
-
     subCategory: '',
-
     material: '',
-
     section: '',
-
     brand: '',
-
     coupon: '',
-
     dealOfTheDay: false,
-
     tags: [],
-
     videoUrl: '',
-
     shortDescription: '',
-
     productDescription: '',
-
     additionalInformation: '',
-
     shippingReturnPolicy: '',
-
     status: 'active',
   })
 
-  const [variants, setVariants] = useState<ProductVariant[]>([createEmptyVariant()])
+  const [variants, setVariants] = useState<ProductVariant[]>(() => [createEmptyVariant()])
 
-  const [specifications, setSpecifications] = useState<ProductSpecification[]>([createEmptySpecification()])
+  const [specifications, setSpecifications] = useState<ProductSpecification[]>(() => [createEmptySpecification()])
 
   // =====================================================
-
   // DYNAMIC OPTIONS
-
   // =====================================================
 
-  const categories = useMemo<SelectOption[]>(() => {
-    return categoryData
-
-      .filter((item: any) => !item.isDeleted)
-
-      .map((item: any) => ({
-        value: item._id,
-
-        label: item.status === 'inactive' ? `${item.categoryName} (Inactive)` : item.categoryName,
-      }))
-  }, [categoryData])
+  const categories = useMemo(() => toOptions(toList(categoryData), (item) => item.categoryName), [categoryData])
 
   const subCategories = useMemo<SelectOption[]>(() => {
-    return subCategoryData
+    const filtered = toList(subCategoryData).filter((item) => {
+      if (!formData.category) {
+        return true
+      }
 
-      .filter((item: any) => {
-        if (item.isDeleted) {
-          return false
-        }
+      const categoryId = typeof item.category === 'object' ? item.category?._id : item.category
 
-        if (!formData.category) {
-          return true
-        }
+      return categoryId === formData.category
+    })
 
-        const categoryId = typeof item.category === 'object' ? item.category?._id : item.category
-
-        return categoryId === formData.category
-      })
-
-      .map((item: any) => ({
-        value: item._id,
-
-        label: item.status === 'inactive' ? `${item.subCategoryName} (Inactive)` : item.subCategoryName,
-      }))
+    return toOptions(filtered, (item) => item.subCategoryName)
   }, [subCategoryData, formData.category])
 
-  const materials = useMemo<SelectOption[]>(() => {
-    return materialData
+  const materials = useMemo(() => toOptions(toList(materialData), (item) => item.materialName || item.name), [materialData])
 
-      .filter((item: any) => !item.isDeleted)
+  const brands = useMemo(() => toOptions(toList(brandData), (item) => item.brandName || item.name), [brandData])
 
-      .map((item: any) => {
-        const label = item.materialName || item.name
+  const coupons = useMemo(() => toOptions(toList(couponData), (item) => item.couponCode || item.code || item.couponName), [couponData])
 
-        return {
-          value: item._id,
+  const sizeOptions = useMemo(() => toOptions(toList(sizeData), (item) => item.size || item.sizeName || item.name), [sizeData])
 
-          label: item.status === 'inactive' ? `${label} (Inactive)` : label,
-        }
-      })
-  }, [materialData])
-
-  const brands = useMemo<SelectOption[]>(() => {
-    return brandData
-
-      .filter((item: any) => !item.isDeleted)
-
-      .map((item: any) => {
-        const label = item.brandName || item.name
-
-        return {
-          value: item._id,
-
-          label: item.status === 'inactive' ? `${label} (Inactive)` : label,
-        }
-      })
-  }, [brandData])
-
-  const coupons = useMemo<SelectOption[]>(() => {
-    return couponData
-
-      .filter((item: any) => !item.isDeleted)
-
-      .map((item: any) => {
-        const label = item.couponCode || item.code || item.couponName
-
-        return {
-          value: item._id,
-
-          label: item.status === 'inactive' ? `${label} (Inactive)` : label,
-        }
-      })
-  }, [couponData])
-
-  const sizeOptions = useMemo<SelectOption[]>(() => {
-    return sizeData
-
-      .filter((item: any) => !item.isDeleted)
-
-      .map((item: any) => {
-        const label = item.size || item.sizeName || item.name
-
-        return {
-          value: item._id,
-
-          label: item.status === 'inactive' ? `${label} (Inactive)` : label,
-        }
-      })
-  }, [sizeData])
-
-  const colorOptions = useMemo<SelectOption[]>(() => {
-    return colorData
-
-      .filter((item: any) => !item.isDeleted)
-
-      .map((item: any) => {
-        const label = item.colorName || item.name
-
-        return {
-          value: item._id,
-
-          label: item.status === 'inactive' ? `${label} (Inactive)` : label,
-        }
-      })
-  }, [colorData])
-
-  // =====================================================
-
-  // SELECTED TAGS
-
-  // =====================================================
+  const colorOptions = useMemo(() => toOptions(toList(colorData), (item) => item.colorName || item.name), [colorData])
 
   const selectedTags = useMemo<TagOption[]>(() => {
     return formData.tags.map((tag) => {
       const found = defaultTagOptions.find((option) => option.value === tag)
 
-      return (
-        found || {
-          value: tag,
-
-          label: tag,
-        }
-      )
+      return found || { value: tag, label: tag }
     })
   }, [formData.tags])
-
-  // =====================================================
-
-  // PORTAL
-
-  // =====================================================
 
   const portalTarget = typeof document !== 'undefined' ? document.body : undefined
 
   // =====================================================
-
   // LOAD PRODUCT DATA
-
   // =====================================================
 
   useEffect(() => {
-    const product: any = (productResponse as any)?.data ?? productResponse
+    const product = unwrapProduct(productResponse)
 
     if (!product?._id) {
       return
@@ -572,88 +405,48 @@ const ProductsEdit = () => {
 
     setFormData({
       productName: product.productName || '',
-
       category: getRefId(product.category),
-
       subCategory: getRefId(product.subCategory),
-
       material: getRefId(product.material),
-
-      section: product.section || '',
-
+      section: (product.section as SectionValue | undefined) || '',
       brand: getRefId(product.brand),
-
       coupon: getRefId(product.coupon),
-
       dealOfTheDay: Boolean(product.dealOfTheDay),
-
       tags: Array.isArray(product.tags) ? product.tags : [],
-
       videoUrl: product.videoUrl || '',
-
       shortDescription: product.shortDesc || '',
-
       productDescription: product.desc || '',
-
       additionalInformation: product.additionalInformation || '',
-
       shippingReturnPolicy: product.shippingReturnPolicy || '',
-
       status: String(product.status).toLowerCase() === 'inactive' ? 'inactive' : 'active',
     })
 
-    const oldImages = Array.isArray(product.productImages) ? product.productImages.filter(Boolean) : []
+    setExistingProductImages(Array.isArray(product.productImages) ? product.productImages.filter(Boolean) : [])
 
-    setExistingProductImages(oldImages)
-
-    setProductImages([])
-
-    setProductImagePreviews((prev) => {
-      prev.forEach((url) => {
-        if (isBlobUrl(url)) {
-          URL.revokeObjectURL(url)
-        }
-      })
-
-      return []
-    })
-
-    const loadedVariants =
+    const loadedVariants: ProductVariant[] =
       Array.isArray(product.variants) && product.variants.length > 0
-        ? product.variants.map((variant: any, index: number) => ({
+        ? product.variants.map((variant, index) => ({
             id: Date.now() + index + Math.random(),
-
             _id: variant._id ? String(variant._id) : undefined,
-
             size: getRefId(variant.size),
-
             color: getRefId(variant.color),
-
             stock: String(variant.stock ?? ''),
-
             price: String(variant.price ?? ''),
-
             delPrice: String(variant.delPrice ?? ''),
-
             discount: String(variant.discount ?? ''),
-
-            image: null,
-
-            imagePreview: variant.image || '',
-
-            existingImage: variant.image || '',
+            existingImages: getVariantImages(variant),
+            images: [],
+            imagePreviews: [],
           }))
         : [createEmptyVariant()]
 
     setVariants(loadedVariants)
 
-    const loadedSpecifications =
+    const loadedSpecifications: ProductSpecification[] =
       Array.isArray(product.specifications) && product.specifications.length > 0
-        ? product.specifications.map((spec: any, index: number) => ({
+        ? product.specifications.map((spec, index) => ({
             id: Date.now() + index + Math.random(),
-
             specificationName: spec.specificationName || '',
-
             value: spec.value || '',
           }))
         : [createEmptySpecification()]
@@ -662,216 +455,104 @@ const ProductsEdit = () => {
   }, [productResponse])
 
   // =====================================================
-
-  // CLEANUP
-
-  // =====================================================
-
-  useEffect(() => {
-    return () => {
-      productImagePreviews.forEach((url) => {
-        if (isBlobUrl(url)) {
-          URL.revokeObjectURL(url)
-        }
-      })
-    }
-  }, [productImagePreviews])
-
-  // =====================================================
-
-  // GET SELECTED OPTION
-
-  // =====================================================
-
-  const getSelectedOption = (options: SelectOption[], value: string): SelectOption | null => {
-    return options.find((option) => option.value === value) ?? null
-  }
-
-  // =====================================================
-
-  // TEXT CHANGE
-
+  // FORM HANDLERS
   // =====================================================
 
   const handleTextChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
 
-    setFormData((prev) => ({
-      ...prev,
-
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  // =====================================================
-
-  // SELECT CHANGE
-
-  // =====================================================
-
-  const handleSelectChange = (field: 'category' | 'subCategory' | 'material' | 'section' | 'brand' | 'coupon', option: SingleValue<SelectOption>) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      [field]: option?.value ?? '',
-    }))
+  const handleSelectChange = (field: SimpleSelectField, option: SingleValue<SelectOption>) => {
+    setFormData((prev) => ({ ...prev, [field]: option?.value ?? '' }))
   }
-
-  // =====================================================
-
-  // CATEGORY CHANGE
-
-  // =====================================================
 
   const handleCategoryChange = (option: SingleValue<SelectOption>) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      category: option?.value ?? '',
-
-      subCategory: '',
-    }))
+    setFormData((prev) => ({ ...prev, category: option?.value ?? '', subCategory: '' }))
   }
-
-  // =====================================================
-
-  // DEAL CHANGE
-
-  // =====================================================
 
   const handleDealChange = (option: SingleValue<SelectOption>) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      dealOfTheDay: option?.value === 'true',
-    }))
+    setFormData((prev) => ({ ...prev, dealOfTheDay: option?.value === 'true' }))
   }
-
-  // =====================================================
-
-  // TAG CHANGE
-
-  // =====================================================
 
   const handleTagChange = (options: readonly TagOption[]) => {
+    setFormData((prev) => ({ ...prev, tags: options.map((option) => option.value) }))
+  }
+
+  const handleStatusToggle = () => {
     setFormData((prev) => ({
       ...prev,
-
-      tags: options.map((option) => option.value),
+      status: prev.status === 'active' ? 'inactive' : 'active',
     }))
   }
 
   // =====================================================
-
-  // PRODUCT IMAGES
-
+  // VARIANT
   // =====================================================
 
-  const handleProductImagesChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
+  const handleVariantChange = (id: number, field: VariantField, value: string) => {
+    setVariants((prev) => prev.map((variant) => (variant.id === id ? { ...variant, [field]: value } : variant)))
+  }
+
+  // Append one or many selected files to a variant
+  const handleVariantImagesChange = (id: number, e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith('image/'))
+
+    // allow selecting the same file again
+    e.target.value = ''
 
     if (!files.length) {
       return
     }
 
-    const validFiles = files.filter((file) => file.type.startsWith('image/'))
-
-    if (!validFiles.length) {
-      setError('Please select valid image files.')
-
-      return
-    }
-
-    productImagePreviews.forEach((url) => {
-      if (isBlobUrl(url)) {
-        URL.revokeObjectURL(url)
-      }
-    })
-
-    setProductImages(validFiles)
-
-    setProductImagePreviews(validFiles.map((file) => URL.createObjectURL(file)))
-
-    setError('')
-  }
-
-  const removeProductImage = (index: number) => {
-    setProductImages((prev) => prev.filter((_, i) => i !== index))
-
-    setProductImagePreviews((prev) => {
-      const target = prev[index]
-
-      if (target) {
-        URL.revokeObjectURL(target)
-      }
-
-      return prev.filter((_, i) => i !== index)
-    })
-  }
-
-  // =====================================================
-
-  // VARIANT
-
-  // =====================================================
-
-  const handleVariantChange = (id: number, field: VariantField, value: string) => {
     setVariants((prev) =>
       prev.map((variant) =>
         variant.id === id
           ? {
               ...variant,
-
-              [field]: value,
+              images: [...variant.images, ...files],
+              imagePreviews: [...variant.imagePreviews, ...files.map((file) => URL.createObjectURL(file))],
             }
           : variant,
       ),
     )
   }
 
-  const handleVariantImageChange = (id: number, file: File | null) => {
+  // Remove a NEW (not yet uploaded) image
+  const removeNewVariantImage = (id: number, imageIndex: number) => {
     setVariants((prev) =>
       prev.map((variant) => {
         if (variant.id !== id) {
           return variant
         }
 
-        if (variant.imagePreview && isBlobUrl(variant.imagePreview)) {
-          URL.revokeObjectURL(variant.imagePreview)
+        const preview = variant.imagePreviews[imageIndex]
+
+        if (preview && isBlobUrl(preview)) {
+          URL.revokeObjectURL(preview)
         }
 
         return {
           ...variant,
-
-          image: file,
-
-          imagePreview: file ? URL.createObjectURL(file) : '',
+          images: variant.images.filter((_, i) => i !== imageIndex),
+          imagePreviews: variant.imagePreviews.filter((_, i) => i !== imageIndex),
         }
       }),
     )
   }
 
-  const removeVariantImage = (id: number) => {
+  // Remove an EXISTING (already saved) image
+  const removeExistingVariantImage = (id: number, imageIndex: number) => {
     setVariants((prev) =>
-      prev.map((variant) => {
-        if (variant.id !== id) {
-          return variant
-        }
-
-        if (variant.imagePreview && isBlobUrl(variant.imagePreview)) {
-          URL.revokeObjectURL(variant.imagePreview)
-        }
-
-        return {
-          ...variant,
-
-          image: null,
-
-          imagePreview: '',
-
-          existingImage: '',
-        }
-      }),
+      prev.map((variant) =>
+        variant.id === id
+          ? {
+              ...variant,
+              existingImages: variant.existingImages.filter((_, i) => i !== imageIndex),
+            }
+          : variant,
+      ),
     )
   }
 
@@ -887,32 +568,22 @@ const ProductsEdit = () => {
     setVariants((prev) => {
       const target = prev.find((variant) => variant.id === id)
 
-      if (target?.imagePreview && isBlobUrl(target.imagePreview)) {
-        URL.revokeObjectURL(target.imagePreview)
-      }
+      target?.imagePreviews.forEach((url) => {
+        if (isBlobUrl(url)) {
+          URL.revokeObjectURL(url)
+        }
+      })
 
       return prev.filter((variant) => variant.id !== id)
     })
   }
 
   // =====================================================
-
   // SPECIFICATION
-
   // =====================================================
 
   const handleSpecificationChange = (id: number, field: SpecificationField, value: string) => {
-    setSpecifications((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-
-              [field]: value,
-            }
-          : item,
-      ),
-    )
+    setSpecifications((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
   }
 
   const addSpecification = () => {
@@ -922,29 +593,11 @@ const ProductsEdit = () => {
   const removeSpecification = (id: number) => {
     if (specifications.length === 1) {
       setSpecifications([createEmptySpecification()])
-
       return
     }
 
     setSpecifications((prev) => prev.filter((item) => item.id !== id))
   }
-
-  // =====================================================
-  // STATUS TOGGLE
-  // =====================================================
-
-  const handleStatusToggle = () => {
-    setFormData((prev) => ({
-      ...prev,
-      status: prev.status === 'active' ? 'inactive' : 'active',
-    }))
-  }
-
-  // =====================================================
-
-  // NAVIGATION
-
-  // =====================================================
 
   const handleCancel = () => {
     if (updateLoading) return
@@ -953,63 +606,51 @@ const ProductsEdit = () => {
   }
 
   // =====================================================
-
   // VALIDATION
-
   // =====================================================
 
   const validateForm = (): boolean => {
     if (!formData.productName.trim()) {
       setError('Product name is required.')
-
       return false
     }
 
     if (!formData.category) {
       setError('Category is required.')
-
       return false
     }
 
     if (!formData.section) {
       setError('Section is required.')
-
       return false
     }
 
     if (!hasRichTextContent(formData.shortDescription)) {
       setError('Short Description is required.')
-
       return false
     }
 
     if (!hasRichTextContent(formData.productDescription)) {
       setError('Product Description is required.')
-
       return false
     }
 
     if (!hasRichTextContent(formData.shippingReturnPolicy)) {
       setError('Shipping & Return Policy is required.')
-
       return false
     }
 
-    const invalidVariant = variants.some((variant) =>  !variant.color || variant.price === '' || variant.stock === '')
+    const invalidVariant = variants.some((variant) => !variant.color || variant.price === '' || variant.stock === '')
 
     if (invalidVariant) {
-      setError('Please complete  Color, Price and Stock for all variants.')
-
+      setError('Please complete Color, Price and Stock for all variants.')
       return false
     }
 
     const invalidNumber = variants.some((variant) => {
       const price = Number(variant.price)
-
       const delPrice = variant.delPrice ? Number(variant.delPrice) : 0
-
       const discount = variant.discount ? Number(variant.discount) : 0
-
       const stock = Number(variant.stock)
 
       return (
@@ -1027,7 +668,6 @@ const ProductsEdit = () => {
 
     if (invalidNumber) {
       setError('Please enter valid price, discount and stock values.')
-
       return false
     }
 
@@ -1037,9 +677,7 @@ const ProductsEdit = () => {
   }
 
   // =====================================================
-
   // SUBMIT
-
   // =====================================================
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -1047,7 +685,6 @@ const ProductsEdit = () => {
 
     if (!productId) {
       setError('Product id is missing.')
-
       return
     }
 
@@ -1058,126 +695,55 @@ const ProductsEdit = () => {
     const apiFormData = new FormData()
 
     apiFormData.append('productName', formData.productName.trim())
-
     apiFormData.append('category', formData.category)
 
-    /*
-
-
-
-      Send empty optional relation fields as empty strings
-
-
-
-      so backend can clear an existing value.
-
-
-
-    */
-
+    // Empty optional relation fields are sent as empty strings so the backend can clear them
     apiFormData.append('subCategory', formData.subCategory)
-
     apiFormData.append('material', formData.material)
-
     apiFormData.append('section', formData.section)
-
     apiFormData.append('brand', formData.brand)
-
     apiFormData.append('dealOfTheDay', String(formData.dealOfTheDay))
-
     apiFormData.append('coupon', formData.coupon)
-
     apiFormData.append('tags', JSON.stringify(formData.tags))
-
     apiFormData.append('videoUrl', formData.videoUrl.trim())
 
-    // Backend validation expects these exact top-level names.
-
     apiFormData.append('shortDesc', formData.shortDescription)
-
     apiFormData.append('desc', formData.productDescription)
-
     apiFormData.append('additionalInformation', formData.additionalInformation)
-
     apiFormData.append('shippingReturnPolicy', formData.shippingReturnPolicy)
-
     apiFormData.append('status', formData.status)
+
+    // `images` = saved images this variant should KEEP. Removed ones are left out.
     const cleanVariants = variants.map((variant) => ({
       ...(variant._id ? { _id: variant._id } : {}),
-
       size: variant.size,
-
       color: variant.color,
-
       price: Number(variant.price),
-
       delPrice: variant.delPrice !== '' ? Number(variant.delPrice) : 0,
-
       discount: variant.discount !== '' ? Number(variant.discount) : 0,
-
       stock: Number(variant.stock),
-
-      image: variant.existingImage || '',
+      images: variant.existingImages,
     }))
 
     apiFormData.append('variants', JSON.stringify(cleanVariants))
 
     const cleanSpecifications = specifications
-
       .filter((spec) => spec.specificationName.trim() || spec.value.trim())
-
       .map((spec) => ({
         specificationName: spec.specificationName.trim(),
-
         value: spec.value.trim(),
       }))
 
     apiFormData.append('specifications', JSON.stringify(cleanSpecifications))
 
-    /*
-
-
-
-      New product images replace old product images.
-
-
-
-      If no new image is selected, backend preserves old images.
-
-
-
-    */
-
-    productImages.forEach((file) => {
-      apiFormData.append('productImages', file)
-    })
-
-    /*
-
-
-
-      Send the exact variant indexes for uploaded files.
-
-
-
-      Backend should use `variantImageIndexes` to map each file
-
-
-
-      to the correct variant.
-
-
-
-    */
-
+    // New files per variant: one index per file, same order as the files.
     const variantImageIndexes: number[] = []
 
     variants.forEach((variant, index) => {
-      if (variant.image) {
+      variant.images.forEach((file) => {
         variantImageIndexes.push(index)
-
-        apiFormData.append('variantImages', variant.image)
-      }
+        apiFormData.append('variantImages', file)
+      })
     })
 
     apiFormData.append('variantImageIndexes', JSON.stringify(variantImageIndexes))
@@ -1185,42 +751,33 @@ const ProductsEdit = () => {
     try {
       await updateProduct({
         id: productId,
-
         data: apiFormData,
       }).unwrap()
 
       await Swal.fire({
         title: 'Success',
-
         text: 'Product updated successfully.',
-
         icon: 'success',
-
         timer: 1500,
-
         showConfirmButton: false,
       })
 
       router.push('/products')
-    } catch (err: any) {
-      const message = err?.data?.message || err?.error || err?.message || 'Unable to update product.'
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Unable to update product.')
 
       setError(message)
 
       await Swal.fire({
         title: 'Error',
-
         text: message,
-
         icon: 'error',
       })
     }
   }
 
   // =====================================================
-
   // UI
-
   // =====================================================
 
   if (!productId) {
@@ -1269,8 +826,6 @@ const ProductsEdit = () => {
 
               <div className="card-body">
                 <div className="row g-3">
-                  {/* PRODUCT NAME */}
-
                   <div className="col-xl-4 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">
                       Product Name
@@ -1287,8 +842,6 @@ const ProductsEdit = () => {
                       required
                     />
                   </div>
-
-                  {/* CATEGORY */}
 
                   <div className="col-xl-4 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">
@@ -1311,8 +864,6 @@ const ProductsEdit = () => {
                     />
                   </div>
 
-                  {/* SUB CATEGORY */}
-
                   <div className="col-xl-4 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Sub-Category</label>
 
@@ -1333,8 +884,6 @@ const ProductsEdit = () => {
                     />
                   </div>
 
-                  {/* MATERIAL */}
-
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Material</label>
 
@@ -1352,8 +901,6 @@ const ProductsEdit = () => {
                       menuPosition="fixed"
                     />
                   </div>
-
-                  {/* SECTION */}
 
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">
@@ -1374,8 +921,6 @@ const ProductsEdit = () => {
                     />
                   </div>
 
-                  {/* BRAND */}
-
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Brand</label>
 
@@ -1394,8 +939,6 @@ const ProductsEdit = () => {
                     />
                   </div>
 
-                  {/* DEAL */}
-
                   <div className="col-xl-3 col-lg-4 col-md-6">
                     <label className="form-label fw-semibold">Deal of the Day</label>
 
@@ -1412,9 +955,7 @@ const ProductsEdit = () => {
                     />
                   </div>
 
-                  {/* COUPON */}
-
-                  <div className="col-xl-4 col-lg-4 col-md-6">
+                  <div className="col-xl-6 col-lg-6 col-md-6">
                     <label className="form-label fw-semibold">Coupon</label>
 
                     <Select<SelectOption>
@@ -1432,9 +973,7 @@ const ProductsEdit = () => {
                     />
                   </div>
 
-                  {/* TAGS */}
-
-                  <div className="col-xl-4 col-lg-4 col-md-12">
+                  {/* <div className="col-xl-4 col-lg-4 col-md-12">
                     <label className="form-label fw-semibold">Tags</label>
 
                     <CreatableSelect<TagOption, true>
@@ -1448,11 +987,9 @@ const ProductsEdit = () => {
                       menuPortalTarget={portalTarget}
                       menuPosition="fixed"
                     />
-                  </div>
+                  </div> */}
 
-                  {/* VIDEO URL */}
-
-                  <div className="col-md-4">
+                  <div className="col-md-6">
                     <label className="form-label fw-semibold">Video URL</label>
 
                     <input
@@ -1461,90 +998,25 @@ const ProductsEdit = () => {
                       className="form-control"
                       value={formData.videoUrl}
                       onChange={handleTextChange}
-                      placeholder="https\\://www.youtube.com/watch?v=..."
+                      placeholder="https://www.youtube.com/watch?v=..."
                     />
                   </div>
 
-                  {/* PRODUCT IMAGES */}
-
-                  {/* <div className="col-md-6">
-                    <label className="form-label fw-semibold">Product Images</label>
-
-                    <input type="file" className="form-control" accept="image/*" multiple onChange={handleProductImagesChange} />
-                  </div> */}
-
-                  {productImagePreviews.length === 0 && existingProductImages.length > 0 && (
+                  {existingProductImages.length > 0 && (
                     <div className="col-12">
                       <div className="small text-muted mb-2">Current product images</div>
 
                       <div className="d-flex gap-2 flex-wrap">
-                        {existingProductImages.map((preview, index) => (
-                          <div
-                            key={`${preview}-${index}`}
-                            className="border rounded overflow-hidden"
-                            style={{
-                              width: 90,
-
-                              height: 90,
-                            }}>
+                        {existingProductImages.map((image, index) => (
+                          <div key={`${image}-${index}`} className="border rounded overflow-hidden" style={{ width: 90, height: 90 }}>
                             <Image
-                              src={preview}
+                              src={image}
                               alt={`Current product ${index + 1}`}
-                              width={50}
-                              height={50}
-                              style={{
-                                width: '100%',
-
-                                height: '100%',
-
-                                objectFit: 'cover',
-                              }}
+                              width={90}
+                              height={90}
+                              unoptimized
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="small text-muted mt-2">Selecting new product images will replace these images.</div>
-                    </div>
-                  )}
-
-                  {productImagePreviews.length > 0 && (
-                    <div className="col-12">
-                      <div className="d-flex gap-2 flex-wrap">
-                        {productImagePreviews.map((preview, index) => (
-                          <div
-                            key={preview}
-                            className="position-relative border rounded overflow-hidden"
-                            style={{
-                              width: 90,
-
-                              height: 90,
-                            }}>
-                            <Image
-                              src={preview}
-                              alt={`Product ${index + 1}`}
-                              width={50}
-                              height={50}
-                              style={{
-                                width: '100%',
-
-                                height: '100%',
-
-                                objectFit: 'cover',
-                              }}
-                            />
-
-                            <button
-                              type="button"
-                              className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 rounded-circle"
-                              style={{
-                                width: 22,
-
-                                height: 22,
-                              }}
-                              onClick={() => removeProductImage(index)}>
-                              ×
-                            </button>
                           </div>
                         ))}
                       </div>
@@ -1561,7 +1033,7 @@ const ProductsEdit = () => {
                 <div>
                   <h6 className="mb-1 fw-bold">Product Variants</h6>
 
-                  <small className="text-muted">Add multiple size, color, price, discount and stock combinations.</small>
+                  <small className="text-muted">Add multiple size, color, price, stock and image combinations.</small>
                 </div>
 
                 <button type="button" className="btn btn-primary btn-sm d-flex align-items-center gap-1" onClick={addVariant}>
@@ -1572,204 +1044,181 @@ const ProductsEdit = () => {
 
               <div className="card-body p-0">
                 <div className="table-responsive">
-                  <table
-                    className="table table-bordered align-middle mb-0"
-                    style={{
-                      minWidth: 1250,
-                    }}>
+                  <table className="table table-bordered align-middle mb-0" style={{ minWidth: 1250 }}>
                     <thead className="table-light">
                       <tr>
                         <th className="text-center">#</th>
-
                         <th>Size</th>
-
                         <th>Color</th>
-
                         <th>Price</th>
-
                         <th>Del Price</th>
-
-                        {/* <th>Discount</th> */}
-
                         <th>Stock</th>
-
-                        <th>Image</th>
-
+                        <th>Images</th>
                         <th className="text-center">Action</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {variants.map((variant, index) => (
-                        <tr key={variant.id}>
-                          <td className="text-center fw-semibold">{index + 1}</td>
+                      {variants.map((variant, index) => {
+                        const totalImages = variant.existingImages.length + variant.imagePreviews.length
 
-                          {/* SIZE */}
+                        return (
+                          <tr key={variant.id}>
+                            <td className="text-center fw-semibold">{index + 1}</td>
 
-                          <td
-                            style={{
-                              minWidth: 170,
-                            }}>
-                            <Select<SelectOption>
-                              options={sizeOptions}
-                              value={getSelectedOption(sizeOptions, variant.size)}
-                              onChange={(option) => handleVariantChange(variant.id, 'size', option?.value ?? '')}
-                              placeholder={sizeLoading ? 'Loading...' : 'Select Size'}
-                              isLoading={sizeLoading}
-                              isDisabled={sizeLoading}
-                              isSearchable
-                              isClearable
-                              styles={selectStyles}
-                              menuPortalTarget={portalTarget}
-                              menuPosition="fixed"
-                            />
-                          </td>
-
-                          {/* COLOR */}
-
-                          <td
-                            style={{
-                              minWidth: 180,
-                            }}>
-                            <Select<SelectOption>
-                              options={colorOptions}
-                              value={getSelectedOption(colorOptions, variant.color)}
-                              onChange={(option) => handleVariantChange(variant.id, 'color', option?.value ?? '')}
-                              placeholder={colorLoading ? 'Loading...' : 'Select Color'}
-                              isLoading={colorLoading}
-                              isDisabled={colorLoading}
-                              isSearchable
-                              isClearable
-                              styles={selectStyles}
-                              menuPortalTarget={portalTarget}
-                              menuPosition="fixed"
-                            />
-                          </td>
-
-                          {/* PRICE */}
-
-                          <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              min="0"
-                              step="0.01"
-                              value={variant.price}
-                              onChange={(e) => handleVariantChange(variant.id, 'price', e.target.value)}
-                              required
-                            />
-                          </td>
-
-                          {/* DEL PRICE */}
-
-                          <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              min="0"
-                              step="0.01"
-                              value={variant.delPrice}
-                              onChange={(e) => handleVariantChange(variant.id, 'delPrice', e.target.value)}
-                            />
-                          </td>
-
-                          {/* DISCOUNT */}
-
-                          {/* <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={variant.discount}
-                              onChange={(e) => handleVariantChange(variant.id, 'discount', e.target.value)}
-                            />
-                          </td> */}
-
-                          {/* STOCK */}
-
-                          <td>
-                            <input
-                              type="number"
-                              className="form-control"
-                              min="0"
-                              step="1"
-                              value={variant.stock}
-                              onChange={(e) => handleVariantChange(variant.id, 'stock', e.target.value)}
-                              required
-                            />
-                          </td>
-
-                          {/* IMAGE */}
-
-                          <td
-                            style={{
-                              minWidth: 220,
-                            }}>
-                            {variant.imagePreview ? (
-                              <div className="d-flex align-items-center gap-2">
-                                <div
-                                  className="position-relative border rounded overflow-hidden flex-shrink-0"
-                                  style={{
-                                    width: 58,
-
-                                    height: 58,
-                                  }}>
-                                  <Image
-                                    src={variant.imagePreview}
-                                    alt="Variant"
-                                    width={50}
-                                    height={50}
-                                    style={{
-                                      width: '100%',
-
-                                      height: '100%',
-
-                                      objectFit: 'cover',
-                                    }}
-                                  />
-                                </div>
-
-                                <div className="d-flex flex-column gap-1">
-                                  <label className="btn btn-soft-dark btn-sm mb-0" style={{ cursor: 'pointer' }}>
-                                    Change
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      hidden
-                                      onChange={(e) => handleVariantImageChange(variant.id, e.target.files?.[0] || null)}
-                                    />
-                                  </label>
-
-                                  <button type="button" className="btn btn-soft-danger btn-sm" onClick={() => removeVariantImage(variant.id)}>
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="form-control"
-                                onChange={(e) => handleVariantImageChange(variant.id, e.target.files?.[0] || null)}
+                            <td style={{ minWidth: 170 }}>
+                              <Select<SelectOption>
+                                options={sizeOptions}
+                                value={getSelectedOption(sizeOptions, variant.size)}
+                                onChange={(option) => handleVariantChange(variant.id, 'size', option?.value ?? '')}
+                                placeholder={sizeLoading ? 'Loading...' : 'Select Size'}
+                                isLoading={sizeLoading}
+                                isDisabled={sizeLoading}
+                                isSearchable
+                                isClearable
+                                styles={selectStyles}
+                                menuPortalTarget={portalTarget}
+                                menuPosition="fixed"
                               />
-                            )}
-                          </td>
+                            </td>
 
-                          {/* ACTION */}
+                            <td style={{ minWidth: 180 }}>
+                              <Select<SelectOption>
+                                options={colorOptions}
+                                value={getSelectedOption(colorOptions, variant.color)}
+                                onChange={(option) => handleVariantChange(variant.id, 'color', option?.value ?? '')}
+                                placeholder={colorLoading ? 'Loading...' : 'Select Color'}
+                                isLoading={colorLoading}
+                                isDisabled={colorLoading}
+                                isSearchable
+                                isClearable
+                                styles={selectStyles}
+                                menuPortalTarget={portalTarget}
+                                menuPosition="fixed"
+                              />
+                            </td>
 
-                          <td className="text-center">
-                            <button
-                              type="button"
-                              className="btn btn-soft-danger btn-sm"
-                              disabled={variants.length === 1}
-                              onClick={() => removeVariant(variant.id)}>
-                              <IconifyIcon icon="solar:trash-bin-trash-broken" width={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                value={variant.price}
+                                onChange={(e) => handleVariantChange(variant.id, 'price', e.target.value)}
+                                required
+                              />
+                            </td>
+
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                value={variant.delPrice}
+                                onChange={(e) => handleVariantChange(variant.id, 'delPrice', e.target.value)}
+                              />
+                            </td>
+
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control"
+                                min="0"
+                                step="1"
+                                value={variant.stock}
+                                onChange={(e) => handleVariantChange(variant.id, 'stock', e.target.value)}
+                                required
+                              />
+                            </td>
+
+                            {/* MULTIPLE IMAGES */}
+
+                            <td style={{ minWidth: 280 }}>
+                              <div className="d-flex align-items-center flex-wrap gap-2">
+                                {variant.existingImages.map((image, imageIndex) => (
+                                  <div
+                                    key={`old-${image}-${imageIndex}`}
+                                    className="position-relative border rounded overflow-hidden flex-shrink-0"
+                                    style={{ width: 54, height: 54 }}>
+                                    <Image
+                                      src={image}
+                                      alt={`Variant ${index + 1} saved image ${imageIndex + 1}`}
+                                      width={54}
+                                      height={54}
+                                      unoptimized
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+
+                                    <button
+                                      type="button"
+                                      disabled={updateLoading}
+                                      className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 rounded-circle d-flex align-items-center justify-content-center"
+                                      style={{ width: 18, height: 18, fontSize: 12, lineHeight: 1 }}
+                                      onClick={() => removeExistingVariantImage(variant.id, imageIndex)}>
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+
+                                {variant.imagePreviews.map((preview, imageIndex) => (
+                                  <div
+                                    key={preview}
+                                    className="position-relative border border-primary rounded overflow-hidden flex-shrink-0"
+                                    style={{ width: 54, height: 54 }}>
+                                    <Image
+                                      src={preview}
+                                      alt={`Variant ${index + 1} new image ${imageIndex + 1}`}
+                                      width={54}
+                                      height={54}
+                                      unoptimized
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+
+                                    <button
+                                      type="button"
+                                      disabled={updateLoading}
+                                      className="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 rounded-circle d-flex align-items-center justify-content-center"
+                                      style={{ width: 18, height: 18, fontSize: 12, lineHeight: 1 }}
+                                      onClick={() => removeNewVariantImage(variant.id, imageIndex)}>
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+
+                                <label
+                                  className="btn btn-soft-dark btn-sm mb-0 d-flex align-items-center justify-content-center"
+                                  style={{
+                                    cursor: updateLoading ? 'not-allowed' : 'pointer',
+                                    minHeight: 54,
+                                    minWidth: totalImages === 0 ? 120 : 54,
+                                  }}>
+                                  {totalImages === 0 ? '+ Add Images' : '+'}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    hidden
+                                    disabled={updateLoading}
+                                    onChange={(e) => handleVariantImagesChange(variant.id, e)}
+                                  />
+                                </label>
+                              </div>
+                            </td>
+
+                            <td className="text-center">
+                              <button
+                                type="button"
+                                className="btn btn-soft-danger btn-sm"
+                                disabled={variants.length === 1}
+                                onClick={() => removeVariant(variant.id)}>
+                                <IconifyIcon icon="solar:trash-bin-trash-broken" width={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1785,8 +1234,6 @@ const ProductsEdit = () => {
 
               <div className="card-body">
                 <div className="row g-4">
-                  {/* SHORT DESCRIPTION */}
-
                   <div className="col-12">
                     <label className="form-label fw-semibold">
                       Short Description
@@ -1797,21 +1244,13 @@ const ProductsEdit = () => {
                       <ReactQuill
                         theme="snow"
                         value={formData.shortDescription}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-
-                            shortDescription: value,
-                          }))
-                        }
+                        onChange={(value) => setFormData((prev) => ({ ...prev, shortDescription: value }))}
                         modules={quillModules}
                         formats={quillFormats}
                         placeholder="Enter short product description..."
                       />
                     </div>
                   </div>
-
-                  {/* PRODUCT DESCRIPTION */}
 
                   <div className="col-12">
                     <label className="form-label fw-semibold">
@@ -1823,21 +1262,13 @@ const ProductsEdit = () => {
                       <ReactQuill
                         theme="snow"
                         value={formData.productDescription}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-
-                            productDescription: value,
-                          }))
-                        }
+                        onChange={(value) => setFormData((prev) => ({ ...prev, productDescription: value }))}
                         modules={quillModules}
                         formats={quillFormats}
                         placeholder="Enter complete product description..."
                       />
                     </div>
                   </div>
-
-                  {/* ADDITIONAL */}
 
                   <div className="col-xl-6 col-lg-6 col-md-12">
                     <label className="form-label fw-semibold">Additional Information</label>
@@ -1846,35 +1277,21 @@ const ProductsEdit = () => {
                       <ReactQuill
                         theme="snow"
                         value={formData.additionalInformation}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-
-                            additionalInformation: value,
-                          }))
-                        }
+                        onChange={(value) => setFormData((prev) => ({ ...prev, additionalInformation: value }))}
                         modules={quillModules}
                         formats={quillFormats}
                       />
                     </div>
                   </div>
 
-                  {/* SHIPPING */}
-
                   <div className="col-xl-6 col-lg-6 col-md-12">
-                    <label className="form-label fw-semibold">Shipping & Return Policy</label>
+                    <label className="form-label fw-semibold">Shipping &amp; Return Policy</label>
 
                     <div className="product-quill-editor">
                       <ReactQuill
                         theme="snow"
                         value={formData.shippingReturnPolicy}
-                        onChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-
-                            shippingReturnPolicy: value,
-                          }))
-                        }
+                        onChange={(value) => setFormData((prev) => ({ ...prev, shippingReturnPolicy: value }))}
                         modules={quillModules}
                         formats={quillFormats}
                       />
@@ -1937,9 +1354,7 @@ const ProductsEdit = () => {
                       <button
                         type="button"
                         className="btn btn-soft-danger w-100 d-flex align-items-center justify-content-center"
-                        style={{
-                          minHeight: 38,
-                        }}
+                        style={{ minHeight: 38 }}
                         onClick={() => removeSpecification(specification.id)}>
                         <IconifyIcon icon="solar:trash-bin-trash-broken" width={18} />
                       </button>
@@ -1952,11 +1367,7 @@ const ProductsEdit = () => {
 
           {/* FOOTER */}
 
-          <div
-            className="p-3 border-top bg-white d-flex align-items-center justify-content-between flex-wrap gap-3"
-            style={{
-              zIndex: 40,
-            }}>
+          <div className="p-3 border-top bg-white d-flex align-items-center justify-content-between flex-wrap gap-3" style={{ zIndex: 40 }}>
             <div className="d-flex align-items-center gap-3">
               <div className="form-check form-switch mb-0">
                 <input
@@ -2015,27 +1426,20 @@ const ProductsEdit = () => {
       <style jsx global>{`
         .product-quill-editor .ql-toolbar.ql-snow {
           border-color: #dee2e6;
-
           border-radius: 8px 8px 0 0;
-
           background: #ffffff;
         }
 
         .product-quill-editor .ql-container.ql-snow {
           border-color: #dee2e6;
-
           border-radius: 0 0 8px 8px;
-
           background: #ffffff;
-
           font-size: 14px;
         }
 
         .product-quill-editor .ql-editor {
           min-height: 150px;
-
           font-size: 14px;
-
           line-height: 1.6;
         }
 
@@ -2045,7 +1449,6 @@ const ProductsEdit = () => {
 
         .product-quill-editor .ql-editor.ql-blank::before {
           color: #8c98a4;
-
           font-style: normal;
         }
       `}</style>

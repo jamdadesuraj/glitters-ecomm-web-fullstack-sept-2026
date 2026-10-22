@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -38,7 +38,8 @@ type ProductVariant = {
   delPrice?: number | string
   discount?: number | string
   stock?: number | string
-  image?: string
+  images?: string[]
+  image?: string // legacy
 }
 
 type ProductSpecification = {
@@ -71,6 +72,11 @@ type ProductDetailsData = {
   updatedAt?: string
 }
 
+type ApiError = {
+  data?: { message?: string }
+  error?: string
+}
+
 const getRefLabel = (value: RefValue, fallback = 'N/A'): string => {
   if (!value) return fallback
 
@@ -101,6 +107,15 @@ const formatPrice = (value?: number | string): string => {
   })
 }
 
+// supports new `images[]` and old single `image`
+const getVariantImages = (variant: ProductVariant): string[] => {
+  if (Array.isArray(variant.images) && variant.images.length > 0) {
+    return variant.images.filter(Boolean)
+  }
+
+  return variant.image ? [variant.image] : []
+}
+
 const renderHtml = (html?: string) => {
   if (!html) {
     return <p className="text-muted mb-0">No information available.</p>
@@ -123,6 +138,8 @@ const ProductsDetails = () => {
 
   const productId = typeof params?.id === 'string' ? params.id : ''
 
+  const [selectedImage, setSelectedImage] = useState<string>('')
+
   const {
     data: productResponse,
     isLoading,
@@ -138,22 +155,25 @@ const ProductsDetails = () => {
       return null
     }
 
-    return ((productResponse as any)?.data ?? productResponse) as ProductDetailsData
+    const res = productResponse as (ProductDetailsData & { data?: ProductDetailsData }) | undefined
+
+    return res?.data ?? res ?? null
   }, [productResponse])
 
-  const mainImage = useMemo(() => {
+  // Gallery: product images first, then every variant image (no duplicates)
+  const galleryImages = useMemo<string[]>(() => {
     if (!product) {
-      return ''
+      return []
     }
 
-    if (Array.isArray(product.productImages) && product.productImages.length > 0) {
-      return product.productImages[0]
-    }
+    const productImages = Array.isArray(product.productImages) ? product.productImages.filter(Boolean) : []
 
-    const variantWithImage = product.variants?.find((variant) => variant.image)
+    const variantImages = (product.variants || []).flatMap((variant) => getVariantImages(variant))
 
-    return variantWithImage?.image || ''
+    return Array.from(new Set([...productImages, ...variantImages]))
   }, [product])
+
+  const mainImage = selectedImage && galleryImages.includes(selectedImage) ? selectedImage : galleryImages[0] || ''
 
   const totalStock = useMemo(() => {
     return (product?.variants || []).reduce((total, variant) => total + Number(variant.stock || 0), 0)
@@ -180,7 +200,7 @@ const ProductsDetails = () => {
   }
 
   if (isError) {
-    const apiError = error as any
+    const apiError = error as ApiError | undefined
 
     return <div className="alert alert-danger">{apiError?.data?.message || apiError?.error || 'Unable to load product details.'}</div>
   }
@@ -236,12 +256,16 @@ const ProductsDetails = () => {
                 )}
               </div>
 
-              {product.productImages && product.productImages.length > 1 && (
+              {galleryImages.length > 1 && (
                 <div className="d-flex gap-2 flex-wrap">
-                  {product.productImages.map((image, index) => (
-                    <div key={`${image}-${index}`} className="product-details-thumb">
+                  {galleryImages.map((image, index) => (
+                    <button
+                      type="button"
+                      key={`${image}-${index}`}
+                      className={`product-details-thumb p-0 bg-transparent ${image === mainImage ? 'product-details-thumb-active' : ''}`}
+                      onClick={() => setSelectedImage(image)}>
                       <Image src={image} alt={`Product ${index + 1}`} width={80} height={80} unoptimized className="w-100 h-100 object-fit-cover" />
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -376,7 +400,7 @@ const ProductsDetails = () => {
                   <thead className="table-light">
                     <tr>
                       <th>#</th>
-                      <th>Image</th>
+                      <th>Images</th>
                       <th>Size</th>
                       <th>Color</th>
                       <th>Price</th>
@@ -388,58 +412,74 @@ const ProductsDetails = () => {
 
                   <tbody>
                     {product.variants && product.variants.length > 0 ? (
-                      product.variants.map((variant, index) => (
-                        <tr key={variant._id || index}>
-                          <td>{index + 1}</td>
+                      product.variants.map((variant, index) => {
+                        const variantImages = getVariantImages(variant)
 
-                          <td>
-                            {variant.image ? (
-                              <Image
-                                src={variant.image}
-                                alt="Variant"
-                                width={55}
-                                height={55}
-                                unoptimized
-                                className="rounded border object-fit-cover"
-                              />
-                            ) : (
-                              <span className="text-muted">N/A</span>
-                            )}
-                          </td>
+                        return (
+                          <tr key={variant._id || index}>
+                            <td>{index + 1}</td>
 
-                          <td>{getRefLabel(variant.size)}</td>
-
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              {typeof variant.color === 'object' && variant.color?.hexCode && (
-                                <span
-                                  className="variant-color-dot"
-                                  style={{
-                                    background: variant.color.hexCode,
-                                  }}
-                                />
+                            <td style={{ minWidth: 200 }}>
+                              {variantImages.length > 0 ? (
+                                <div className="d-flex gap-2 flex-wrap">
+                                  {variantImages.map((image, imageIndex) => (
+                                    <button
+                                      type="button"
+                                      key={`${image}-${imageIndex}`}
+                                      className="p-0 border-0 bg-transparent"
+                                      title="Show in gallery"
+                                      onClick={() => setSelectedImage(image)}>
+                                      <Image
+                                        src={image}
+                                        alt={`Variant ${index + 1} image ${imageIndex + 1}`}
+                                        width={55}
+                                        height={55}
+                                        unoptimized
+                                        className="rounded border object-fit-cover"
+                                        style={{ width: 55, height: 55 }}
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted">N/A</span>
                               )}
+                            </td>
 
-                              {getRefLabel(variant.color)}
-                            </div>
-                          </td>
+                            <td>{getRefLabel(variant.size)}</td>
 
-                          <td>₹{formatPrice(variant.price)}</td>
+                            <td>
+                              <div className="d-flex align-items-center gap-2">
+                                {typeof variant.color === 'object' && variant.color?.hexCode && (
+                                  <span
+                                    className="variant-color-dot"
+                                    style={{
+                                      background: variant.color.hexCode,
+                                    }}
+                                  />
+                                )}
 
-                          <td>₹{formatPrice(variant.delPrice)}</td>
+                                {getRefLabel(variant.color)}
+                              </div>
+                            </td>
 
-                          <td>{Number(variant.discount || 0)}%</td>
+                            <td>₹{formatPrice(variant.price)}</td>
 
-                          <td>
-                            <span
-                              className={`badge ${
-                                Number(variant.stock || 0) > 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'
-                              }`}>
-                              {Number(variant.stock || 0)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
+                            <td>₹{formatPrice(variant.delPrice)}</td>
+
+                            <td>{Number(variant.discount || 0)}%</td>
+
+                            <td>
+                              <span
+                                className={`badge ${
+                                  Number(variant.stock || 0) > 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'
+                                }`}>
+                                {Number(variant.stock || 0)}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })
                     ) : (
                       <tr>
                         <td colSpan={8} className="text-center py-4 text-muted">
@@ -546,7 +586,12 @@ const ProductsDetails = () => {
           height: 70px;
           overflow: hidden;
           border-radius: 8px;
-          border: 1px solid #e5e7eb;
+          border: 2px solid #e5e7eb;
+          cursor: pointer;
+        }
+
+        .product-details-thumb-active {
+          border-color: var(--bs-primary);
         }
 
         .product-info-box {

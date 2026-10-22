@@ -53,35 +53,45 @@ const cleanObjectId = (value: unknown): string | undefined => {
   return id;
 };
 
-// Maps each uploaded file to the variant it belongs to
-const createVariantImageResolver = (req: Request) => {
+const cleanImageList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter(
+        (item): item is string => typeof item === "string" && item.trim() !== "",
+      )
+    : [];
+
+// Returns, for a variant index, ALL uploaded files that belong to it.
+// The admin form sends `variantImages` (files) and `variantImageIndexes`
+// (one variant index per file, same order), e.g. [0, 0, 1, 2, 2, 2].
+const createVariantImagesResolver = (req: Request) => {
   const files = (req.files || {}) as {
     [fieldname: string]: Express.Multer.File[];
   };
 
   const uploadedImages = files.variantImages?.map((file) => file.path) ?? [];
 
-  // Sent by the admin form: variant index for each uploaded file
   const hasIndexes = req.body.variantImageIndexes !== undefined;
   const imageIndexes = parseJsonField<number[]>(
     req.body.variantImageIndexes,
     [],
   );
 
-  return (variantIndex: number): string => {
-    // Old clients that don't send indexes: keep the previous behaviour
-    if (!hasIndexes) return uploadedImages[variantIndex] || "";
+  return (variantIndex: number): string[] => {
+    // Old clients without indexes: one file per variant, by position
+    if (!hasIndexes) {
+      return uploadedImages[variantIndex] ? [uploadedImages[variantIndex]] : [];
+    }
 
-    const fileIndex = imageIndexes.findIndex((i) => Number(i) === variantIndex);
-
-    return fileIndex >= 0 ? uploadedImages[fileIndex] || "" : "";
+    return uploadedImages.filter(
+      (_, fileIndex) => Number(imageIndexes[fileIndex]) === variantIndex,
+    );
   };
 };
 
 // Builds clean variants. `existingVariants` is only passed on update.
 const prepareVariants = (
   variants: VariantInput[],
-  getUploadedImage: (index: number) => string,
+  getUploadedImages: (index: number) => string[],
   existingVariants: VariantInput[] = [],
 ) =>
   variants.map((variant, index) => {
@@ -91,22 +101,44 @@ const prepareVariants = (
         )
       : undefined;
 
+    // Images already saved on this variant (supports legacy single `image`)
+    const existingImages: string[] = existing
+      ? cleanImageList(Array.from(existing.images ?? [])).length
+        ? cleanImageList(Array.from(existing.images ?? []))
+        : existing.image
+          ? [existing.image]
+          : []
+      : [];
+
+    // Images the client wants to KEEP.
+    // - `images` sent (even empty) => use it, so removed images are dropped
+    // - only legacy `image` sent    => use that
+    // - nothing sent                => keep what is already stored
+    let keptImages: string[];
+
+    if (Array.isArray(variant.images)) {
+      keptImages = cleanImageList(variant.images);
+    } else if ("image" in variant) {
+      keptImages =
+        typeof variant.image === "string" && variant.image ? [variant.image] : [];
+    } else {
+      keptImages = existingImages;
+    }
+
+    const images = [...keptImages, ...getUploadedImages(index)];
+
     const prepared: Record<string, unknown> = {
       price: parseNumber(variant.price, Number(existing?.price ?? 0)),
       delPrice: parseNumber(variant.delPrice, Number(existing?.delPrice ?? 0)),
       discount: parseNumber(variant.discount, Number(existing?.discount ?? 0)),
       stock: parseNumber(variant.stock, Number(existing?.stock ?? 0)),
-      image:
-        getUploadedImage(index) ||
-        (typeof variant.image === "string" ? variant.image : "") ||
-        existing?.image ||
-        "",
+      images,
+      image: images[0] || "", // legacy mirror
     };
 
     if (variant._id) prepared._id = variant._id;
 
-    // Size and color are optional.
-    // If the key is sent, use it (empty clears it); if not sent, keep the existing one.
+    // Size and color: if the key is sent, use it (empty clears); else keep existing.
     const size = cleanObjectId("size" in variant ? variant.size : existing?.size);
     if (size) prepared.size = size;
 
@@ -159,7 +191,7 @@ export const createProduct = async (
       coupon: req.body.coupon || undefined,
       tags,
       videoUrl: req.body.videoUrl || "",
-      variants: prepareVariants(variants, createVariantImageResolver(req)),
+      variants: prepareVariants(variants, createVariantImagesResolver(req)),
       shortDesc: req.body.shortDesc,
       desc: req.body.desc,
       additionalInformation: req.body.additionalInformation || "",
@@ -254,9 +286,11 @@ export const updateProduct = async (
       return next(new appError("Product not found", 404));
     }
 
+    const existingVariants = (existingProduct.variants as unknown as VariantInput[]) || [];
+
     const variants = parseJsonField<VariantInput[]>(
       req.body.variants,
-      (existingProduct.variants as unknown as VariantInput[]) || [],
+      existingVariants,
     );
 
     const specifications = parseJsonField<any[]>(
@@ -269,8 +303,7 @@ export const updateProduct = async (
       existingProduct.tags || [],
     );
 
-    // Use the new value when the field is sent, otherwise keep the existing one.
-    // Empty values clear optional fields.
+    // New value when sent, otherwise keep existing. Empty values clear optional fields.
     const optionalField = (value: unknown, current: unknown) =>
       value !== undefined ? value || undefined : current;
 
@@ -296,8 +329,8 @@ export const updateProduct = async (
           : existingProduct.videoUrl,
       variants: prepareVariants(
         variants,
-        createVariantImageResolver(req),
-        (existingProduct.variants as unknown as VariantInput[]) || [],
+        createVariantImagesResolver(req),
+        existingVariants,
       ),
       shortDesc: req.body.shortDesc ?? existingProduct.shortDesc,
       desc: req.body.desc ?? existingProduct.desc,

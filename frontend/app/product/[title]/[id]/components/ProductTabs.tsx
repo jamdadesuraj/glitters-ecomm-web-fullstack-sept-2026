@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "react-toastify"; // ADDED
+import { toast } from "react-toastify";
 import ThemeBtnOne from "../../../../components/ThemeBtnOne";
 import {
   IReviewItem,
   useAddReviewMutation,
   useGetMyReviewQuery,
   useGetProductReviewsQuery,
-} from "../../../../../store/reviewApi"; // ADDED
-import { useGetMeQuery } from "../../../../../store/authApi"; // ADDED
-import { useAuthUser } from "../../../../../hooks/useAuthUser"; // ADDED
-import { openAccountMenu } from "../../../../../lib/authPopover"; // ADDED
+} from "../../../../../store/reviewApi";
+import { useGetMeQuery } from "../../../../../store/authApi";
+import { useAuthUser } from "../../../../../hooks/useAuthUser";
+import { openAccountMenu } from "../../../../../lib/authPopover";
 import {
   FiCheckCircle,
   FiEdit3,
@@ -20,6 +20,7 @@ import {
   FiStar,
   FiThumbsUp,
   FiTrash2,
+  FiVideo,
   FiX,
 } from "react-icons/fi";
 
@@ -29,10 +30,12 @@ import {
 
 type ApiProduct = {
   _id?: string;
+  productName?: string; // VIDEO TAB (used for the iframe title)
   desc?: string;
   additionalInformation?: string;
   shippingReturnPolicy?: string;
   specifications?: unknown;
+  videoUrl?: string; // VIDEO TAB
 };
 
 type ProductTabsProps = {
@@ -44,6 +47,7 @@ type TabId =
   | "specifications"
   | "additional"
   | "shipping"
+  | "video" // VIDEO TAB
   | "reviews";
 
 type Tab = { id: TabId; label: string; count?: number };
@@ -59,7 +63,8 @@ type Review = {
   comment: string;
   verified: boolean;
   helpful: number;
-  image: string; // ADDED
+  image: string;
+  video: string;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -163,7 +168,16 @@ const formatDate = (iso?: string) => {
   });
 };
 
-// CHANGED: maps reviews coming from GET /product-reviews/product/:id
+// VIDEO TAB: supports watch?v=, youtu.be/, /embed/, /shorts/, /live/
+const getYouTubeId = (url: string): string | null => {
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/,
+  );
+
+  return match ? match[1] : null;
+};
+
+// Maps reviews coming from GET /product-reviews/product/:id
 const toReviews = (reviews: IReviewItem[] = []): Review[] =>
   reviews.map((r) => ({
     id: r._id,
@@ -175,11 +189,16 @@ const toReviews = (reviews: IReviewItem[] = []): Review[] =>
     verified: Boolean(r.isVerified),
     helpful: r.helpfulCount ?? 0,
     image: r.image ?? "",
+    video: r.video ?? "",
   }));
 
-// ADDED: review photo rules (also enforced by the backend)
+// Review photo rules (also enforced by the backend)
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+
+// Review video rules (also enforced by the backend)
+const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30 MB
+const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 
 const getInitials = (name: string) =>
   name
@@ -207,21 +226,35 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // ADDED: optional review photo
+  // Optional review photo
   const [reviewImage, setReviewImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
   const [imageKey, setImageKey] = useState(0); // resets the file input
 
-  // ADDED: free the preview URL when it changes / on unmount
+  // Optional review video
+  const [reviewVideo, setReviewVideo] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState("");
+  const [videoKey, setVideoKey] = useState(0); // resets the file input
+
+  // Free the preview URL when it changes / on unmount
   useEffect(() => {
     return () => {
       if (imagePreview) URL.revokeObjectURL(imagePreview);
     };
   }, [imagePreview]);
 
+  useEffect(() => {
+    return () => {
+      if (videoPreview) URL.revokeObjectURL(videoPreview);
+    };
+  }, [videoPreview]);
+
   const specs = useMemo(() => toSpecs(product?.specifications), [product]);
 
-  /* ----- ADDED: reviews from the backend ----- */
+  // VIDEO TAB: the tab is only shown when a videoUrl exists
+  const videoUrl = product?.videoUrl?.trim() ?? "";
+
+  /* ----- reviews from the backend ----- */
   const productId = product?._id;
 
   const { user } = useAuthUser();
@@ -276,9 +309,14 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
       list.push({ id: "shipping", label: "Shipping & Return" });
     }
 
+    // VIDEO TAB
+    if (videoUrl) {
+      list.push({ id: "video", label: "Video" });
+    }
+
     list.push({ id: "reviews", label: "Reviews", count: totalReviews });
     return list;
-  }, [product, totalReviews]);
+  }, [product, totalReviews, videoUrl]);
 
   const currentTab = tabs.some((t) => t.id === activeTab)
     ? activeTab
@@ -312,7 +350,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
     setReviewForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ADDED: login / duplicate checks + pre-fill before opening the modal
+  // Login / duplicate checks + pre-fill before opening the modal
   const handleWriteReviewClick = () => {
     if (!user) {
       toast.info("Please login to write a review");
@@ -333,7 +371,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
     setShowReviewModal(true);
   };
 
-  // ADDED: pick a photo (type + size checked here, and again on the server)
+  // Pick a photo (type + size checked here, and again on the server)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -360,6 +398,33 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
     setImageKey((k) => k + 1);
   };
 
+  // Pick a video (type + size checked here, and again on the server)
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!VIDEO_TYPES.includes(file.type)) {
+      toast.error("Please choose an MP4, WEBM or MOV video.");
+      setVideoKey((k) => k + 1);
+      return;
+    }
+
+    if (file.size > MAX_VIDEO_SIZE) {
+      toast.error("Video must be 30MB or smaller.");
+      setVideoKey((k) => k + 1);
+      return;
+    }
+
+    setReviewVideo(file);
+    setVideoPreview(URL.createObjectURL(file));
+  };
+
+  const removeVideo = () => {
+    setReviewVideo(null);
+    setVideoPreview("");
+    setVideoKey((k) => k + 1);
+  };
+
   const closeModal = () => {
     setShowReviewModal(false);
     setSubmitError("");
@@ -373,7 +438,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
     setSubmitError("");
 
     try {
-      // CHANGED: multipart form so the optional photo can be sent
+      // Multipart form so the optional photo / video can be sent
       const formData = new FormData();
       formData.append("name", reviewForm.name);
       formData.append("email", reviewForm.email);
@@ -381,6 +446,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
       formData.append("reviewTitle", reviewForm.title);
       formData.append("review", reviewForm.review);
       if (reviewImage) formData.append("image", reviewImage);
+      if (reviewVideo) formData.append("video", reviewVideo);
 
       const result = await addReview({
         productId: product._id ?? "",
@@ -392,6 +458,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
       setReviewForm(EMPTY_FORM);
       setReviewRating(0);
       removeImage();
+      removeVideo();
       setShowReviewModal(false);
     } catch (error) {
       const err = error as { data?: { message?: string } };
@@ -504,6 +571,20 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
           {currentTab === "shipping" && (
             <Section eyebrow="Delivery" title="Shipping & Return Policy">
               <RichText html={product.shippingReturnPolicy!} />
+            </Section>
+          )}
+
+          {/* VIDEO TAB */}
+          {currentTab === "video" && videoUrl && (
+            <Section
+              eyebrow="Watch"
+              title="Product Video"
+              subtitle="See this product in action."
+            >
+              <ProductVideo
+                url={videoUrl}
+                title={product.productName ?? "Product video"}
+              />
             </Section>
           )}
 
@@ -677,7 +758,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
                 />
               </Field>
 
-              {/* ADDED: optional photo */}
+              {/* Optional photo */}
               <Field label="Add a Photo (optional)">
                 {imagePreview ? (
                   <div className="relative inline-block">
@@ -715,6 +796,48 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/avif"
                   onChange={handleImageChange}
+                  className="hidden"
+                />
+              </Field>
+
+              {/* Optional video */}
+              <Field label="Add a Video (optional)">
+                {videoPreview ? (
+                  <div className="relative inline-block">
+                    <video
+                      src={videoPreview}
+                      controls
+                      preload="metadata"
+                      className="h-40 w-full max-w-70 rounded-xl border border-gray-200 bg-black object-contain dark:border-white/10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={removeVideo}
+                      aria-label="Remove video"
+                      className="absolute -right-2 -top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600"
+                    >
+                      <FiTrash2 size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="review-video"
+                    className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-gray-500 transition hover:border-[#d5ae00] hover:text-[#a58200] dark:border-white/15 dark:bg-[#0c0c0c] dark:text-gray-400"
+                  >
+                    <FiVideo size={20} />
+                    <span className="text-xs font-bold">
+                      Click to upload (MP4, WEBM, MOV · max 30MB)
+                    </span>
+                  </label>
+                )}
+
+                <input
+                  key={videoKey}
+                  id="review-video"
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  onChange={handleVideoChange}
                   className="hidden"
                 />
               </Field>
@@ -803,6 +926,39 @@ const Section = ({
     {children}
   </div>
 );
+
+/**
+ * VIDEO TAB: YouTube links play in an embedded player,
+ * any other URL (e.g. an .mp4 file) plays in a normal <video> player.
+ */
+const ProductVideo = ({ url, title }: { url: string; title: string }) => {
+  const youTubeId = getYouTubeId(url);
+
+  return (
+    <div className="mx-auto w-full max-w-250 overflow-hidden rounded-2xl border border-gray-200 bg-black dark:border-white/10">
+      {youTubeId ? (
+        <div className="relative aspect-video w-full">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${youTubeId}?rel=0`}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            loading="lazy"
+            className="absolute inset-0 h-full w-full border-0"
+          />
+        </div>
+      ) : (
+        <video
+          src={url}
+          controls
+          playsInline
+          preload="metadata"
+          className="aspect-video w-full bg-black object-contain"
+        />
+      )}
+    </div>
+  );
+};
 
 /**
  * Renders HTML saved by your admin editor.
@@ -946,22 +1102,36 @@ const ReviewCard = ({ review }: { review: Review }) => (
       </p>
     )}
 
-    {/* ADDED: photo uploaded with the review */}
-    {review.image && (
-      <a
-        href={review.image}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-3 inline-block overflow-hidden rounded-xl border border-gray-200 dark:border-white/10"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={review.image}
-          alt={`Photo from ${review.name}`}
-          loading="lazy"
-          className="h-24 w-24 object-cover transition hover:scale-105"
-        />
-      </a>
+    {/* Photo + video uploaded with the review */}
+    {(review.image || review.video) && (
+      <div className="mt-3 flex flex-wrap items-start gap-3">
+        {review.image && (
+          <a
+            href={review.image}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block overflow-hidden rounded-xl border border-gray-200 dark:border-white/10"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={review.image}
+              alt={`Photo from ${review.name}`}
+              loading="lazy"
+              className="h-24 w-24 object-cover transition hover:scale-105"
+            />
+          </a>
+        )}
+
+        {review.video && (
+          <video
+            src={review.video}
+            controls
+            preload="metadata"
+            playsInline
+            className="h-40 w-full max-w-70 rounded-xl border border-gray-200 bg-black object-contain dark:border-white/10"
+          />
+        )}
+      </div>
     )}
 
     <div className="mt-4 flex gap-4 border-t border-gray-100 pt-4 dark:border-white/10">

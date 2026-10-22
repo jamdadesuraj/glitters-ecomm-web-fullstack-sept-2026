@@ -41,6 +41,13 @@ const productVariantSchema = new Schema(
       min: 0,
     },
 
+    // Multiple images per variant
+    images: {
+      type: [String],
+      default: [],
+    },
+
+    // Legacy single image. Kept in sync with images[0].
     image: {
       type: String,
       trim: true,
@@ -79,42 +86,17 @@ const productReviewSchema = new Schema(
       default: null,
     },
 
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    name: { type: String, required: true, trim: true },
 
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-    },
+    email: { type: String, required: true, trim: true, lowercase: true },
 
-    rating: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 5,
-    },
+    rating: { type: Number, required: true, min: 1, max: 5 },
 
-    reviewTitle: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    reviewTitle: { type: String, required: true, trim: true },
 
-    review: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    review: { type: String, required: true, trim: true },
 
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
+    isVerified: { type: Boolean, default: false },
 
     status: {
       type: String,
@@ -122,11 +104,7 @@ const productReviewSchema = new Schema(
       default: "pending",
     },
 
-    helpfulCount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
+    helpfulCount: { type: Number, default: 0, min: 0 },
   },
   {
     timestamps: true,
@@ -135,11 +113,7 @@ const productReviewSchema = new Schema(
 
 const productSchema: Schema<IProducts> = new Schema(
   {
-    productName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    productName: { type: String, required: true, trim: true },
 
     category: {
       type: Schema.Types.ObjectId,
@@ -171,10 +145,7 @@ const productSchema: Schema<IProducts> = new Schema(
       default: null,
     },
 
-    dealOfTheDay: {
-      type: Boolean,
-      default: false,
-    },
+    dealOfTheDay: { type: Boolean, default: false },
 
     coupon: {
       type: Schema.Types.ObjectId,
@@ -182,16 +153,9 @@ const productSchema: Schema<IProducts> = new Schema(
       default: null,
     },
 
-    tags: {
-      type: [String],
-      default: [],
-    },
+    tags: { type: [String], default: [] },
 
-    videoUrl: {
-      type: String,
-      trim: true,
-      default: "",
-    },
+    videoUrl: { type: String, trim: true, default: "" },
 
     variants: {
       type: [productVariantSchema],
@@ -199,39 +163,17 @@ const productSchema: Schema<IProducts> = new Schema(
       default: [],
     },
 
-    shortDesc: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    shortDesc: { type: String, required: true, trim: true },
 
-    desc: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    desc: { type: String, required: true, trim: true },
 
-    additionalInformation: {
-      type: String,
-      trim: true,
-      default: "",
-    },
+    additionalInformation: { type: String, trim: true, default: "" },
 
-    shippingReturnPolicy: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    shippingReturnPolicy: { type: String, required: true, trim: true },
 
-    specifications: {
-      type: [productSpecificationSchema],
-      default: [],
-    },
+    specifications: { type: [productSpecificationSchema], default: [] },
 
-    reviews: {
-      type: [productReviewSchema],
-      default: [],
-    },
+    reviews: { type: [productReviewSchema], default: [] },
 
     status: {
       type: String,
@@ -239,10 +181,7 @@ const productSchema: Schema<IProducts> = new Schema(
       default: "active",
     },
 
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    isDeleted: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -267,9 +206,7 @@ const productSchema: Schema<IProducts> = new Schema(
   },
 );
 
-productSchema.index({
-  productName: "text",
-});
+productSchema.index({ productName: "text" });
 
 productSchema.index({
   category: 1,
@@ -278,16 +215,10 @@ productSchema.index({
   isDeleted: 1,
 });
 
-productSchema.index({
-  brand: 1,
-});
+productSchema.index({ brand: 1 });
 
-productSchema.index({
-  section: 1,
-});
+productSchema.index({ section: 1 });
 
-productSchema.index({
-  dealOfTheDay: 1,
-});
+productSchema.index({ dealOfTheDay: 1 });
 
 export const Product = mongoose.model<IProducts>("Product", productSchema);
