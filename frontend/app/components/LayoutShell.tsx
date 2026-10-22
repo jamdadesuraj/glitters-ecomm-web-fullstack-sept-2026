@@ -7,6 +7,7 @@ import TopHeader from "./TopHeader";
 import Header from "./Header";
 import MenuHeader from "./MenuHeader";
 import Footer from "./Footer";
+import MobileBottomNav from "./MobileBottomNav";
 
 interface LayoutShellProps {
   children: React.ReactNode;
@@ -31,6 +32,7 @@ const LayoutShell = ({ children }: LayoutShellProps) => {
       <main className="flex-1">{children}</main>
 
       {!hideLayout && <Footer />}
+      <MobileBottomNav/>
     </>
   );
 };
