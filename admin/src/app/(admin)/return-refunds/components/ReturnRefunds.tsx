@@ -1,41 +1,27 @@
 'use client'
 
-import React, { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
-
+import React, { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Card, CardBody, CardHeader, CardTitle, Col, Row } from 'react-bootstrap'
-
 import { toast } from 'react-toastify'
 
 import { useCreateReturnRefundMutation, useGetReturnRefundQuery, useUpdateReturnRefundMutation } from '@/store/returnRefundApi'
 
 // =====================================================
 // TYPES
+// UI uses `description` / `step`; backend uses `desc` / `stepNo`.
 // =====================================================
 
-type FeatureItem = {
-  title: string
-  description: string
-}
+type FeatureItem = { icon?: string; title: string; description: string }
+type ReturnStepItem = { icon?: string; step: string; title: string; description: string }
+type RefundTimelineItem = { stepNo?: string; title: string; description: string }
 
-type ReturnStepItem = {
-  step: string
-  title: string
-  description: string
-}
-
-type RefundTimelineItem = {
-  title: string
-  description: string
-}
-
-type ReturnRefundFormData = {
+type FormData = {
   badgeTitle: string
   title: string
   shortDesc: string
 
   startReturnBtnText: string
   startReturnBtnUrl: string
-
   contactSupportBtnText: string
   contactSupportBtnUrl: string
 
@@ -43,7 +29,6 @@ type ReturnRefundFormData = {
 
   howItWorksTitle: string
   howItWorksDesc: string
-
   returnSteps: ReturnStepItem[]
 
   eligibleTitle: string
@@ -62,59 +47,146 @@ type ReturnRefundFormData = {
   refundProcessingDesc: string
 }
 
+type ListKey = 'features' | 'returnSteps' | 'eligibleItems' | 'nonReturnableItems' | 'refundTimeline'
+type TextKey = Exclude<keyof FormData, ListKey>
+type ListItem<K extends ListKey> = FormData[K][number]
+
 // =====================================================
-// INITIAL DATA
+// EMPTY ITEMS + INITIAL DATA
 // =====================================================
 
-const initialFormData: ReturnRefundFormData = {
+const emptyFeature: FeatureItem = { icon: '', title: '', description: '' }
+const emptyStep: ReturnStepItem = { icon: '', step: '', title: '', description: '' }
+const emptyTimeline: RefundTimelineItem = { stepNo: '', title: '', description: '' }
+
+const initialFormData: FormData = {
   badgeTitle: '',
   title: '',
   shortDesc: '',
-
   startReturnBtnText: '',
   startReturnBtnUrl: '',
-
   contactSupportBtnText: '',
   contactSupportBtnUrl: '',
-
-  features: [
-    {
-      title: '',
-      description: '',
-    },
-  ],
-
+  features: [emptyFeature],
   howItWorksTitle: '',
   howItWorksDesc: '',
-
-  returnSteps: [
-    {
-      step: '',
-      title: '',
-      description: '',
-    },
-  ],
-
+  returnSteps: [emptyStep],
   eligibleTitle: '',
   eligibleDesc: '',
   eligibleItems: [''],
-
   nonReturnableTitle: '',
   nonReturnableDesc: '',
   nonReturnableItems: [''],
-
   refundTimelineTitle: '',
   refundTimelineDesc: '',
-
-  refundTimeline: [
-    {
-      title: '',
-      description: '',
-    },
-  ],
-
+  refundTimeline: [emptyTimeline],
   refundProcessingTitle: '',
   refundProcessingDesc: '',
+}
+
+// =====================================================
+// API <-> FORM MAPPING
+// =====================================================
+
+const toList = <T,>(value: unknown, map: (item: any) => T, empty: T): T[] =>
+  Array.isArray(value) && value.length > 0 ? value.map(map) : [empty]
+
+const fromApi = (d: any): FormData => ({
+  badgeTitle: d.badgeTitle || '',
+  title: d.title || '',
+  shortDesc: d.shortDesc || '',
+
+  startReturnBtnText: d.startReturnBtnText || '',
+  startReturnBtnUrl: d.startReturnBtnUrl || '',
+  contactSupportBtnText: d.contactSupportBtnText || '',
+  contactSupportBtnUrl: d.contactSupportBtnUrl || '',
+
+  features: toList(
+    d.features,
+    (i) => ({ icon: i?.icon || '', title: i?.title || '', description: i?.desc || '' }),
+    emptyFeature,
+  ),
+
+  howItWorksTitle: d.howItWorksTitle || '',
+  howItWorksDesc: d.howItWorksDesc || '',
+
+  returnSteps: toList(
+    d.returnSteps,
+    (i) => ({ icon: i?.icon || '', step: i?.stepNo || '', title: i?.title || '', description: i?.desc || '' }),
+    emptyStep,
+  ),
+
+  eligibleTitle: d.eligibleTitle || '',
+  eligibleDesc: d.eligibleDesc || '',
+  eligibleItems: toList(d.eligibleItems, (i) => String(i || ''), ''),
+
+  nonReturnableTitle: d.nonReturnableTitle || '',
+  nonReturnableDesc: d.nonReturnableDesc || '',
+  nonReturnableItems: toList(d.nonReturnableItems, (i) => String(i || ''), ''),
+
+  refundTimelineTitle: d.refundTimelineTitle || '',
+  refundTimelineDesc: d.refundTimelineDesc || '',
+  refundTimeline: toList(
+    d.refundTimeline,
+    (i) => ({ stepNo: i?.stepNo || '', title: i?.title || '', description: i?.desc || '' }),
+    emptyTimeline,
+  ),
+
+  refundProcessingTitle: d.refundProcessingTitle || '',
+  refundProcessingDesc: d.refundProcessingDesc || '',
+})
+
+const cleanStrings = (items: string[]) => items.map((i) => i.trim()).filter(Boolean)
+
+const toPayload = (f: FormData) => ({
+  badgeTitle: f.badgeTitle.trim(),
+  title: f.title.trim(),
+  shortDesc: f.shortDesc.trim(),
+
+  startReturnBtnText: f.startReturnBtnText.trim(),
+  startReturnBtnUrl: f.startReturnBtnUrl.trim(),
+  contactSupportBtnText: f.contactSupportBtnText.trim(),
+  contactSupportBtnUrl: f.contactSupportBtnUrl.trim(),
+
+  features: f.features
+    .filter((i) => i.title.trim() || i.description.trim())
+    .map((i) => ({ icon: i.icon || '', title: i.title.trim(), desc: i.description.trim() })),
+
+  howItWorksTitle: f.howItWorksTitle.trim(),
+  howItWorksDesc: f.howItWorksDesc.trim(),
+
+  returnSteps: f.returnSteps
+    .filter((i) => i.step.trim() || i.title.trim() || i.description.trim())
+    .map((i) => ({ stepNo: i.step.trim(), icon: i.icon || '', title: i.title.trim(), desc: i.description.trim() })),
+
+  eligibleTitle: f.eligibleTitle.trim(),
+  eligibleDesc: f.eligibleDesc.trim(),
+  eligibleItems: cleanStrings(f.eligibleItems),
+
+  nonReturnableTitle: f.nonReturnableTitle.trim(),
+  nonReturnableDesc: f.nonReturnableDesc.trim(),
+  nonReturnableItems: cleanStrings(f.nonReturnableItems),
+
+  refundTimelineTitle: f.refundTimelineTitle.trim(),
+  refundTimelineDesc: f.refundTimelineDesc.trim(),
+  refundTimeline: f.refundTimeline
+    .filter((i) => i.title.trim() || i.description.trim())
+    .map((i) => ({ stepNo: i.stepNo || '', title: i.title.trim(), desc: i.description.trim() })),
+
+  refundProcessingTitle: f.refundProcessingTitle.trim(),
+  refundProcessingDesc: f.refundProcessingDesc.trim(),
+})
+
+// =====================================================
+// NORMALIZE API RESPONSE -> SINGLE DOCUMENT
+// =====================================================
+
+const extractDocument = (response: any) => {
+  if (!response) return null
+  if (Array.isArray(response?.data)) return response.data[0] || null
+  if (response?.data && typeof response.data === 'object') return response.data
+  if (Array.isArray(response)) return response[0] || null
+  return response
 }
 
 // =====================================================
@@ -122,1005 +194,359 @@ const initialFormData: ReturnRefundFormData = {
 // =====================================================
 
 const ReturnRefunds = () => {
-  // ===================================================
-  // API
-  // ===================================================
-
-  const { data: returnResponse, isLoading, isError, refetch } = useGetReturnRefundQuery()
-
+  const { data: response, isLoading, isError, refetch } = useGetReturnRefundQuery()
   const [createReturnRefund, { isLoading: creating }] = useCreateReturnRefundMutation()
-
   const [updateReturnRefund, { isLoading: updating }] = useUpdateReturnRefundMutation()
 
-  // ===================================================
-  // NORMALIZE RESPONSE
-  // ===================================================
-
-  const returnData = useMemo(() => {
-    const response: any = returnResponse
-
-    if (!response) {
-      return null
-    }
-
-    if (Array.isArray(response?.data)) {
-      return response.data[0] || null
-    }
-
-    if (response?.data && typeof response.data === 'object') {
-      return response.data
-    }
-
-    if (Array.isArray(response)) {
-      return response[0] || null
-    }
-
-    return response
-  }, [returnResponse])
-
-  // ===================================================
-  // FORM STATE
-  // ===================================================
-
-  const [formData, setFormData] = useState<ReturnRefundFormData>(initialFormData)
-
-  // ===================================================
-  // LOAD EXISTING DATA
-  // ===================================================
+  const returnData = useMemo(() => extractDocument(response), [response])
+  const [formData, setFormData] = useState<FormData>(initialFormData)
 
   useEffect(() => {
-    if (!returnData) {
-      return
-    }
-
-    setFormData({
-      badgeTitle: returnData.badgeTitle || '',
-
-      title: returnData.title || '',
-
-      shortDesc: returnData.shortDesc || '',
-
-      startReturnBtnText: returnData.startReturnBtnText || '',
-
-      startReturnBtnUrl: returnData.startReturnBtnUrl || '',
-
-      contactSupportBtnText: returnData.contactSupportBtnText || '',
-
-      contactSupportBtnUrl: returnData.contactSupportBtnUrl || '',
-
-      // ===============================================
-      // FEATURES
-      // ===============================================
-
-      features:
-        Array.isArray(returnData.features) && returnData.features.length > 0
-          ? returnData.features.map((item: any) => ({
-              title: item?.title || '',
-              description: item?.description || '',
-            }))
-          : [
-              {
-                title: '',
-                description: '',
-              },
-            ],
-
-      // ===============================================
-      // HOW IT WORKS
-      // ===============================================
-
-      howItWorksTitle: returnData.howItWorksTitle || '',
-
-      howItWorksDesc: returnData.howItWorksDesc || '',
-
-      // ===============================================
-      // RETURN STEPS
-      // ===============================================
-
-      returnSteps:
-        Array.isArray(returnData.returnSteps) && returnData.returnSteps.length > 0
-          ? returnData.returnSteps.map((item: any) => ({
-              step: item?.step || '',
-              title: item?.title || '',
-              description: item?.description || '',
-            }))
-          : [
-              {
-                step: '',
-                title: '',
-                description: '',
-              },
-            ],
-
-      // ===============================================
-      // ELIGIBLE
-      // ===============================================
-
-      eligibleTitle: returnData.eligibleTitle || '',
-
-      eligibleDesc: returnData.eligibleDesc || '',
-
-      eligibleItems:
-        Array.isArray(returnData.eligibleItems) && returnData.eligibleItems.length > 0
-          ? returnData.eligibleItems.map((item: any) => String(item || ''))
-          : [''],
-
-      // ===============================================
-      // NON RETURNABLE
-      // ===============================================
-
-      nonReturnableTitle: returnData.nonReturnableTitle || '',
-
-      nonReturnableDesc: returnData.nonReturnableDesc || '',
-
-      nonReturnableItems:
-        Array.isArray(returnData.nonReturnableItems) && returnData.nonReturnableItems.length > 0
-          ? returnData.nonReturnableItems.map((item: any) => String(item || ''))
-          : [''],
-
-      // ===============================================
-      // REFUND TIMELINE
-      // ===============================================
-
-      refundTimelineTitle: returnData.refundTimelineTitle || '',
-
-      refundTimelineDesc: returnData.refundTimelineDesc || '',
-
-      refundTimeline:
-        Array.isArray(returnData.refundTimeline) && returnData.refundTimeline.length > 0
-          ? returnData.refundTimeline.map((item: any) => ({
-              title: item?.title || '',
-              description: item?.description || '',
-            }))
-          : [
-              {
-                title: '',
-                description: '',
-              },
-            ],
-
-      // ===============================================
-      // PROCESSING
-      // ===============================================
-
-      refundProcessingTitle: returnData.refundProcessingTitle || '',
-
-      refundProcessingDesc: returnData.refundProcessingDesc || '',
-    })
+    if (returnData) setFormData(fromApi(returnData))
   }, [returnData])
 
-  // ===================================================
-  // NORMAL INPUT
-  // ===================================================
+  // ---------- generic text field binding ----------
+  const field = (name: TextKey) => ({
+    value: formData[name],
+    onChange: (value: string) => setFormData((prev) => ({ ...prev, [name]: value })),
+  })
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-
+  // ---------- generic list helpers ----------
+  const updateItem = <K extends ListKey>(key: K, index: number, value: ListItem<K>) =>
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [key]: (prev[key] as ListItem<K>[]).map((item, i) => (i === index ? value : item)),
     }))
-  }
 
-  // ===================================================
-  // FEATURES
-  // ===================================================
+  const patchItem = <K extends ListKey>(key: K, index: number, patch: Partial<ListItem<K>>) =>
+    updateItem(key, index, { ...(formData[key][index] as object), ...patch } as ListItem<K>)
 
-  const handleFeatureChange = (index: number, field: keyof FeatureItem, value: string) => {
-    setFormData((prev) => {
-      const data = [...prev.features]
+  const addItem = <K extends ListKey>(
+    key: K,
+    empty: ListItem<K>,
+    errorMessage: string,
+    isComplete: (last: ListItem<K>) => boolean,
+  ) => {
+    const list = formData[key] as ListItem<K>[]
+    const last = list[list.length - 1]
 
-      data[index] = {
-        ...data[index],
-        [field]: value,
-      }
-
-      return {
-        ...prev,
-        features: data,
-      }
-    })
-  }
-
-  const addFeature = () => {
-    const last = formData.features[formData.features.length - 1]
-
-    if (last && (!last.title.trim() || !last.description.trim())) {
-      toast.error('Please complete current feature first')
+    if (last !== undefined && !isComplete(last)) {
+      toast.error(errorMessage)
       return
     }
 
-    setFormData((prev) => ({
-      ...prev,
-
-      features: [
-        ...prev.features,
-        {
-          title: '',
-          description: '',
-        },
-      ],
-    }))
+    setFormData((prev) => ({ ...prev, [key]: [...(prev[key] as ListItem<K>[]), empty] }))
   }
 
-  const removeFeature = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      features: prev.features.length > 1 ? prev.features.filter((_, i) => i !== index) : prev.features,
-    }))
-  }
-
-  // ===================================================
-  // RETURN STEPS
-  // ===================================================
-
-  const handleReturnStepChange = (index: number, field: keyof ReturnStepItem, value: string) => {
+  const removeItem = (key: ListKey, index: number) =>
     setFormData((prev) => {
-      const data = [...prev.returnSteps]
-
-      data[index] = {
-        ...data[index],
-        [field]: value,
-      }
-
-      return {
-        ...prev,
-        returnSteps: data,
-      }
+      const list = prev[key] as unknown[]
+      return list.length > 1 ? { ...prev, [key]: list.filter((_, i) => i !== index) } : prev
     })
-  }
 
-  const addReturnStep = () => {
-    const last = formData.returnSteps[formData.returnSteps.length - 1]
-
-    if (last && (!last.step.trim() || !last.title.trim() || !last.description.trim())) {
-      toast.error('Please complete current return step first')
-      return
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-
-      returnSteps: [
-        ...prev.returnSteps,
-
-        {
-          step: '',
-          title: '',
-          description: '',
-        },
-      ],
-    }))
-  }
-
-  const removeReturnStep = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      returnSteps: prev.returnSteps.length > 1 ? prev.returnSteps.filter((_, i) => i !== index) : prev.returnSteps,
-    }))
-  }
-
-  // ===================================================
-  // ELIGIBLE ITEMS
-  // ===================================================
-
-  const handleEligibleChange = (index: number, value: string) => {
-    setFormData((prev) => {
-      const data = [...prev.eligibleItems]
-
-      data[index] = value
-
-      return {
-        ...prev,
-        eligibleItems: data,
-      }
-    })
-  }
-
-  const addEligibleItem = () => {
-    const last = formData.eligibleItems[formData.eligibleItems.length - 1]
-
-    if (last !== undefined && !last.trim()) {
-      toast.error('Please enter current eligible item first')
-      return
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-
-      eligibleItems: [...prev.eligibleItems, ''],
-    }))
-  }
-
-  const removeEligibleItem = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      eligibleItems: prev.eligibleItems.length > 1 ? prev.eligibleItems.filter((_, i) => i !== index) : prev.eligibleItems,
-    }))
-  }
-
-  // ===================================================
-  // NON RETURNABLE ITEMS
-  // ===================================================
-
-  const handleNonReturnableChange = (index: number, value: string) => {
-    setFormData((prev) => {
-      const data = [...prev.nonReturnableItems]
-
-      data[index] = value
-
-      return {
-        ...prev,
-        nonReturnableItems: data,
-      }
-    })
-  }
-
-  const addNonReturnableItem = () => {
-    const last = formData.nonReturnableItems[formData.nonReturnableItems.length - 1]
-
-    if (last !== undefined && !last.trim()) {
-      toast.error('Please enter current non-returnable item first')
-      return
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-
-      nonReturnableItems: [...prev.nonReturnableItems, ''],
-    }))
-  }
-
-  const removeNonReturnableItem = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      nonReturnableItems: prev.nonReturnableItems.length > 1 ? prev.nonReturnableItems.filter((_, i) => i !== index) : prev.nonReturnableItems,
-    }))
-  }
-
-  // ===================================================
-  // REFUND TIMELINE
-  // ===================================================
-
-  const handleRefundTimelineChange = (index: number, field: keyof RefundTimelineItem, value: string) => {
-    setFormData((prev) => {
-      const data = [...prev.refundTimeline]
-
-      data[index] = {
-        ...data[index],
-        [field]: value,
-      }
-
-      return {
-        ...prev,
-        refundTimeline: data,
-      }
-    })
-  }
-
-  const addRefundTimeline = () => {
-    const last = formData.refundTimeline[formData.refundTimeline.length - 1]
-
-    if (last && (!last.title.trim() || !last.description.trim())) {
-      toast.error('Please complete current timeline item first')
-      return
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-
-      refundTimeline: [
-        ...prev.refundTimeline,
-
-        {
-          title: '',
-          description: '',
-        },
-      ],
-    }))
-  }
-
-  const removeRefundTimeline = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      refundTimeline: prev.refundTimeline.length > 1 ? prev.refundTimeline.filter((_, i) => i !== index) : prev.refundTimeline,
-    }))
-  }
-
-  // ===================================================
-  // VALIDATION
-  // ===================================================
-
-  const validateForm = () => {
-    if (!formData.badgeTitle.trim()) {
-      toast.error('Badge Title is required')
-      return false
-    }
-
-    if (!formData.title.trim()) {
-      toast.error('Title is required')
-      return false
-    }
-
-    if (!formData.shortDesc.trim()) {
-      toast.error('Short Description is required')
-      return false
-    }
-
-    return true
-  }
-
-  // ===================================================
-  // SUBMIT
-  // ===================================================
-
+  // ---------- submit ----------
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (!validateForm()) {
-      return
-    }
+    if (!formData.badgeTitle.trim()) return toast.error('Badge Title is required')
+    if (!formData.title.trim()) return toast.error('Title is required')
+    if (!formData.shortDesc.trim()) return toast.error('Short Description is required')
 
-    // ===============================================
-    // CLEAN FEATURES
-    // ===============================================
-
-    const features = formData.features
-      .filter((item) => item.title.trim() || item.description.trim())
-      .map((item) => ({
-        title: item.title.trim(),
-        description: item.description.trim(),
-      }))
-
-    // ===============================================
-    // CLEAN RETURN STEPS
-    // ===============================================
-
-    const returnSteps = formData.returnSteps
-      .filter((item) => item.step.trim() || item.title.trim() || item.description.trim())
-      .map((item) => ({
-        step: item.step.trim(),
-        title: item.title.trim(),
-        description: item.description.trim(),
-      }))
-
-    // ===============================================
-    // CLEAN ELIGIBLE
-    // ===============================================
-
-    const eligibleItems = formData.eligibleItems.map((item) => item.trim()).filter(Boolean)
-
-    // ===============================================
-    // CLEAN NON RETURNABLE
-    // ===============================================
-
-    const nonReturnableItems = formData.nonReturnableItems.map((item) => item.trim()).filter(Boolean)
-
-    // ===============================================
-    // CLEAN TIMELINE
-    // ===============================================
-
-    const refundTimeline = formData.refundTimeline
-      .filter((item) => item.title.trim() || item.description.trim())
-      .map((item) => ({
-        title: item.title.trim(),
-        description: item.description.trim(),
-      }))
-
-    // ===============================================
-    // PAYLOAD
-    // ===============================================
-
-    const payload = {
-      badgeTitle: formData.badgeTitle.trim(),
-
-      title: formData.title.trim(),
-
-      shortDesc: formData.shortDesc.trim(),
-
-      startReturnBtnText: formData.startReturnBtnText.trim(),
-
-      startReturnBtnUrl: formData.startReturnBtnUrl.trim(),
-
-      contactSupportBtnText: formData.contactSupportBtnText.trim(),
-
-      contactSupportBtnUrl: formData.contactSupportBtnUrl.trim(),
-
-      features,
-
-      howItWorksTitle: formData.howItWorksTitle.trim(),
-
-      howItWorksDesc: formData.howItWorksDesc.trim(),
-
-      returnSteps,
-
-      eligibleTitle: formData.eligibleTitle.trim(),
-
-      eligibleDesc: formData.eligibleDesc.trim(),
-
-      eligibleItems,
-
-      nonReturnableTitle: formData.nonReturnableTitle.trim(),
-
-      nonReturnableDesc: formData.nonReturnableDesc.trim(),
-
-      nonReturnableItems,
-
-      refundTimelineTitle: formData.refundTimelineTitle.trim(),
-
-      refundTimelineDesc: formData.refundTimelineDesc.trim(),
-
-      refundTimeline,
-
-      refundProcessingTitle: formData.refundProcessingTitle.trim(),
-
-      refundProcessingDesc: formData.refundProcessingDesc.trim(),
-    }
+    const payload = toPayload(formData)
 
     try {
-      // =============================================
-      // UPDATE
-      // =============================================
-
       if (returnData?._id) {
-        console.log('UPDATE ID:', returnData._id)
-
-        await updateReturnRefund({
-          _id: returnData._id,
-          data: payload,
-        }).unwrap()
-
+        // @ts-ignore
+        await updateReturnRefund({ _id: returnData._id, data: payload }).unwrap()
         toast.success('Returns & Refunds updated successfully')
-      }
-
-      // =============================================
-      // CREATE
-      // =============================================
-      else {
+      } else {
+         // @ts-ignore
         await createReturnRefund(payload).unwrap()
-
         toast.success('Returns & Refunds created successfully')
       }
 
       await refetch()
     } catch (error: any) {
       console.error('Return Refund Error:', error)
-
       toast.error(error?.data?.message || 'Something went wrong')
     }
   }
 
-  // ===================================================
-  // LOADING
-  // ===================================================
-
+  // ---------- states ----------
   if (isLoading) {
     return (
       <div className="py-5 text-center">
         <div className="spinner-border text-primary" />
-
         <div className="mt-2">Loading Returns & Refunds...</div>
       </div>
     )
   }
 
-  // ===================================================
-  // ERROR
-  // ===================================================
-
   if (isError) {
     return <div className="alert alert-danger">Unable to load Returns & Refunds.</div>
   }
 
-  // ===================================================
-  // UI
-  // ===================================================
+  // ---------- reusable title + description block ----------
+  const titleDesc = (titleKey: TextKey, descKey: TextKey) => (
+    <Row>
+      <Col md={6}>
+        <Field label="Title" {...field(titleKey)} />
+      </Col>
+      <Col md={12}>
+        <Field label="Description" textarea {...field(descKey)} />
+      </Col>
+    </Row>
+  )
+
+  const isBusy = creating || updating
 
   return (
     <form onSubmit={handleSubmit}>
-      {/* ============================================
-          HERO
-      ============================================ */}
+      {/* HERO */}
+      <Section title="Hero Section">
+        <Row>
+          <Col md={6}>
+            <Field label="Badge Title" {...field('badgeTitle')} />
+          </Col>
+          <Col md={6}>
+            <Field label="Title" {...field('title')} />
+          </Col>
+          <Col md={12}>
+            <Field label="Short Description" textarea {...field('shortDesc')} />
+          </Col>
+        </Row>
+      </Section>
 
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle as="h4" className="mb-0">
-            Hero Section
-          </CardTitle>
-        </CardHeader>
+      {/* BUTTONS */}
+      <Section title="Action Buttons">
+        <Row>
+          <Col md={6}>
+            <Field label="Start Return Button Text" {...field('startReturnBtnText')} />
+          </Col>
+          <Col md={6}>
+            <Field label="Start Return Button URL" {...field('startReturnBtnUrl')} />
+          </Col>
+          <Col md={6}>
+            <Field label="Contact Support Button Text" {...field('contactSupportBtnText')} />
+          </Col>
+          <Col md={6}>
+            <Field label="Contact Support Button URL" {...field('contactSupportBtnUrl')} />
+          </Col>
+        </Row>
+      </Section>
 
-        <CardBody>
-          <Row>
-            <Col md={6}>
-              <TextInput label="Badge Title" name="badgeTitle" value={formData.badgeTitle} onChange={handleChange} />
-            </Col>
+      {/* FEATURES */}
+      <Section
+        title="Features"
+        addLabel="Add Feature"
+        onAdd={() =>
+          addItem('features', emptyFeature, 'Please complete current feature first', (l) => !!l.title.trim() && !!l.description.trim())
+        }>
+        {formData.features.map((item, index) => (
+          <RepeatCard
+            key={index}
+            title={`Feature ${index + 1}`}
+            showRemove={formData.features.length > 1}
+            onRemove={() => removeItem('features', index)}>
+            <Row>
+              <Col md={5}>
+                <Field label="Title" value={item.title} onChange={(v) => patchItem('features', index, { title: v })} />
+              </Col>
+              <Col md={7}>
+                <Field label="Description" textarea value={item.description} onChange={(v) => patchItem('features', index, { description: v })} />
+              </Col>
+            </Row>
+          </RepeatCard>
+        ))}
+      </Section>
 
-            <Col md={6}>
-              <TextInput label="Title" name="title" value={formData.title} onChange={handleChange} />
-            </Col>
+      {/* HOW IT WORKS */}
+      <Section title="How Returns Work">{titleDesc('howItWorksTitle', 'howItWorksDesc')}</Section>
 
-            <Col md={12}>
-              <TextArea label="Short Description" name="shortDesc" value={formData.shortDesc} onChange={handleChange} />
-            </Col>
-          </Row>
-        </CardBody>
-      </Card>
+      {/* RETURN STEPS */}
+      <Section
+        title="Return Steps"
+        addLabel="Add Step"
+        onAdd={() =>
+          addItem(
+            'returnSteps',
+            emptyStep,
+            'Please complete current return step first',
+            (l) => !!l.step.trim() && !!l.title.trim() && !!l.description.trim(),
+          )
+        }>
+        {formData.returnSteps.map((item, index) => (
+          <RepeatCard
+            key={index}
+            title={`Return Step ${index + 1}`}
+            showRemove={formData.returnSteps.length > 1}
+            onRemove={() => removeItem('returnSteps', index)}>
+            <Row>
+              <Col md={2}>
+                <Field label="Step" value={item.step} onChange={(v) => patchItem('returnSteps', index, { step: v })} />
+              </Col>
+              <Col md={4}>
+                <Field label="Title" value={item.title} onChange={(v) => patchItem('returnSteps', index, { title: v })} />
+              </Col>
+              <Col md={6}>
+                <Field
+                  label="Description"
+                  textarea
+                  value={item.description}
+                  onChange={(v) => patchItem('returnSteps', index, { description: v })}
+                />
+              </Col>
+            </Row>
+          </RepeatCard>
+        ))}
+      </Section>
 
-      {/* ============================================
-          BUTTONS
-      ============================================ */}
+      {/* ELIGIBLE */}
+      <Section
+        title="Eligible for Return"
+        addLabel="Add Item"
+        onAdd={() => addItem('eligibleItems', '', 'Please enter current eligible item first', (l) => !!l.trim())}>
+        {titleDesc('eligibleTitle', 'eligibleDesc')}
 
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle as="h4" className="mb-0">
-            Action Buttons
-          </CardTitle>
-        </CardHeader>
+        {formData.eligibleItems.map((item, index) => (
+          <StringItem
+            key={index}
+            label={`Eligible Item ${index + 1}`}
+            value={item}
+            showRemove={formData.eligibleItems.length > 1}
+            onChange={(v) => updateItem('eligibleItems', index, v)}
+            onRemove={() => removeItem('eligibleItems', index)}
+          />
+        ))}
+      </Section>
 
-        <CardBody>
-          <Row>
-            <Col md={6}>
-              <TextInput label="Start Return Button Text" name="startReturnBtnText" value={formData.startReturnBtnText} onChange={handleChange} />
-            </Col>
+      {/* NON RETURNABLE */}
+      <Section
+        title="Non-Returnable Products"
+        addLabel="Add Item"
+        onAdd={() => addItem('nonReturnableItems', '', 'Please enter current non-returnable item first', (l) => !!l.trim())}>
+        {titleDesc('nonReturnableTitle', 'nonReturnableDesc')}
 
-            <Col md={6}>
-              <TextInput label="Start Return Button URL" name="startReturnBtnUrl" value={formData.startReturnBtnUrl} onChange={handleChange} />
-            </Col>
+        {formData.nonReturnableItems.map((item, index) => (
+          <StringItem
+            key={index}
+            label={`Non-Returnable Item ${index + 1}`}
+            value={item}
+            showRemove={formData.nonReturnableItems.length > 1}
+            onChange={(v) => updateItem('nonReturnableItems', index, v)}
+            onRemove={() => removeItem('nonReturnableItems', index)}
+          />
+        ))}
+      </Section>
 
-            <Col md={6}>
-              <TextInput
-                label="Contact Support Button Text"
-                name="contactSupportBtnText"
-                value={formData.contactSupportBtnText}
-                onChange={handleChange}
-              />
-            </Col>
+      {/* REFUND TIMELINE */}
+      <Section
+        title="Refund Timeline"
+        addLabel="Add Timeline"
+        onAdd={() =>
+          addItem(
+            'refundTimeline',
+            emptyTimeline,
+            'Please complete current timeline item first',
+            (l) => !!l.title.trim() && !!l.description.trim(),
+          )
+        }>
+        {titleDesc('refundTimelineTitle', 'refundTimelineDesc')}
 
-            <Col md={6}>
-              <TextInput
-                label="Contact Support Button URL"
-                name="contactSupportBtnUrl"
-                value={formData.contactSupportBtnUrl}
-                onChange={handleChange}
-              />
-            </Col>
-          </Row>
-        </CardBody>
-      </Card>
+        {formData.refundTimeline.map((item, index) => (
+          <RepeatCard
+            key={index}
+            title={`Timeline ${index + 1}`}
+            showRemove={formData.refundTimeline.length > 1}
+            onRemove={() => removeItem('refundTimeline', index)}>
+            <Row>
+              <Col md={5}>
+                <Field label="Title" value={item.title} onChange={(v) => patchItem('refundTimeline', index, { title: v })} />
+              </Col>
+              <Col md={7}>
+                <Field
+                  label="Description"
+                  textarea
+                  value={item.description}
+                  onChange={(v) => patchItem('refundTimeline', index, { description: v })}
+                />
+              </Col>
+            </Row>
+          </RepeatCard>
+        ))}
+      </Section>
 
-      {/* ============================================
-          FEATURES
-      ============================================ */}
+      {/* REFUND PROCESSING */}
+      <Section title="Refund Processing">{titleDesc('refundProcessingTitle', 'refundProcessingDesc')}</Section>
 
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="d-flex justify-content-between align-items-center">
-            <CardTitle as="h4" className="mb-0">
-              Features
-            </CardTitle>
-
-            <button type="button" className="btn btn-primary btn-sm" onClick={addFeature}>
-              + Add Feature
-            </button>
-          </div>
-        </CardHeader>
-
-        <CardBody>
-          {formData.features.map((item, index) => (
-            <RepeatCard key={index} title={`Feature ${index + 1}`} showRemove={formData.features.length > 1} onRemove={() => removeFeature(index)}>
-              <Row>
-                <Col md={5}>
-                  <CustomInput label="Title" value={item.title} onChange={(value) => handleFeatureChange(index, 'title', value)} />
-                </Col>
-
-                <Col md={7}>
-                  <CustomTextarea
-                    label="Description"
-                    value={item.description}
-                    onChange={(value) => handleFeatureChange(index, 'description', value)}
-                  />
-                </Col>
-              </Row>
-            </RepeatCard>
-          ))}
-        </CardBody>
-      </Card>
-
-      {/* ============================================
-          HOW IT WORKS
-      ============================================ */}
-
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle as="h4" className="mb-0">
-            How Returns Work
-          </CardTitle>
-        </CardHeader>
-
-        <CardBody>
-          <Row>
-            <Col md={6}>
-              <TextInput label="Title" name="howItWorksTitle" value={formData.howItWorksTitle} onChange={handleChange} />
-            </Col>
-
-            <Col md={12}>
-              <TextArea label="Description" name="howItWorksDesc" value={formData.howItWorksDesc} onChange={handleChange} />
-            </Col>
-          </Row>
-        </CardBody>
-      </Card>
-
-      {/* ============================================
-          RETURN STEPS
-      ============================================ */}
-
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="d-flex justify-content-between align-items-center">
-            <CardTitle as="h4" className="mb-0">
-              Return Steps
-            </CardTitle>
-
-            <button type="button" className="btn btn-primary btn-sm" onClick={addReturnStep}>
-              + Add Step
-            </button>
-          </div>
-        </CardHeader>
-
-        <CardBody>
-          {formData.returnSteps.map((item, index) => (
-            <RepeatCard
-              key={index}
-              title={`Return Step ${index + 1}`}
-              showRemove={formData.returnSteps.length > 1}
-              onRemove={() => removeReturnStep(index)}>
-              <Row>
-                <Col md={2}>
-                  <CustomInput label="Step" value={item.step} onChange={(value) => handleReturnStepChange(index, 'step', value)} />
-                </Col>
-
-                <Col md={4}>
-                  <CustomInput label="Title" value={item.title} onChange={(value) => handleReturnStepChange(index, 'title', value)} />
-                </Col>
-
-                <Col md={6}>
-                  <CustomTextarea
-                    label="Description"
-                    value={item.description}
-                    onChange={(value) => handleReturnStepChange(index, 'description', value)}
-                  />
-                </Col>
-              </Row>
-            </RepeatCard>
-          ))}
-        </CardBody>
-      </Card>
-
-      {/* ============================================
-          ELIGIBLE
-      ============================================ */}
-
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="d-flex justify-content-between align-items-center">
-            <CardTitle as="h4" className="mb-0">
-              Eligible for Return
-            </CardTitle>
-
-            <button type="button" className="btn btn-primary btn-sm" onClick={addEligibleItem}>
-              + Add Item
-            </button>
-          </div>
-        </CardHeader>
-
-        <CardBody>
-          <Row>
-            <Col md={6}>
-              <TextInput label="Title" name="eligibleTitle" value={formData.eligibleTitle} onChange={handleChange} />
-            </Col>
-
-            <Col md={12}>
-              <TextArea label="Description" name="eligibleDesc" value={formData.eligibleDesc} onChange={handleChange} />
-            </Col>
-          </Row>
-
-          {formData.eligibleItems.map((item, index) => (
-            <StringItem
-              key={index}
-              label={`Eligible Item ${index + 1}`}
-              value={item}
-              showRemove={formData.eligibleItems.length > 1}
-              onChange={(value) => handleEligibleChange(index, value)}
-              onRemove={() => removeEligibleItem(index)}
-            />
-          ))}
-        </CardBody>
-      </Card>
-
-      {/* ============================================
-          NON RETURNABLE
-      ============================================ */}
-
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="d-flex justify-content-between align-items-center">
-            <CardTitle as="h4" className="mb-0">
-              Non-Returnable Products
-            </CardTitle>
-
-            <button type="button" className="btn btn-primary btn-sm" onClick={addNonReturnableItem}>
-              + Add Item
-            </button>
-          </div>
-        </CardHeader>
-
-        <CardBody>
-          <Row>
-            <Col md={6}>
-              <TextInput label="Title" name="nonReturnableTitle" value={formData.nonReturnableTitle} onChange={handleChange} />
-            </Col>
-
-            <Col md={12}>
-              <TextArea label="Description" name="nonReturnableDesc" value={formData.nonReturnableDesc} onChange={handleChange} />
-            </Col>
-          </Row>
-
-          {formData.nonReturnableItems.map((item, index) => (
-            <StringItem
-              key={index}
-              label={`Non-Returnable Item ${index + 1}`}
-              value={item}
-              showRemove={formData.nonReturnableItems.length > 1}
-              onChange={(value) => handleNonReturnableChange(index, value)}
-              onRemove={() => removeNonReturnableItem(index)}
-            />
-          ))}
-        </CardBody>
-      </Card>
-
-      {/* ============================================
-          REFUND TIMELINE
-      ============================================ */}
-
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="d-flex justify-content-between align-items-center">
-            <CardTitle as="h4" className="mb-0">
-              Refund Timeline
-            </CardTitle>
-
-            <button type="button" className="btn btn-primary btn-sm" onClick={addRefundTimeline}>
-              + Add Timeline
-            </button>
-          </div>
-        </CardHeader>
-
-        <CardBody>
-          <Row>
-            <Col md={6}>
-              <TextInput label="Title" name="refundTimelineTitle" value={formData.refundTimelineTitle} onChange={handleChange} />
-            </Col>
-
-            <Col md={12}>
-              <TextArea label="Description" name="refundTimelineDesc" value={formData.refundTimelineDesc} onChange={handleChange} />
-            </Col>
-          </Row>
-
-          {formData.refundTimeline.map((item, index) => (
-            <RepeatCard
-              key={index}
-              title={`Timeline ${index + 1}`}
-              showRemove={formData.refundTimeline.length > 1}
-              onRemove={() => removeRefundTimeline(index)}>
-              <Row>
-                <Col md={5}>
-                  <CustomInput label="Title" value={item.title} onChange={(value) => handleRefundTimelineChange(index, 'title', value)} />
-                </Col>
-
-                <Col md={7}>
-                  <CustomTextarea
-                    label="Description"
-                    value={item.description}
-                    onChange={(value) => handleRefundTimelineChange(index, 'description', value)}
-                  />
-                </Col>
-              </Row>
-            </RepeatCard>
-          ))}
-        </CardBody>
-      </Card>
-
-      {/* ============================================
-          REFUND PROCESSING
-      ============================================ */}
-
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle as="h4" className="mb-0">
-            Refund Processing
-          </CardTitle>
-        </CardHeader>
-
-        <CardBody>
-          <Row>
-            <Col md={6}>
-              <TextInput label="Title" name="refundProcessingTitle" value={formData.refundProcessingTitle} onChange={handleChange} />
-            </Col>
-
-            <Col md={12}>
-              <TextArea label="Description" name="refundProcessingDesc" value={formData.refundProcessingDesc} onChange={handleChange} />
-            </Col>
-          </Row>
-        </CardBody>
-      </Card>
-
-      {/* ============================================
-          SAVE
-      ============================================ */}
-
-      <button type="submit" className="btn btn-primary w-100 mb-4" disabled={creating || updating}>
-        {creating || updating ? 'Please wait...' : returnData?._id ? 'Update Returns & Refunds' : 'Create Returns & Refunds'}
+      <button type="submit" className="btn btn-primary w-100 mb-4" disabled={isBusy}>
+        {isBusy ? 'Please wait...' : returnData?._id ? 'Update Returns & Refunds' : 'Create Returns & Refunds'}
       </button>
     </form>
   )
 }
 
 // =====================================================
-// NORMAL TEXT INPUT
+// SMALL UI COMPONENTS
 // =====================================================
 
-const TextInput = ({ label, name, value, onChange }: any) => (
+const Section = ({
+  title,
+  addLabel,
+  onAdd,
+  children,
+}: {
+  title: string
+  addLabel?: string
+  onAdd?: () => void
+  children: React.ReactNode
+}) => (
+  <Card className="mb-4">
+    <CardHeader>
+      <div className="d-flex justify-content-between align-items-center">
+        <CardTitle as="h4" className="mb-0">
+          {title}
+        </CardTitle>
+
+        {onAdd && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={onAdd}>
+            + {addLabel}
+          </button>
+        )}
+      </div>
+    </CardHeader>
+
+    <CardBody>{children}</CardBody>
+  </Card>
+)
+
+const Field = ({
+  label,
+  value,
+  onChange,
+  textarea,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  textarea?: boolean
+}) => (
   <div className="mb-3">
     <label className="form-label">{label}</label>
 
-    <input type="text" className="form-control" name={name} value={value} onChange={onChange} />
+    {textarea ? (
+      <textarea rows={3} className="form-control" value={value} onChange={(e) => onChange(e.target.value)} />
+    ) : (
+      <input type="text" className="form-control" value={value} onChange={(e) => onChange(e.target.value)} />
+    )}
   </div>
 )
 
-// =====================================================
-// NORMAL TEXTAREA
-// =====================================================
-
-const TextArea = ({ label, name, value, onChange }: any) => (
-  <div className="mb-3">
-    <label className="form-label">{label}</label>
-
-    <textarea rows={3} className="form-control" name={name} value={value} onChange={onChange} />
-  </div>
+const RemoveButton = ({ onClick }: { onClick: () => void }) => (
+  <button type="button" className="btn btn-soft-danger btn-sm" onClick={onClick}>
+    Remove
+  </button>
 )
-
-// =====================================================
-// CUSTOM INPUT
-// =====================================================
-
-const CustomInput = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
-  <div className="mb-3">
-    <label className="form-label">{label}</label>
-
-    <input type="text" className="form-control" value={value} onChange={(e) => onChange(e.target.value)} />
-  </div>
-)
-
-// =====================================================
-// CUSTOM TEXTAREA
-// =====================================================
-
-const CustomTextarea = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
-  <div className="mb-3">
-    <label className="form-label">{label}</label>
-
-    <textarea rows={3} className="form-control" value={value} onChange={(e) => onChange(e.target.value)} />
-  </div>
-)
-
-// =====================================================
-// REPEAT CARD
-// =====================================================
 
 const RepeatCard = ({
   title,
@@ -1136,21 +562,12 @@ const RepeatCard = ({
   <div className="border rounded p-3 mb-3 bg-light">
     <div className="d-flex justify-content-between align-items-center mb-3">
       <h6 className="mb-0">{title}</h6>
-
-      {showRemove && (
-        <button type="button" className="btn btn-soft-danger btn-sm" onClick={onRemove}>
-          Remove
-        </button>
-      )}
+      {showRemove && <RemoveButton onClick={onRemove} />}
     </div>
 
     {children}
   </div>
 )
-
-// =====================================================
-// STRING ITEM
-// =====================================================
 
 const StringItem = ({
   label,
@@ -1168,12 +585,7 @@ const StringItem = ({
   <div className="border rounded p-3 mb-3 bg-light">
     <div className="d-flex justify-content-between align-items-center mb-2">
       <label className="form-label mb-0">{label}</label>
-
-      {showRemove && (
-        <button type="button" className="btn btn-soft-danger btn-sm" onClick={onRemove}>
-          Remove
-        </button>
-      )}
+      {showRemove && <RemoveButton onClick={onRemove} />}
     </div>
 
     <input type="text" className="form-control" value={value} onChange={(e) => onChange(e.target.value)} />

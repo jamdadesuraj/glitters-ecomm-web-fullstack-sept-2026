@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Slider from "react-slick";
 import Image from "next/image";
 
@@ -15,11 +21,14 @@ type HomeBannerItem = {
   shortDesc?: string;
 
   banner?: string;
-  bgVideo?: string;
+  bgVideo?: string; // holds either an MP4 or a PNG URL
 
-  status?: "active" | "inactive";
+  status?: "active" | "inactive" | boolean;
   isDeleted?: boolean;
 };
+
+// MP4 -> video, everything else (PNG) -> image
+const isVideoUrl = (url?: string) => !!url && /\.mp4($|\?)/i.test(url);
 
 const HomeBanner = () => {
   const {
@@ -29,8 +38,7 @@ const HomeBanner = () => {
   } = useGetHomeBannerQuery();
 
   const sliderRef = useRef<Slider | null>(null);
-
-  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [activeSlide, setActiveSlide] = useState(0);
 
@@ -54,63 +62,63 @@ const HomeBanner = () => {
 
     // active + not deleted + valid media
     return data.filter((item) => {
-      const hasImage = Boolean(item.banner);
-      const hasVideo = Boolean(item.bgVideo);
+      const hasMedia = Boolean(item.bgVideo || item.banner);
 
-      const active = item.status === undefined || item.status === "active";
+      const active =
+        item.status === undefined ||
+        item.status === true ||
+        item.status === "active";
 
       const notDeleted =
         item.isDeleted === undefined || item.isDeleted === false;
 
-      return (hasImage || hasVideo) && active && notDeleted;
+      return hasMedia && active && notDeleted;
     });
   }, [homeBannerResponse]);
 
   // ==========================================
-  // ACTIVE VIDEO PLAY
+  // PLAY ONLY THE VIDEO IN THE ACTIVE SLIDE
+  // (works with react-slick's cloned slides)
   // ==========================================
-  useEffect(() => {
-    Object.entries(videoRefs.current).forEach(([key, video]) => {
-      if (!video) return;
+  const syncVideos = useCallback(() => {
+    const videos = containerRef.current?.querySelectorAll("video") ?? [];
 
-      const index = Number(key);
+    videos.forEach((video) => {
+      const slide = video.closest(".slick-slide");
 
-      if (index === activeSlide) {
-        video.currentTime = 0;
-
+      if (slide?.classList.contains("slick-active")) {
         video.play().catch(() => {});
       } else {
         video.pause();
         video.currentTime = 0;
       }
     });
-  }, [activeSlide]);
+  }, []);
+
+  // re-sync when the slide changes or when banners finish loading
+  useEffect(() => {
+    const t = setTimeout(syncVideos, 50); // wait for slick to update classes
+    return () => clearTimeout(t);
+  }, [activeSlide, banners, syncVideos]);
 
   // ==========================================
   // SLIDER SETTINGS
   // ==========================================
   const settings = {
     dots: true,
-
     arrows: false,
-
     infinite: banners.length > 1,
-
     speed: 700,
-
     slidesToShow: 1,
     slidesToScroll: 1,
 
     autoplay: banners.length > 1,
-
     autoplaySpeed: 5000,
-
     pauseOnHover: false,
     pauseOnFocus: false,
 
     swipe: true,
     draggable: true,
-
     cssEase: "ease-in-out",
 
     beforeChange: (_current: number, next: number) => {
@@ -137,7 +145,7 @@ const HomeBanner = () => {
   };
 
   // ==========================================
-  // LOADING
+  // LOADING / ERROR / EMPTY
   // ==========================================
   if (isLoading) {
     return (
@@ -159,13 +167,8 @@ const HomeBanner = () => {
     );
   }
 
-  if (isError) {
-    return null;
-  }
-
-  if (!banners.length) {
-    return null;
-  }
+  if (isError) return null;
+  if (!banners.length) return null;
 
   return (
     <section
@@ -177,18 +180,14 @@ const HomeBanner = () => {
         dark:bg-[#111]
       "
     >
-      <div className="relative w-full">
+      <div ref={containerRef} className="relative w-full">
         <Slider ref={sliderRef} {...settings} className="home-banner-slider">
           {banners.map((item, index) => {
-            // IMPORTANT:
-            // if bgVideo exists -> video
-            // otherwise banner -> image
-
-            const isVideo = Boolean(item.bgVideo);
-
-            const mediaUrl = isVideo ? item.bgVideo : item.banner;
+            const mediaUrl = item.bgVideo || item.banner;
 
             if (!mediaUrl) return null;
+
+            const isVideo = isVideoUrl(mediaUrl);
 
             return (
               <div key={item._id}>
@@ -200,7 +199,7 @@ const HomeBanner = () => {
                     overflow-hidden
                     bg-[#f4f4f4]
 
-                    sm:h-40
+                    sm:h-60
                     md:h-70
                     lg:h-90
                     xl:h-150
@@ -211,18 +210,13 @@ const HomeBanner = () => {
                   {/* ===================== */}
                   {/* VIDEO */}
                   {/* ===================== */}
-
                   {isVideo ? (
                     <video
-                      ref={(element) => {
-                        videoRefs.current[index] = element;
-                      }}
                       src={mediaUrl}
                       muted
                       playsInline
                       loop
                       preload="auto"
-                      autoPlay={index === 0}
                       className="
                         absolute
                         inset-0
@@ -230,17 +224,12 @@ const HomeBanner = () => {
                         w-full
                         object-fill
                       "
-                      onLoadedData={(event) => {
-                        if (index === activeSlide) {
-                          event.currentTarget.play().catch(() => {});
-                        }
-                      }}
+                      onLoadedData={syncVideos}
                     />
                   ) : (
                     /* ===================== */
                     /* IMAGE */
                     /* ===================== */
-
                     <Image
                       src={mediaUrl}
                       alt={item.title || "Home Banner"}
@@ -256,7 +245,6 @@ const HomeBanner = () => {
                   )}
 
                   {/* Overlay */}
-
                   <div
                     className="
                       pointer-events-none
@@ -277,7 +265,6 @@ const HomeBanner = () => {
         {/* ================================== */}
         {/* COUNTER */}
         {/* ================================== */}
-
         {banners.length > 1 && (
           <div
             className="

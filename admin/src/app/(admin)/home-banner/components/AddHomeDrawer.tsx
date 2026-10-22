@@ -5,9 +5,14 @@ import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { toast } from 'react-toastify'
 import { Col, Row } from 'react-bootstrap'
 import { useCreateHomeBannerMutation } from '@/store/homeBanner'
+import Image from 'next/image'
+
+const ALLOWED_TYPES = ['video/mp4', 'image/png']
 
 const AddHomeDrawer = ({ onAdd }: any) => {
   const [open, setOpen] = useState(false)
+ const [preview, setPreview] = useState<string>('')
+const [previewType, setPreviewType] = useState<'image' | 'video' | ''>('')
   // api
   const [createHomeBanner] = useCreateHomeBannerMutation()
 
@@ -25,14 +30,34 @@ const AddHomeDrawer = ({ onAdd }: any) => {
       [name]: value,
     }))
   }
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
 
-  const handleFile = (e: any) => {
+    if (!file) return
+
+    // revoke previous local preview
+    if (preview?.startsWith('blob:')) {
+      URL.revokeObjectURL(preview)
+    }
+
     setFormData((prev) => ({
       ...prev,
-      bgVideo: e.target.files?.[0] || null,
+      bgVideo: file,
     }))
-  }
 
+    const previewUrl = URL.createObjectURL(file)
+
+    setPreview(previewUrl)
+
+    if (file.type.startsWith('video/')) {
+      setPreviewType('video')
+    } else if (file.type.startsWith('image/')) {
+      setPreviewType('image')
+    } else {
+      setPreviewType('')
+      toast.error('Please select a valid image or video file')
+    }
+  }
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
@@ -108,34 +133,69 @@ const AddHomeDrawer = ({ onAdd }: any) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
           <div className="p-3">
             <Row>
-              {/* <Col md={12}>
-                <div className="mb-3">
-                  <label className="form-label">Title *</label>
-                  <input type="text" className="form-control" name="title" value={formData.title} onChange={handleChange} />
-                </div>
-              </Col>
+              {/* MEDIA PREVIEW */}
+
+              {preview && (
+                <Col md={12}>
+                  <div className="mb-3">
+                    <label className="form-label">Current Preview</label>
+
+                    <div
+                      className="border rounded p-2 bg-light"
+                      style={{
+                        width: '100%',
+                        minHeight: '200px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                      }}>
+                      {previewType === 'video' && (
+                        <video
+                          src={preview}
+                          controls
+                          muted
+                          playsInline
+                          style={{
+                            width: '100%',
+                            height: '220px',
+                            objectFit: 'cover',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      )}
+
+                      {previewType === 'image' && (
+                        <Image
+                          src={preview}
+                          alt="Banner preview"
+                          width={0}
+                          height={0}
+                          style={{
+                            width: '100%',
+                            height: '220px',
+                            objectFit: 'contain',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </Col>
+              )}
+
+              {/* FILE INPUT */}
 
               <Col md={12}>
                 <div className="mb-3">
-                  <label className="form-label">Sub-Title *</label>
-                  <input type="text" className="form-control" name="subTitle" value={formData.subTitle} onChange={handleChange} />
-                </div>
-              </Col>
+                  <label className="form-label">Banner Image / Video</label>
 
-              <Col md={12}>
-                <div className="mb-3">
-                  <label className="form-label">Short Description</label>
-                  <textarea rows={4} className="form-control" name="shortDesc" value={formData.shortDesc} onChange={handleChange} />
-                </div>
-              </Col> */}
+                  <input type="file" accept="image/*,video/*" className="form-control" onChange={handleFile} />
 
-              <Col md={12}>
-                <div className="mb-3">
-                  <label className="form-label">Banner / Video</label>
-                  <input type="file" accept="video/*" className="form-control" onChange={handleFile} />{' '}
+                  <small className="text-muted">Select image or video to replace current banner.</small>
                 </div>
               </Col>
             </Row>
@@ -149,7 +209,7 @@ const AddHomeDrawer = ({ onAdd }: any) => {
 
             <button type="submit" className="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2">
               <IconifyIcon icon="solar:diskette-broken" />
-              Add
+              Update
             </button>
           </div>
         </form>
