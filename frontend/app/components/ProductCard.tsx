@@ -15,8 +15,6 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 
-import ThemeBtnOne from "./ThemeBtnOne";
-
 import { useAddToCartMutation } from "@/store/addToCartApi";
 import {
   useAddToWishlistMutation,
@@ -63,6 +61,9 @@ const slugify = (text: string): string =>
 
 const formatAED = (amount: number): string => `AED ${amount.toLocaleString()}`;
 
+const truncate = (text: string, max: number): string =>
+  text.length > max ? `${text.slice(0, max).trim()}...` : text;
+
 const getApiErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === "object" && error !== null && "data" in error) {
     const data = (error as { data?: { message?: unknown } }).data;
@@ -87,6 +88,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
     useAddToWishlistMutation();
   const [removeFromWishlist, { isLoading: isRemovingFromWishlist }] =
     useRemoveWishlistByProductMutation();
+
+  const { user, authLoading } = useAuthUser();
 
   // product data
   const variant = product.variants?.[0];
@@ -123,13 +126,10 @@ const ProductCard = ({ product }: ProductCardProps) => {
   );
   const isWishlistBusy = isAddingToWishlist || isRemovingFromWishlist;
 
-  const { user, authLoading } = useAuthUser();
   // handlers
   const handleWishlistToggle = async () => {
-    // Wait until Firebase has restored the session
     if (authLoading) return;
 
-    // Not logged in -> open login popover
     if (!user) {
       toast.info("Please login to use your wishlist");
       openAccountMenu();
@@ -229,16 +229,16 @@ const ProductCard = ({ product }: ProductCardProps) => {
           aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           className={`
-    absolute right-2 top-2 z-20
-    flex h-7 w-7 cursor-pointer items-center justify-center
-    rounded-full border border-white bg-white
-    shadow-[0_3px_12px_rgba(0,0,0,0.08)]
-    transition-all duration-200 hover:scale-105
-    disabled:cursor-not-allowed disabled:opacity-60
-    sm:right-3 sm:top-3 sm:h-9 sm:w-9
-    dark:border-gray-700 dark:bg-[#292929]
-    ${isWishlisted ? "text-red-500" : "text-gray-500 hover:text-red-500"}
-  `}
+            absolute right-2 top-2 z-20
+            flex h-7 w-7 cursor-pointer items-center justify-center
+            rounded-full border border-white bg-white
+            shadow-[0_3px_12px_rgba(0,0,0,0.08)]
+            transition-all duration-200 hover:scale-105
+            disabled:cursor-not-allowed disabled:opacity-60
+            sm:right-3 sm:top-3 sm:h-9 sm:w-9
+            dark:border-gray-700 dark:bg-[#292929]
+            ${isWishlisted ? "text-red-500" : "text-gray-500 hover:text-red-500"}
+          `}
         >
           <FiHeart
             className="h-3.5 w-3.5 sm:h-4 sm:w-4"
@@ -283,7 +283,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       </div>
 
       {/* CONTENT */}
-      <div className="flex flex-1 flex-col p-2.5 sm:p-4">
+      <div className="flex min-w-0 flex-1 flex-col p-2.5 sm:p-4">
         {/* Brand + material + stock */}
         <div className="flex w-full min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
@@ -327,11 +327,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
               mt-1.5 line-clamp-2 min-h-8 font-serif text-[10px] font-bold
               leading-4 tracking-wide text-[#202020] hover:text-[#b58b00]
               min-[380px]:text-[11px]
-              sm:mt-2 sm:min-h-4 sm:text-[13px] sm:leading-5
+              sm:mt-2 sm:min-h-10 sm:text-[13px] sm:leading-5
               dark:text-white
             "
           >
-            {name.slice(0, 25)}...
+            {truncate(name, 25)}
           </h3>
         </Link>
 
@@ -398,26 +398,30 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </div>
 
         {/* Buy now + add to cart */}
-        <div className="mt-3 flex w-full items-center gap-2 sm:mt-4 sm:gap-2.5">
-          <div className="min-w-0 flex-1">
-            <ThemeBtnOne
-              text="Buy Now"
-              onClick={handleBuyNow}
-              disabled={isBuyingNow}
-              icon={
-                <FiShoppingBag className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              }
-              className="
-                flex h-10 w-full min-w-0 cursor-pointer items-center
-                justify-center gap-1.5 overflow-hidden whitespace-nowrap
-                rounded-lg bg-[#ffd83d] px-3 font-serif text-[9px] font-bold
-                text-black transition-all duration-200
-                hover:bg-[#ffcc00] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
-                sm:h-11 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-[11px]
-              "
-            />
-          </div>
+        <div className="mt-3 flex w-full min-w-0 items-center gap-1.5 sm:mt-4 sm:gap-2.5">
+          {/* BUY NOW (plain button so it can shrink) */}
+          <button
+            type="button"
+            onClick={handleBuyNow}
+            disabled={isBuyingNow}
+            className="
+              flex h-9 min-w-0 flex-1 cursor-pointer items-center
+              justify-center gap-1 overflow-hidden whitespace-nowrap
+              rounded-lg bg-[#ffd83d] px-1 font-serif text-[9px] font-bold
+              text-black transition-all duration-200
+              hover:bg-[#ffcc00] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)]
+              disabled:cursor-not-allowed disabled:opacity-60
+              min-[380px]:px-2 min-[380px]:text-[10px]
+              sm:h-11 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-[11px]
+            "
+          >
+            <FiShoppingBag className="hidden h-4 w-4 shrink-0 sm:block" />
+            <span className="truncate">
+              {isBuyingNow ? "Please wait..." : "Buy Now"}
+            </span>
+          </button>
 
+          {/* ADD TO CART */}
           <button
             type="button"
             disabled={isAddingToCart}
@@ -425,12 +429,12 @@ const ProductCard = ({ product }: ProductCardProps) => {
             title="Add to cart"
             aria-label="Add to cart"
             className="
-              flex h-10 cursor-pointer items-center justify-center
-              rounded-lg border border-gray-300 px-3
+              flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center
+              rounded-lg border border-gray-300
               transition-all duration-200
               hover:border-[#ffd83d] hover:bg-[#fff7d5]
               disabled:cursor-not-allowed disabled:opacity-60
-              sm:h-11
+              sm:h-11 sm:w-11 sm:rounded-xl
               dark:border-gray-700
             "
           >

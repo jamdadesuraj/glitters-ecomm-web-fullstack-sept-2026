@@ -441,7 +441,7 @@ const TopSaleBanner = () => {
 
             <Col xl={4} lg={4} md={6} sm={12}>
               <div className="h-100">
-                <label className="form-label fw-semibold">Banner 2{!topSaleData?._id && <span className="text-danger ms-1">*</span>}</label>
+                <label className="form-label fw-semibold">Banner 2 (1500 × 500 px){!topSaleData?._id && <span className="text-danger ms-1">*</span>}</label>
 
                 <input
                   id="offerBannerImg2"
@@ -501,7 +501,7 @@ const TopSaleBanner = () => {
 
             <Col xl={4} lg={4} md={6} sm={12}>
               <div className="h-100">
-                <label className="form-label fw-semibold">Banner 3{!topSaleData?._id && <span className="text-danger ms-1">*</span>}</label>
+                <label className="form-label fw-semibold">Banner 3 (1500 × 500 px){!topSaleData?._id && <span className="text-danger ms-1">*</span>}</label>
 
                 <input
                   id="offerBannerImg3"

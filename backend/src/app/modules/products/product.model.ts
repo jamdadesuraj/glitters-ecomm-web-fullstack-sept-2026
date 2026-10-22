@@ -6,7 +6,6 @@ const productVariantSchema = new Schema(
     size: {
       type: Schema.Types.ObjectId,
       ref: "Size",
-      required: true,
     },
 
     color: {

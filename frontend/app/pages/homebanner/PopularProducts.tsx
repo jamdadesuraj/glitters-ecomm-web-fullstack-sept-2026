@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Slider from "react-slick";
@@ -8,6 +8,23 @@ import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import ProductCard from "@/app/components/ProductCard";
 import { useGetTopSaleBannerQuery } from "@/store/topSaleBannerApi";
 import { useGetProductsQuery } from "@/store/productsApi";
+
+// mobile <480 => 1.5 | <640 => 2 | <1280 => 3 | >=1280 => 4
+const getSlides = (w: number) =>
+  w >= 1280 ? 4 : w >= 640 ? 3 : w >= 480 ? 2 : 1.5;
+
+const useSlidesToShow = () => {
+  const [count, setCount] = useState(1.5);
+
+  useEffect(() => {
+    const update = () => setCount(getSlides(window.innerWidth));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return count;
+};
 
 const PopularProducts = () => {
   const {
@@ -33,6 +50,7 @@ const PopularProducts = () => {
   }, [products]);
 
   const sliderRef = useRef<Slider | null>(null);
+  const slidesToShow = useSlidesToShow();
 
   const {
     data: topSaleBanner = [],
@@ -43,48 +61,24 @@ const PopularProducts = () => {
   const firstBanner = topSaleBanner?.[0]?.offerBannerImg1 || "";
   const secondBanner = topSaleBanner?.[0]?.offerBannerImg2 || "";
 
+  // fractional slidesToShow (1.5) must not be infinite
+  const isFractional = !Number.isInteger(slidesToShow);
+  const canSlide = popularProducts.length > Math.ceil(slidesToShow);
+
   const settings = {
     dots: false,
     arrows: false,
-    infinite: true,
+    infinite: canSlide && !isFractional,
     speed: 550,
-    slidesToShow: 4,
+    slidesToShow,
     slidesToScroll: 1,
     autoplay: false,
     swipe: true,
     swipeToSlide: true,
     draggable: true,
     cssEase: "ease-in-out",
-
-    responsive: [
-      {
-        breakpoint: 1280,
-        settings: {
-          slidesToShow: 3,
-        },
-      },
-      {
-        breakpoint: 1024,
-        settings: {
-          slidesToShow: 2,
-        },
-      },
-      {
-        breakpoint: 768,
-        settings: {
-          slidesToShow: 2,
-        },
-      },
-      {
-        breakpoint: 500,
-        settings: {
-          slidesToShow: 1.5,
-        },
-      },
-    ],
   };
 
-  // Keep hooks above conditional returns
   if (isLoading) {
     return (
       <section className="w-full bg-white py-5 dark:bg-[#111]">
@@ -95,9 +89,7 @@ const PopularProducts = () => {
     );
   }
 
-  if (isError) {
-    return null;
-  }
+  if (isError) return null;
 
   if (isProductsLoading) {
     return (
@@ -119,47 +111,16 @@ const PopularProducts = () => {
     <section className="w-full bg-white py-5 dark:bg-[#111]">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
         {/* MAIN LAYOUT */}
-        <div
-          className="
-            grid
-            grid-cols-1
-            gap-5
-            xl:grid-cols-[minmax(0,1fr)_220px]
-            xl:items-stretch
-          "
-        >
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-stretch">
           {/* PRODUCTS */}
-          <div className="min-w-0 h-full">
-            <div
-              className="
-                h-full
-                overflow-hidden
-                rounded-2xl
-                border
-                border-gray-100
-                bg-white
-                p-4
-                dark:border-gray-800
-                dark:bg-[#171717]
-                sm:p-5
-              "
-            >
+          <div className="h-full min-w-0">
+            <div className="h-full overflow-hidden rounded-2xl border border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-[#171717] sm:p-5">
               {/* HEADER */}
-              <div className="mb-4 flex items-end justify-between gap-4">
-                <div>
-                  <h2
-                    className="
-                      font-serif
-                      text-[14px]
-                      font-extrabold
-                      text-[#151515]
-                      sm:text-[22px]
-                      dark:text-white
-                    "
-                  >
+              <div className="mb-4 flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-serif text-[18px] font-extrabold text-[#151515] dark:text-white sm:text-[22px]">
                     Popular Products
                   </h2>
-
                   <p className="mt-1 text-xs text-gray-500">
                     Discover our latest products and exclusive deals
                   </p>
@@ -171,19 +132,7 @@ const PopularProducts = () => {
                     type="button"
                     aria-label="Previous products"
                     onClick={() => sliderRef.current?.slickPrev()}
-                    className="
-                      flex h-9 w-9 cursor-pointer
-                      items-center justify-center
-                      rounded-lg border border-gray-200
-                      bg-white text-gray-600
-                      transition
-                      hover:border-[#ffd83d]
-                      hover:bg-[#fff8dc]
-                      hover:text-black
-                      dark:border-gray-700
-                      dark:bg-[#222]
-                      dark:text-white
-                    "
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:border-[#ffd83d] hover:bg-[#fff8dc] hover:text-black dark:border-gray-700 dark:bg-[#222] dark:text-white"
                   >
                     <FiChevronLeft size={17} />
                   </button>
@@ -192,15 +141,7 @@ const PopularProducts = () => {
                     type="button"
                     aria-label="Next products"
                     onClick={() => sliderRef.current?.slickNext()}
-                    className="
-                      flex h-9 w-9 cursor-pointer
-                      items-center justify-center
-                      rounded-lg
-                      bg-[#ffd83d]
-                      text-black
-                      transition
-                      hover:bg-[#ffcf0f]
-                    "
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg bg-[#ffd83d] text-black transition hover:bg-[#ffcf0f]"
                   >
                     <FiChevronRight size={17} />
                   </button>
@@ -209,15 +150,16 @@ const PopularProducts = () => {
 
               <div className="mb-4 border-b border-dashed border-[#ead77d]" />
 
-              {/* SLIDER */}
-              <div className="-mx-2">
+              {/* SLIDER (key re-initialises slick when breakpoint changes) */}
+              <div className="-mx-1.5 sm:-mx-2">
                 <Slider
+                  key={slidesToShow}
                   ref={sliderRef}
                   {...settings}
                   className="new-offer-slider"
                 >
                   {popularProducts.map((product) => (
-                    <div key={product._id} className="px-2 pb-3">
+                    <div key={product._id} className="px-1.5 pb-3 sm:px-2">
                       <ProductCard product={product} />
                     </div>
                   ))}
@@ -231,16 +173,7 @@ const PopularProducts = () => {
             <div className="hidden h-full xl:block">
               <Link
                 href="/product-list"
-                className="
-                  relative
-                  block
-                  h-full
-                  min-h-full
-                  w-full
-                  overflow-hidden
-                  rounded-2xl
-                  bg-gray-100
-                "
+                className="relative block h-full min-h-full w-full overflow-hidden rounded-2xl bg-gray-100"
               >
                 <Image
                   src={firstBanner}
@@ -254,52 +187,23 @@ const PopularProducts = () => {
           )}
         </div>
 
-        {/* MOBILE BANNERS */}
-        <div className="mt-4 grid grid-cols-2 gap-3 xl:hidden">
-          {firstBanner && (
-            <Link
-              href="/product-list"
-              className="
-                relative
-                block
-                h-37.5
-                overflow-hidden
-                rounded-xl
-                bg-gray-100
-              "
-            >
-              <Image
-                src={firstBanner}
-                alt="Offer Banner"
-                fill
-                className="object-cover"
-                sizes="50vw"
-              />
-            </Link>
-          )}
-
-          {secondBanner && (
-            <Link
-              href="/product-list"
-              className="
-                relative
-                block
-                h-37.5
-                overflow-hidden
-                rounded-xl
-                bg-gray-100
-              "
-            >
-              <Image
-                src={secondBanner}
-                alt="Offer Banner"
-                fill
-                className="object-cover"
-                sizes="50vw"
-              />
-            </Link>
-          )}
-        </div>
+     {/* MOBILE / TABLET BANNER (hidden on xl, where the right-side banner shows) */}
+{secondBanner && (
+  <div className="mt-4 xl:hidden">
+    <Link
+      href="/product-list"
+      className="relative block aspect-3/1 w-full overflow-hidden rounded-xl bg-gray-100 dark:bg-neutral-800"
+    >
+      <Image
+        src={secondBanner}
+        alt="Offer Banner"
+        fill
+        className="object-cover object-center"
+        sizes="(max-width: 1279px) 100vw, 0px"
+      />
+    </Link>
+  </div>
+)}
       </div>
     </section>
   );

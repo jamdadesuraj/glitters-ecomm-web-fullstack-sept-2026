@@ -681,10 +681,10 @@ const AddProductsDrawer = () => {
       return false
     }
 
-    const invalidVariant = variants.some((variant) => !variant.size || !variant.color || variant.price === '' || variant.stock === '')
+    const invalidVariant = variants.some((variant) =>   !variant.color || variant.price === '' || variant.stock === '')
 
     if (invalidVariant) {
-      setError('Please complete Size, Color, Price and Stock for all variants.')
+      setError('Please complete  Color, Price and Stock for all variants.')
       return false
     }
 
@@ -1077,7 +1077,7 @@ const AddProductsDrawer = () => {
 
                   {/* TAGS */}
 
-                  <div className="col-xl-8 col-lg-8 col-md-12">
+                  <div className="col-xl-4 col-lg-4 col-md-12">
                     <label className="form-label fw-semibold">Tags</label>
 
                     <CreatableSelect<TagOption, true>
@@ -1095,7 +1095,7 @@ const AddProductsDrawer = () => {
 
                   {/* VIDEO URL */}
 
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <label className="form-label fw-semibold">Video URL</label>
 
                     <input
@@ -1110,11 +1110,11 @@ const AddProductsDrawer = () => {
 
                   {/* PRODUCT IMAGES */}
 
-                  <div className="col-md-6">
+                  {/* <div className="col-md-6">
                     <label className="form-label fw-semibold">Product Images</label>
 
                     <input type="file" className="form-control" accept="image/*" multiple onChange={handleProductImagesChange} />
-                  </div>
+                  </div> */}
 
                   {productImagePreviews.length > 0 && (
                     <div className="col-12">
@@ -1193,7 +1193,7 @@ const AddProductsDrawer = () => {
 
                         <th>Del Price</th>
 
-                        <th>Discount</th>
+                        {/* <th>Discount</th> */}
 
                         <th>Stock</th>
 
@@ -1279,7 +1279,7 @@ const AddProductsDrawer = () => {
 
                           {/* DISCOUNT */}
 
-                          <td>
+                          {/* <td>
                             <input
                               type="number"
                               className="form-control"
@@ -1289,7 +1289,7 @@ const AddProductsDrawer = () => {
                               value={variant.discount}
                               onChange={(e) => handleVariantChange(variant.id, 'discount', e.target.value)}
                             />
-                          </td>
+                          </td> */}
 
                           {/* STOCK */}
 

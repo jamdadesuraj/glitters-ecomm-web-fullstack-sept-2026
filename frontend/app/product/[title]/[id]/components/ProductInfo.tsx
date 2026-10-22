@@ -243,6 +243,8 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
     }
   };
 
+  const cleanDescription = description?.replace(/&nbsp;/g, " ").trim();
+  
   return (
     <div className="w-full">
       {/* Brand + Material + Stock */}
@@ -344,13 +346,13 @@ const ProductInfo = ({ product, onColorChange }: ProductInfoProps) => {
       </div>
 
       {/* Description */}
-      {description && (
-        <p className="mt-5 w-full max-w-full wrap-break-word text-[12px] leading-7 text-gray-500 dark:text-gray-400">
-          {description.length > 200
-            ? `${description.slice(0, 400)}...`
-            : description}
-        </p>
-      )}
+
+
+{cleanDescription && (
+  <p className="mt-5 w-full max-w-full wrap-break-word text-[12px] leading-7 text-gray-500 dark:text-gray-400">
+    {cleanDescription}
+  </p>
+)}
 
       <div className="my-6 h-px bg-gray-100 dark:bg-white/10" />
 
