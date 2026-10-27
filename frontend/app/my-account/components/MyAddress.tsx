@@ -399,7 +399,6 @@ const MyAddress = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    placeholder="Enter full name"
                     required
                     className={inputClass}
                   />
@@ -420,7 +419,6 @@ const MyAddress = () => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="+91 98765 43210"
                     required
                     className={inputClass}
                   />
@@ -442,7 +440,6 @@ const MyAddress = () => {
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  placeholder="House no., building, street, area"
                   rows={3}
                   required
                   className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:font-normal placeholder:text-gray-400 hover:border-gray-300 focus:border-[#d5ad00] focus:bg-white focus:ring-4 focus:ring-[#ffd83d]/15 dark:border-white/10 dark:bg-[#0c0c0c] dark:text-white dark:placeholder:text-gray-600 dark:hover:border-white/20 dark:focus:border-[#ffd83d]/60"
@@ -466,7 +463,6 @@ const MyAddress = () => {
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
-                    placeholder="Pune"
                     required
                     className={inputClass}
                   />
@@ -487,7 +483,6 @@ const MyAddress = () => {
                     name="state"
                     value={formData.state}
                     onChange={handleChange}
-                    placeholder="Maharashtra"
                     required
                     className={inputClass}
                   />
@@ -510,7 +505,6 @@ const MyAddress = () => {
                   name="pincode"
                   value={formData.pincode}
                   onChange={handleChange}
-                  placeholder="411001"
                   maxLength={6}
                   required
                   className={inputClass}

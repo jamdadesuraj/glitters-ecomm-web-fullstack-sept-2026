@@ -308,9 +308,8 @@ const StoresDetails = () => {
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        message: formData.message.trim(),
-        storeId: id,
-        storeName: store.storeName ?? "",
+        msg: formData.message.trim(),
+        storeName: id, // backend expects the store _id here
       }).unwrap();
 
       toast.success("Enquiry sent successfully");

@@ -78,7 +78,7 @@ const CareersEnquiries = () => {
                     currentItems.map((item, idx) => (
                       <tr key={idx}>
                         <td>{idx + 1}</td>
-                        <td>{item.fullName}</td>
+                        <td>{`${item.firstName} ${item.lastName}`.trim()}</td>
                         <td>{item.emailAddress}</td>
                         <td>{item.phone}</td>
                         <td>

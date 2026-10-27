@@ -11,7 +11,12 @@ import TopFilter from "./TopFilter";
 import GridView from "./GridView";
 import ListView from "./ListView";
 import { useGetProductsQuery } from "@/store/productsApi";
-import { DEFAULT_FILTERS, filterProducts, type Filters } from "./filterUtils";
+import {
+  DEFAULT_FILTERS,
+  filterProducts,
+  getId,
+  type Filters,
+} from "./filterUtils";
 
 type ViewType = "grid" | "list";
 
@@ -48,6 +53,32 @@ const ProductListContent = () => {
     [products, filters, sort],
   );
 
+  /* products of the selected category / sub category only,
+     used to show only the size / color / material options they really have */
+  const scopeProducts = useMemo(
+    () =>
+      products.filter((product) => {
+        const p = product as unknown as Record<string, unknown>;
+
+        if (
+          filters.categories.length > 0 &&
+          !filters.categories.includes(getId(p.category))
+        ) {
+          return false;
+        }
+
+        if (
+          filters.subCategories.length > 0 &&
+          !filters.subCategories.includes(getId(p.subCategory))
+        ) {
+          return false;
+        }
+
+        return true;
+      }),
+    [products, filters.categories, filters.subCategories],
+  );
+
   useEffect(() => {
     document.body.style.overflow = filterOpen ? "hidden" : "";
     return () => {
@@ -71,7 +102,11 @@ const ProductListContent = () => {
             {/* DESKTOP SIDE FILTER */}
             <aside className="hidden min-w-0 lg:block">
               <div className="sticky top-27.5 overflow-hidden rounded-2xl bg-white dark:bg-[#161616]">
-                <SideFilter filters={filters} onChange={setFilters} />
+                <SideFilter
+                  filters={filters}
+                  onChange={setFilters}
+                  scopeProducts={scopeProducts}
+                />
               </div>
             </aside>
 
@@ -166,7 +201,11 @@ const ProductListContent = () => {
 
         {/* FILTER CONTENT */}
         <div className="h-[calc(100dvh-122px)] overflow-y-auto overscroll-contain p-3">
-          <SideFilter filters={filters} onChange={setFilters} />
+          <SideFilter
+            filters={filters}
+            onChange={setFilters}
+            scopeProducts={scopeProducts}
+          />
         </div>
 
         {/* BOTTOM */}

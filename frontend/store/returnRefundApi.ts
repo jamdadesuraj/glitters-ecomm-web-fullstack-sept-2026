@@ -1,66 +1,64 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-
-import { RootState as IRootState } from '@/store'
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 // =====================================================
 // TYPES
 // =====================================================
 
 export interface IFeature {
-  title: string
-  description: string
+  title: string;
+  description: string;
 }
 
 export interface IReturnStep {
-  step: string
-  title: string
-  description: string
+  step: string;
+  title: string;
+  description: string;
 }
 
 export interface IRefundTimeline {
-  title: string
-  description: string
+  title: string;
+  description: string;
 }
 
 export interface IReturnRefund {
-  _id: string
+  _id: string;
 
-  badgeTitle: string
-  title: string
-  shortDesc: string
+  badgeTitle: string;
+  title: string;
+  shortDesc: string;
 
-  startReturnBtnText: string
-  startReturnBtnUrl: string
+  startReturnBtnText: string;
+  startReturnBtnUrl: string;
 
-  contactSupportBtnText: string
-  contactSupportBtnUrl: string
+  contactSupportBtnText: string;
+  contactSupportBtnUrl: string;
 
-  features: IFeature[]
+  features: IFeature[];
 
-  howItWorksTitle: string
-  howItWorksDesc: string
+  howItWorksTitle: string;
+  howItWorksDesc: string;
 
-  returnSteps: IReturnStep[]
+  returnSteps: IReturnStep[];
 
-  eligibleTitle: string
-  eligibleDesc: string
-  eligibleItems: string[]
+  eligibleTitle: string;
+  eligibleDesc: string;
+  eligibleItems: string[];
 
-  nonReturnableTitle: string
-  nonReturnableDesc: string
-  nonReturnableItems: string[]
+  nonReturnableTitle: string;
+  nonReturnableDesc: string;
+  nonReturnableItems: string[];
 
-  refundTimelineTitle: string
-  refundTimelineDesc: string
-  refundTimeline: IRefundTimeline[]
+  refundTimelineTitle: string;
+  refundTimelineDesc: string;
+  refundTimeline: IRefundTimeline[];
 
-  refundProcessingTitle: string
-  refundProcessingDesc: string
+  refundProcessingTitle: string;
+  refundProcessingDesc: string;
 
-  isDeleted: boolean
+  isDeleted: boolean;
 
-  createdAt: string
-  updatedAt: string
+  createdAt: string;
+  updatedAt: string;
 }
 
 // =====================================================
@@ -68,37 +66,37 @@ export interface IReturnRefund {
 // =====================================================
 
 export interface IReturnRefundPayload {
-  badgeTitle: string
-  title: string
-  shortDesc: string
+  badgeTitle: string;
+  title: string;
+  shortDesc: string;
 
-  startReturnBtnText: string
-  startReturnBtnUrl: string
+  startReturnBtnText: string;
+  startReturnBtnUrl: string;
 
-  contactSupportBtnText: string
-  contactSupportBtnUrl: string
+  contactSupportBtnText: string;
+  contactSupportBtnUrl: string;
 
-  features: IFeature[]
+  features: IFeature[];
 
-  howItWorksTitle: string
-  howItWorksDesc: string
+  howItWorksTitle: string;
+  howItWorksDesc: string;
 
-  returnSteps: IReturnStep[]
+  returnSteps: IReturnStep[];
 
-  eligibleTitle: string
-  eligibleDesc: string
-  eligibleItems: string[]
+  eligibleTitle: string;
+  eligibleDesc: string;
+  eligibleItems: string[];
 
-  nonReturnableTitle: string
-  nonReturnableDesc: string
-  nonReturnableItems: string[]
+  nonReturnableTitle: string;
+  nonReturnableDesc: string;
+  nonReturnableItems: string[];
 
-  refundTimelineTitle: string
-  refundTimelineDesc: string
-  refundTimeline: IRefundTimeline[]
+  refundTimelineTitle: string;
+  refundTimelineDesc: string;
+  refundTimeline: IRefundTimeline[];
 
-  refundProcessingTitle: string
-  refundProcessingDesc: string
+  refundProcessingTitle: string;
+  refundProcessingDesc: string;
 }
 
 // =====================================================
@@ -106,10 +104,10 @@ export interface IReturnRefundPayload {
 // =====================================================
 
 interface IReturnRefundResponse {
-  success: boolean
-  statusCode: number
-  message: string
-  data: IReturnRefund | IReturnRefund[]
+  success: boolean;
+  statusCode: number;
+  message: string;
+  data: IReturnRefund | IReturnRefund[];
 }
 
 // =====================================================
@@ -117,23 +115,13 @@ interface IReturnRefundResponse {
 // =====================================================
 
 export const returnRefundApi = createApi({
-  reducerPath: 'returnRefundApi',
+  reducerPath: "returnRefundApi",
 
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_API_URL,
-
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as IRootState)?.auth?.token
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`)
-      }
-
-      return headers
-    },
   }),
 
-  tagTypes: ['ReturnRefund'],
+  tagTypes: ["ReturnRefund"],
 
   endpoints: (builder) => ({
     // ============================================
@@ -142,19 +130,19 @@ export const returnRefundApi = createApi({
 
     getReturnRefund: builder.query<IReturnRefund[], void>({
       query: () => ({
-        url: '/return-policy',
-        method: 'GET',
+        url: "/return-policy",
+        method: "GET",
       }),
 
       transformResponse: (response: IReturnRefundResponse) => {
         if (Array.isArray(response.data)) {
-          return response.data
+          return response.data;
         }
 
-        return response.data ? [response.data] : []
+        return response.data ? [response.data] : [];
       },
 
-      providesTags: ['ReturnRefund'],
+      providesTags: ["ReturnRefund"],
     }),
 
     // ============================================
@@ -163,14 +151,15 @@ export const returnRefundApi = createApi({
 
     createReturnRefund: builder.mutation<IReturnRefund, IReturnRefundPayload>({
       query: (body) => ({
-        url: '/return-policy',
-        method: 'POST',
+        url: "/return-policy",
+        method: "POST",
         body,
       }),
 
-      transformResponse: (response: IReturnRefundResponse) => response.data as IReturnRefund,
+      transformResponse: (response: IReturnRefundResponse) =>
+        response.data as IReturnRefund,
 
-      invalidatesTags: ['ReturnRefund'],
+      invalidatesTags: ["ReturnRefund"],
     }),
 
     // ============================================
@@ -180,25 +169,30 @@ export const returnRefundApi = createApi({
     updateReturnRefund: builder.mutation<
       IReturnRefund,
       {
-        _id: string
-        data: IReturnRefundPayload
+        _id: string;
+        data: IReturnRefundPayload;
       }
     >({
       query: ({ _id, data }) => ({
         url: `/return-policy/${_id}`,
-        method: 'PUT',
+        method: "PUT",
         body: data,
       }),
 
-      transformResponse: (response: IReturnRefundResponse) => response.data as IReturnRefund,
+      transformResponse: (response: IReturnRefundResponse) =>
+        response.data as IReturnRefund,
 
-      invalidatesTags: ['ReturnRefund'],
+      invalidatesTags: ["ReturnRefund"],
     }),
   }),
-})
+});
 
 // =====================================================
 // HOOKS
 // =====================================================
 
-export const { useGetReturnRefundQuery, useCreateReturnRefundMutation, useUpdateReturnRefundMutation } = returnRefundApi
+export const {
+  useGetReturnRefundQuery,
+  useCreateReturnRefundMutation,
+  useUpdateReturnRefundMutation,
+} = returnRefundApi;

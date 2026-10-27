@@ -17,7 +17,12 @@ export interface IWishlistVariant {
   delPrice?: number | string;
   stock?: number | string;
 
-  size?: INamed | string;
+  size?:
+    | {
+        _id?: string;
+        size?: string;
+      }
+    | string;
 
   color?:
     | {

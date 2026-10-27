@@ -111,6 +111,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           reviews.length
         ).toFixed(1)
       : "0.0";
+  const filledStars = Math.round(Number(rating));
 
   // derived values
   const savingAmount = oldPrice > price ? oldPrice - price : 0;
@@ -344,7 +345,15 @@ const ProductCard = ({ product }: ProductCardProps) => {
               sm:rounded-md sm:px-2 sm:py-1
             "
           >
-            <FiStar className="h-2.5 w-2.5" fill="currentColor" />
+            <div className="flex items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <FiStar
+                  key={star}
+                  className="h-2.5 w-2.5"
+                  fill={star <= filledStars ? "currentColor" : "none"}
+                />
+              ))}
+            </div>
             <span className="text-[8px] font-bold sm:text-[9px]">{rating}</span>
           </div>
 

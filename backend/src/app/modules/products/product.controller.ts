@@ -1,11 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import { appError } from "../../errors/appError";
+import { ProductReview } from "../product-reviews/Productreview.model ";
 import { Product } from "./product.model";
 import { productSchema, updateProductSchema } from "./product.validation";
-
-// ============================================
-// HELPERS
-// ============================================
 
 type VariantInput = Record<string, any>;
 
@@ -56,13 +53,11 @@ const cleanObjectId = (value: unknown): string | undefined => {
 const cleanImageList = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.filter(
-        (item): item is string => typeof item === "string" && item.trim() !== "",
+        (item): item is string =>
+          typeof item === "string" && item.trim() !== "",
       )
     : [];
 
-// Returns, for a variant index, ALL uploaded files that belong to it.
-// The admin form sends `variantImages` (files) and `variantImageIndexes`
-// (one variant index per file, same order), e.g. [0, 0, 1, 2, 2, 2].
 const createVariantImagesResolver = (req: Request) => {
   const files = (req.files || {}) as {
     [fieldname: string]: Express.Multer.File[];
@@ -120,7 +115,9 @@ const prepareVariants = (
       keptImages = cleanImageList(variant.images);
     } else if ("image" in variant) {
       keptImages =
-        typeof variant.image === "string" && variant.image ? [variant.image] : [];
+        typeof variant.image === "string" && variant.image
+          ? [variant.image]
+          : [];
     } else {
       keptImages = existingImages;
     }
@@ -139,7 +136,9 @@ const prepareVariants = (
     if (variant._id) prepared._id = variant._id;
 
     // Size and color: if the key is sent, use it (empty clears); else keep existing.
-    const size = cleanObjectId("size" in variant ? variant.size : existing?.size);
+    const size = cleanObjectId(
+      "size" in variant ? variant.size : existing?.size,
+    );
     if (size) prepared.size = size;
 
     const color = cleanObjectId(
@@ -165,10 +164,6 @@ const populateOptions = [
   { path: "variants.size", select: "_id size status" },
   { path: "variants.color", select: "_id colorName hexCode status" },
 ];
-
-// ============================================
-// CREATE PRODUCT
-// ============================================
 
 export const createProduct = async (
   req: Request,
@@ -215,9 +210,28 @@ export const createProduct = async (
   }
 };
 
-// ============================================
-// GET ALL PRODUCTS
-// ============================================
+const attachReviews = async (products: any[]) => {
+  if (!products.length) return [];
+
+  const rows = await ProductReview.aggregate<{
+    _id: any;
+    ratings: number[];
+  }>([
+    { $match: { product: { $in: products.map((p) => p._id) } } },
+    { $group: { _id: "$product", ratings: { $push: "$rating" } } },
+  ]);
+
+  const ratingsByProduct = new Map<string, number[]>(
+    rows.map((row) => [String(row._id), row.ratings]),
+  );
+
+  return products.map((product) => {
+    const plain = product.toObject ? product.toObject() : product;
+    const ratings = ratingsByProduct.get(String(plain._id)) ?? [];
+
+    return { ...plain, reviews: ratings.map((rating) => ({ rating })) };
+  });
+};
 
 export const getAllProducts = async (
   req: Request,
@@ -229,20 +243,18 @@ export const getAllProducts = async (
       .populate(populateOptions)
       .sort({ createdAt: -1 });
 
+    const data = await attachReviews(products);
+
     return res.status(200).json({
       success: true,
       statusCode: 200,
       message: "Products fetched successfully",
-      data: products,
+      data,
     });
   } catch (error) {
     next(error);
   }
 };
-
-// ============================================
-// GET PRODUCT BY ID
-// ============================================
 
 export const getAllProductsById = async (
   req: Request,
@@ -258,19 +270,17 @@ export const getAllProductsById = async (
       return next(new appError("Product not found", 404));
     }
 
+    const [data] = await attachReviews([product]);
+
     return res.status(200).json({
       success: true,
       statusCode: 200,
-      data: product,
+      data,
     });
   } catch (error) {
     next(error);
   }
 };
-
-// ============================================
-// UPDATE PRODUCT
-// ============================================
 
 export const updateProduct = async (
   req: Request,
@@ -286,7 +296,8 @@ export const updateProduct = async (
       return next(new appError("Product not found", 404));
     }
 
-    const existingVariants = (existingProduct.variants as unknown as VariantInput[]) || [];
+    const existingVariants =
+      (existingProduct.variants as unknown as VariantInput[]) || [];
 
     const variants = parseJsonField<VariantInput[]>(
       req.body.variants,
@@ -367,10 +378,6 @@ export const updateProduct = async (
     next(error);
   }
 };
-
-// ============================================
-// DELETE PRODUCT
-// ============================================
 
 export const deleteProduct = async (
   req: Request,

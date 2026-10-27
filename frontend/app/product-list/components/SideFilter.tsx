@@ -1,7 +1,7 @@
 "use client";
 
 import ThemeBtnOne from "@/app/components/ThemeBtnOne";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   FiChevronDown,
   FiChevronUp,
@@ -11,7 +11,13 @@ import {
 import { useGetSizeQuery } from "../../../store/sizeApi";
 import { useGetColorsQuery } from "@/store/colorsApi";
 import { useGetMaterialQuery } from "@/store/materialApi";
-import { DEFAULT_FILTERS, getId, toArray, type Filters } from "./filterUtils";
+import {
+  DEFAULT_FILTERS,
+  getId,
+  toArray,
+  type Filters,
+  type Product,
+} from "./filterUtils";
 import { useGetcategoryQuery } from "@/store/categoriesApi";
 import { useGetSubCategoryQuery } from "@/store/subCategoryApi";
 
@@ -60,6 +66,9 @@ type SubCategoryItem = {
 interface SideFilterProps {
   filters: Filters;
   onChange: (filters: Filters) => void;
+  /* products of the current category / sub category.
+     When given, size / color / material options are limited to these products */
+  scopeProducts?: Product[];
 }
 
 /* Reusable collapsible section */
@@ -110,7 +119,7 @@ const chipClass = (selected: boolean) =>
       : "border-gray-200 bg-white text-gray-600 hover:border-[#ffd83d] dark:border-gray-700 dark:bg-[#1d1d1d] dark:text-gray-300 dark:hover:border-[#ffd83d]"
   }`;
 
-const SideFilter = ({ filters, onChange }: SideFilterProps) => {
+const SideFilter = ({ filters, onChange, scopeProducts }: SideFilterProps) => {
   /* API */
   const { data: sizeResponse } = useGetSizeQuery();
   const { data: colorResponse } = useGetColorsQuery();
@@ -118,11 +127,62 @@ const SideFilter = ({ filters, onChange }: SideFilterProps) => {
   const { data: categoryResponse } = useGetcategoryQuery();
   const { data: subCategoryResponse } = useGetSubCategoryQuery();
 
-  const apiSizes = toArray<SizeItem>(sizeResponse);
-  const apiColors = toArray<ColorItem>(colorResponse);
-  const apiMaterials = toArray<MaterialItem>(materialResponse);
+  const allSizes = toArray<SizeItem>(sizeResponse);
+  const allColors = toArray<ColorItem>(colorResponse);
+  const allMaterials = toArray<MaterialItem>(materialResponse);
   const apiCategories = toArray<CategoryItem>(categoryResponse);
   const allSubCategories = toArray<SubCategoryItem>(subCategoryResponse);
+
+  /* ids of sizes / colors / materials that the scoped products really use */
+  const available = useMemo(() => {
+    if (!scopeProducts) return null;
+
+    const sizes = new Set<string>();
+    const colors = new Set<string>();
+    const materials = new Set<string>();
+
+    scopeProducts.forEach((product) => {
+      const p = product as unknown as {
+        material?: unknown;
+        variants?: { size?: unknown; color?: unknown }[];
+      };
+
+      const materialId = getId(p.material);
+      if (materialId) materials.add(materialId);
+
+      (Array.isArray(p.variants) ? p.variants : []).forEach((variant) => {
+        const sizeId = getId(variant.size);
+        const colorId = getId(variant.color);
+
+        if (sizeId) sizes.add(sizeId);
+        if (colorId) colors.add(colorId);
+      });
+    });
+
+    return { sizes, colors, materials };
+  }, [scopeProducts]);
+
+  /* keep already selected options visible so the user can still un-select them */
+  const apiSizes = available
+    ? allSizes.filter((s) => {
+        const id = getId(s);
+        return available.sizes.has(id) || filters.sizes.includes(id);
+      })
+    : allSizes;
+
+  const apiColors = available
+    ? allColors.filter((c) => {
+        const id = getId(c);
+        return available.colors.has(id) || filters.colors.includes(id);
+      })
+    : allColors;
+
+  const apiMaterials = available
+    ? allMaterials.filter((m) => {
+        const id = getId(m);
+        return available.materials.has(id) || filters.materials.includes(id);
+      })
+    : allMaterials;
 
   /* Price inputs (typed values, applied on button click) */
   const [minInput, setMinInput] = useState(String(filters.minPrice));

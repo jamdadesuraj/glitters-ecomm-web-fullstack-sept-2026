@@ -12,6 +12,15 @@ export interface IStoreEnquiry {
   updatedAt: string;
 }
 
+// payload sent when a customer submits the store enquiry form
+export interface ICreateStoreEnquiry {
+  fullName: string;
+  email: string;
+  phone: string;
+  msg: string;
+  storeName: string; // store _id
+}
+
 interface StoreResponse {
   success: boolean;
   statusCode: number;
@@ -51,11 +60,11 @@ export const storeEnquiryApi = createApi({
     }),
 
     // create team api
-    createStore: builder.mutation<IStoreEnquiry, FormData>({
-      query: (formData) => ({
+    createStore: builder.mutation<IStoreEnquiry, ICreateStoreEnquiry>({
+      query: (payload) => ({
         url: "/store-enquiries",
         method: "POST",
-        body: formData,
+        body: payload,
       }),
 
       transformResponse: (response: StoreResponse) =>

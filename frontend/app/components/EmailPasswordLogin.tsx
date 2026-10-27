@@ -66,7 +66,7 @@ const EmailPasswordLogin = ({ onForgotPassword }: Props) => {
       console.log("Firebase token received:", !!token);
 
       // 3. Sync Firebase user with MongoDB
-      const response = await syncUser().unwrap();
+      const response = await syncUser({}).unwrap();
 
       console.log("MongoDB user:", response.data);
 

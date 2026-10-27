@@ -144,7 +144,9 @@ export const addToWishlist = catchAsync(async (req, res) => {
   /* Already active */
 
   if (existing && !existing.isDeleted) {
-    const populatedItem = await findPopulatedById(existing._id);
+    const populatedItem = await findPopulatedById(
+      existing._id as Types.ObjectId,
+    );
 
     return respond(res, 200, "Product already exists in wishlist", {
       data: populatedItem,
@@ -158,7 +160,9 @@ export const addToWishlist = catchAsync(async (req, res) => {
 
     await existing.save();
 
-    const populatedItem = await findPopulatedById(existing._id);
+    const populatedItem = await findPopulatedById(
+      existing._id as Types.ObjectId,
+    );
 
     return respond(res, 200, "Product added to wishlist successfully", {
       data: populatedItem,
@@ -173,7 +177,7 @@ export const addToWishlist = catchAsync(async (req, res) => {
     isDeleted: false,
   });
 
-  const populatedItem = await findPopulatedById(item._id);
+  const populatedItem = await findPopulatedById(item._id as Types.ObjectId);
 
   return respond(res, 201, "Product added to wishlist successfully", {
     data: populatedItem,
@@ -242,7 +246,7 @@ export const getAllWishlist = catchAsync(async (req, res) => {
 export const getWishlistById = catchAsync(async (req, res) => {
   const userId = await getUserId(req);
 
-  const { id } = req.params;
+  const id = String(req.params.id);
 
   assertObjectId(id, "wishlist id");
 
@@ -267,7 +271,7 @@ export const getWishlistById = catchAsync(async (req, res) => {
 
 export const deleteWishlist = catchAsync(async (req, res) => {
   const userId = await getUserId(req);
-  const { id } = req.params;
+  const id = String(req.params.id);
 
   assertObjectId(id, "wishlist id");
 
@@ -291,7 +295,7 @@ export const deleteWishlist = catchAsync(async (req, res) => {
 
 export const deleteWishlistByProduct = catchAsync(async (req, res) => {
   const userId = await getUserId(req);
-  const { productId } = req.params;
+  const productId = String(req.params.productId);
 
   assertObjectId(productId, "product id");
 

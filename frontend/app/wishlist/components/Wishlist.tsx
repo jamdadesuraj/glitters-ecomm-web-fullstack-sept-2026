@@ -173,7 +173,7 @@ function WishlistCard({
     try {
       const response = await addToCart({
         product: product._id,
-        variant: details.variant?._id,
+        variantId: details.variant?._id,
         quantity: 1,
       }).unwrap();
 
