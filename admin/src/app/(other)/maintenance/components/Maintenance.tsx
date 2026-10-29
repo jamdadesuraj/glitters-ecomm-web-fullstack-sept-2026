@@ -5,7 +5,7 @@ import smallImg from '@/assets/images/small/img-10.jpg'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Card, Col, Row } from 'react-bootstrap'
-
+import logoLight from '@/assets/images/logo.webp'
 const Maintenance = () => {
   return (
     <div className="d-flex flex-column vh-100 p-3">

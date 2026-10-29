@@ -6,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Card, Col, Row } from 'react-bootstrap'
 import SignUpForm from './SignUpForm'
-
+import logoLight from '@/assets/images/logo.webp'
 const SignUp = () => {
   return (
     <div className="d-flex flex-column vh-100 p-3">

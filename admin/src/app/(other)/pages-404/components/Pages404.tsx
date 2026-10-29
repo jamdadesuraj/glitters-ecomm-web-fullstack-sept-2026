@@ -6,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect } from 'react'
 import { Card, Col, Row } from 'react-bootstrap'
-
+import logoLight from '@/assets/images/logo.webp'
 const Pages404 = () => {
   return (
     <div className="d-flex flex-column vh-100 p-3">

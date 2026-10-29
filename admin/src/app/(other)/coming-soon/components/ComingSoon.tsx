@@ -6,7 +6,7 @@ import useCountdown from '@/hooks/useCountdown'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Card, Col, Row } from 'react-bootstrap'
-
+import logoLight from '@/assets/images/logo.webp'
 const Timer = () => {
   const { days, hours, minutes, seconds } = useCountdown()
   return (

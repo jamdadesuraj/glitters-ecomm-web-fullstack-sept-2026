@@ -5,6 +5,7 @@ export interface IContact {
   _id: string
   firstName: string
   lastName: string
+  fullName: string
   emailAddress: string
   phone: string
   subject: string
