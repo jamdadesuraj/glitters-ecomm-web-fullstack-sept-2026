@@ -25,6 +25,10 @@ export interface SyncUserRequest {
   phone?: string;
 }
 
+export interface UpdateEmailRequest {
+  email: string;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export const authApi = createApi({
@@ -75,8 +79,22 @@ export const authApi = createApi({
 
       providesTags: ["AuthUser"],
     }),
+
+    updateEmail: builder.mutation<AuthResponse, UpdateEmailRequest>({
+      query: (body) => ({
+        url: "/auth/email",
+        method: "PUT",
+        body,
+      }),
+
+      invalidatesTags: ["AuthUser"],
+    }),
   }),
 });
 
-export const { useSyncUserMutation, useGetMeQuery, useLazyGetMeQuery } =
-  authApi;
+export const {
+  useSyncUserMutation,
+  useGetMeQuery,
+  useLazyGetMeQuery,
+  useUpdateEmailMutation,
+} = authApi;

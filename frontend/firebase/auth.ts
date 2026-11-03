@@ -1,5 +1,7 @@
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
@@ -32,6 +34,28 @@ export const loginWithEmail = async (email: string, password: string) => {
 
 export const sendResetPasswordEmail = async (email: string) => {
   await sendPasswordResetEmail(auth, email);
+};
+
+// Re-checks the user's password so the backend sees a fresh login time.
+export const confirmPassword = async (currentPassword: string) => {
+  const user = auth.currentUser;
+
+  if (!user || !user.email) {
+    throw new Error("Not logged in");
+  }
+
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+};
+
+// After the backend changed the email, refresh the local Firebase user + token.
+export const refreshAuthUser = async () => {
+  const user = auth.currentUser;
+
+  if (!user) return;
+
+  await user.reload();
+  await user.getIdToken(true);
 };
 
 export const logoutUser = async () => {

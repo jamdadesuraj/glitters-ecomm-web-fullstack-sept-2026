@@ -14,6 +14,7 @@ import {
 import MyAddress from "./MyAddress";
 import MyOrders from "./MyOrders";
 import SavedCards from "./SavedCards";
+import EditEmail from "./EditEmail";
 import { useAuthUser } from "@/hooks/useAuthUser"; // ADDED
 import { useGetMeQuery } from "@/store/authApi"; // ADDED
 import { logoutUser } from "@/firebase/auth"; // ADDED
@@ -76,6 +77,11 @@ const MyAccount = () => {
   const displayEmail = profile?.email || user.email || "-";
   const displayPhone = profile?.phone || user.phoneNumber || "-";
 
+  // email can only be changed for email + password accounts
+  const canEditEmail = user.providerData.some(
+    (provider) => provider.providerId === "password",
+  );
+
   return (
     <main className="min-h-screen bg-[#f7f7f8] py-8 transition-colors dark:bg-[#080808] sm:py-10">
       <div className="mx-auto w-full max-w-350 px-4 sm:px-6 lg:px-8">
@@ -121,12 +127,10 @@ const MyAccount = () => {
                     <FiMail size={14} />
                   </div>
 
-                  <span className="text-xs font-bold text-gray-900 font-serif dark:text-gray-300">
-                    {displayEmail}
-                  </span>
+                  <EditEmail email={displayEmail} canEdit={canEditEmail} />
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400">
                     <FiPhone size={14} />
                   </div>
@@ -134,7 +138,7 @@ const MyAccount = () => {
                   <span className="text-xs font-bold text-gray-900 font-serif dark:text-gray-300">
                     {displayPhone}
                   </span>
-                </div>
+                </div> */}
               </div>
             </div>
 

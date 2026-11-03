@@ -13,9 +13,13 @@ import AccountLinks from "./AccountLinks";
 
 type AuthMode = "mobile" | "email" | "register" | "forgot";
 
+// Set to true to bring back the "Mobile + OTP" login option
+const ENABLE_MOBILE_LOGIN = false;
+const DEFAULT_MODE: AuthMode = ENABLE_MOBILE_LOGIN ? "mobile" : "email";
+
 const AccountMenu = () => {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<AuthMode>("mobile");
+  const [mode, setMode] = useState<AuthMode>(DEFAULT_MODE);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -30,7 +34,7 @@ const AccountMenu = () => {
       // Login success par dropdown band + mode reset
       if (currentUser) {
         setOpen(false);
-        setMode("mobile");
+        setMode(DEFAULT_MODE);
       }
     });
 
@@ -40,7 +44,7 @@ const AccountMenu = () => {
   // Open popover from anywhere (e.g. wishlist click when logged out)
   useEffect(() => {
     const handleOpen = () => {
-      setMode("mobile");
+      setMode(DEFAULT_MODE);
       setOpen(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
@@ -256,63 +260,64 @@ const AccountMenu = () => {
           ) : (
             /* LOGGED OUT */
             <>
-              {/* LOGIN MODE TABS */}
-              {(mode === "mobile" || mode === "email") && (
-                <div className="mb-5 grid grid-cols-2 rounded-xl bg-gray-100 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setMode("mobile")}
-                    className={`
-                      flex
-                      h-10
-                      cursor-pointer
-                      items-center
-                      justify-center
-                      gap-2
-                      rounded-lg
-                      text-[11px]
-                      font-bold
-                      transition
-                      ${
-                        mode === "mobile"
-                          ? "bg-white text-black shadow-sm"
-                          : "text-gray-500"
-                      }
-                    `}
-                  >
-                    <FiPhone size={14} />
-                    Mobile + OTP
-                  </button>
+              {/* LOGIN MODE TABS (only when mobile login is enabled) */}
+              {ENABLE_MOBILE_LOGIN &&
+                (mode === "mobile" || mode === "email") && (
+                  <div className="mb-5 grid grid-cols-2 rounded-xl bg-gray-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setMode("mobile")}
+                      className={`
+                        flex
+                        h-10
+                        cursor-pointer
+                        items-center
+                        justify-center
+                        gap-2
+                        rounded-lg
+                        text-[11px]
+                        font-bold
+                        transition
+                        ${
+                          mode === "mobile"
+                            ? "bg-white text-black shadow-sm"
+                            : "text-gray-500"
+                        }
+                      `}
+                    >
+                      <FiPhone size={14} />
+                      Mobile + OTP
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setMode("email")}
-                    className={`
-                      flex
-                      h-10
-                      cursor-pointer
-                      items-center
-                      justify-center
-                      gap-2
-                      rounded-lg
-                      text-[11px]
-                      font-bold
-                      transition
-                      ${
-                        mode === "email"
-                          ? "bg-white text-black shadow-sm"
-                          : "text-gray-500"
-                      }
-                    `}
-                  >
-                    <FiMail size={14} />
-                    Email Login
-                  </button>
-                </div>
-              )}
+                    <button
+                      type="button"
+                      onClick={() => setMode("email")}
+                      className={`
+                        flex
+                        h-10
+                        cursor-pointer
+                        items-center
+                        justify-center
+                        gap-2
+                        rounded-lg
+                        text-[11px]
+                        font-bold
+                        transition
+                        ${
+                          mode === "email"
+                            ? "bg-white text-black shadow-sm"
+                            : "text-gray-500"
+                        }
+                      `}
+                    >
+                      <FiMail size={14} />
+                      Email Login
+                    </button>
+                  </div>
+                )}
 
               {/* FORMS */}
-              {mode === "mobile" && <MobileOtpLogin />}
+              {ENABLE_MOBILE_LOGIN && mode === "mobile" && <MobileOtpLogin />}
               {mode === "email" && (
                 <EmailPasswordLogin
                   onForgotPassword={() => setMode("forgot")}
@@ -342,7 +347,7 @@ const AccountMenu = () => {
                       Already have an account?{" "}
                       <button
                         type="button"
-                        onClick={() => setMode("mobile")}
+                        onClick={() => setMode(DEFAULT_MODE)}
                         className="cursor-pointer font-extrabold text-black hover:text-[#b58b00]"
                       >
                         Login
