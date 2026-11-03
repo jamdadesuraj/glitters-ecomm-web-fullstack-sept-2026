@@ -1,14 +1,18 @@
 'use client'
 
-import logo from '@/assets/images/logo.webp'
+import fallbackLogo from '@/assets/images/logo.webp'
 import authImg from '@/assets/images/auth.jpg'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import Image from 'next/image'
 import LoginFrom from './LoginFrom'
 import { Col, Row } from 'react-bootstrap'
 import Link from 'next/link'
+import { useGetAllGeneralSettingsQuery } from '@/store/generalSettingsApi'
 
 const SignIn = () => {
+  const { data: settings, isLoading } = useGetAllGeneralSettingsQuery()
+  const logoSrc = settings?.[0]?.logo || fallbackLogo.src
+
   return (
     <div className="vh-100 overflow-hidden">
       <Row className="h-100 g-0">
@@ -16,8 +20,12 @@ const SignIn = () => {
         <Col lg={5} className="d-flex align-items-center justify-content-center bg-white p-4">
           <div style={{ maxWidth: '400px', width: '100%' }}>
             {/* LOGO */}
-            <div className="mb-4 text-center">
-              <Image src={logo} height={80} alt="logo" />
+            <div className="mb-4 text-center" style={{ height: 80 }}>
+              {!isLoading && (
+                // plain <img> so any Cloudinary URL works without next.config image domains
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoSrc} height={80} alt="logo" style={{ height: 80, width: 'auto' }} />
+              )}
             </div>
 
             {/* TITLE */}
@@ -28,24 +36,24 @@ const SignIn = () => {
             <LoginFrom />
 
             {/* DIVIDER */}
-            <div className="text-center my-3 position-relative">
+            {/* <div className="text-center my-3 position-relative">
               <span className="bg-white px-2 text-muted">OR</span>
               <hr className="mt-n3" />
-            </div>
+            </div> */}
 
             {/* GOOGLE LOGIN */}
-            <div className="d-grid">
+            {/* <div className="d-grid">
               <Link href="#" className="btn btn-light border">
                 <IconifyIcon icon="mdi:google" className="me-2" />
                 Sign in with Google
               </Link>
-            </div>
+            </div> */}
           </div>
         </Col>
 
         {/* RIGHT SIDE (IMAGE) */}
         <Col lg={7} className="d-none d-lg-block position-relative">
-          <Image src={authImg} alt="auth" fill className="object-fit-cover" />
+          <Image src="/image.png" alt="auth" fill className="object-fit-fill" />
 
           {/* OVERLAY */}
           <div
