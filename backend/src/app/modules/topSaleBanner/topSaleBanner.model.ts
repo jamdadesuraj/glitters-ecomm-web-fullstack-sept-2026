@@ -19,6 +19,22 @@ const topSaleBannerSchema: Schema<ITopSaleBanner> = new Schema(
       trim: true,
     },
 
+    offerBannerLink1: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    offerBannerLink2: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    offerBannerLink3: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     status: {
       type: String,
       enum: ["active", "inactive"],

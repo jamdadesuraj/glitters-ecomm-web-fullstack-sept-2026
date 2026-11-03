@@ -5,6 +5,10 @@ export interface ITopSaleBanner extends Document {
   offerBannerImg2: string;
   offerBannerImg3: string;
 
+  offerBannerLink1?: string;
+  offerBannerLink2?: string;
+  offerBannerLink3?: string;
+
   status: "active" | "inactive";
 
   isDeleted: boolean;

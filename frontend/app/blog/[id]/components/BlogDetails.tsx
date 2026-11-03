@@ -427,6 +427,22 @@ const BlogDetails = () => {
     );
   };
 
+  const shareNative = async () => {
+    if (typeof navigator === "undefined" || !navigator.share) {
+      return shareLinkedIn(); // fallback when the native share sheet isn't supported
+    }
+
+    try {
+      await navigator.share({
+        title: blogs.title ?? "",
+        text: blogs.shortDesc ?? "",
+        url: getCurrentUrl(),
+      });
+    } catch {
+      // user cancelled the share sheet
+    }
+  };
+
   /* ============================================================
      MAIN
   ============================================================ */
@@ -597,14 +613,14 @@ const BlogDetails = () => {
 
               <div className="mt-6 flex flex-col gap-4 rounded-2xl bg-gray-50 p-4 dark:bg-white/3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
-                  <FiShare2
+                  {/* <FiShare2
                     size={16}
                     className="text-gray-500 dark:text-gray-400"
                   />
 
                   <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
                     Share this article
-                  </span>
+                  </span> */}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -633,6 +649,16 @@ const BlogDetails = () => {
                     className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-[#ffd83d] hover:bg-[#ffd83d] hover:text-black dark:border-white/10 dark:bg-[#151515] dark:text-gray-400"
                   >
                     <FiLinkedin size={14} />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="Share article"
+                    onClick={shareNative}
+                    className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-xs font-bold text-gray-600 transition hover:border-[#ffd83d] hover:bg-[#ffd83d] hover:text-black dark:border-white/10 dark:bg-[#151515] dark:text-gray-300"
+                  >
+                    <FiShare2 size={14} />
+                    Share
                   </button>
                 </div>
               </div>

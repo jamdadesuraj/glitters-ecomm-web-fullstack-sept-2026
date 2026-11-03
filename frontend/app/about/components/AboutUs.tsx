@@ -306,7 +306,7 @@ const AboutUs = () => {
               </h1>
 
               {about.shortDesc && (
-                <p className="mt-3 max-w-162.5 text-[9px] leading-5 text-gray-900 dark:text-gray-400 sm:text-[10px] lg:text-[12px]">
+                <p className="mt-3 max-w-162.5 text-[9px] leading-5 text-dark-900 dark:text-dark-400 sm:text-[12px] lg:text-[14px]">
                   {about.shortDesc}
                 </p>
               )}
@@ -405,13 +405,13 @@ const AboutUs = () => {
             )}
 
             {about.storyDesc && (
-              <p className="mt-3 text-[12px] leading-5 text-gray-900 dark:text-gray-400">
+              <p className="mt-3 text-[14px] leading-5 text-dark-900 dark:text-dark-400">
                 {about.storyDesc}
               </p>
             )}
 
             {about.storySecondDesc && (
-              <p className="mt-3 text-[12px] leading-5 text-gray-900 dark:text-gray-400">
+              <p className="mt-3 text-[14px] leading-5 text-dark-900 dark:text-dark-400">
                 {about.storySecondDesc}
               </p>
             )}
@@ -465,7 +465,7 @@ const AboutUs = () => {
             )}
 
             {about.whyShopDesc && (
-              <p className="mx-auto mt-1.5 max-w-137.5 text-[8px] leading-4 text-gray-900 dark:text-gray-400 sm:text-[12px]">
+              <p className="mx-auto mt-1.5 max-w-137.5 text-[14px] leading-4 text-dark-900 dark:text-gray-400 sm:text-[12px]">
                 {about.whyShopDesc}
               </p>
             )}
@@ -492,7 +492,7 @@ const AboutUs = () => {
             )}
 
             {about.promiseDesc && (
-              <p className="mt-2 text-[10px] leading-4 text-gray-900 dark:text-gray-400 sm:text-[12px]">
+              <p className="mt-2 text-[14px] leading-4 text-dark-900 dark:text-gray-400 sm:text-[12px]">
                 {about.promiseDesc}
               </p>
             )}
@@ -518,7 +518,7 @@ const AboutUs = () => {
                 Customer Support
               </h2>
 
-              <p className="mt-2 max-w-125 text-[8px] leading-4 text-gray-400 sm:text-[12px]">
+              <p className="mt-2 max-w-125 text-[14px] leading-4 text-gray-400 sm:text-[12px]">
                 Have a question about products, orders, payments, delivery or
                 returns? Our support team is here to help.
               </p>
@@ -579,7 +579,7 @@ const HeroMiniCard = ({
       {value}
     </p>
 
-    <p className="mt-0.5 text-[12px] text-gray-900 dark:text-white">{label}</p>
+    <p className="mt-0.5 text-[14px] text-dark-900 dark:text-white">{label}</p>
   </div>
 );
 
@@ -601,7 +601,7 @@ const StatCard = ({
       {title}
     </h3>
 
-    <p className="mt-1 text-[10px] leading-3.5 text-gray-900 dark:text-gray-400 sm:text-[12px]">
+    <p className="mt-1 text-[10px] leading-3.5 text-dark-900 dark:text-dark-400 sm:text-[12px]">
       {text}
     </p>
   </div>
@@ -618,7 +618,7 @@ const StoryPoint = ({ title, text }: CardItem) => (
         {title}
       </p>
 
-      <p className="mt-0.5 text-[10px] leading-3.5 text-gray-900 dark:text-gray-400">
+      <p className="mt-0.5 text-[14px] leading-3.5 text-dark-900 dark:text-dark-400">
         {text}
       </p>
     </div>
@@ -635,7 +635,7 @@ const ValueCard = ({ icon, title, text }: CardItem) => (
       {title}
     </h3>
 
-    <p className="mt-1 text-[12px] leading-4 text-gray-900 dark:text-white">
+    <p className="mt-1 text-[14px] leading-4 text-dark-900 dark:text-white">
       {text}
     </p>
   </article>
@@ -651,7 +651,7 @@ const ChooseCard = ({ icon, title, text }: CardItem) => (
       {title}
     </h3>
 
-    <p className="mt-1 text-[10px] leading-3.5 text-gray-900 dark:text-white">
+    <p className="mt-1 text-[14px] leading-3.5 text-dark-900 dark:text-white">
       {text}
     </p>
   </div>
@@ -663,7 +663,7 @@ const PromiseItem = ({ text }: { text: string }) => (
       <FiCheckCircle size={10} />
     </span>
 
-    <span className="text-[10px] text-gray-900 dark:text-gray-400 sm:text-[12px]">
+    <span className="text-[14px] text-dark-900 dark:text-gray-400 sm:text-[12px]">
       {text}
     </span>
   </div>

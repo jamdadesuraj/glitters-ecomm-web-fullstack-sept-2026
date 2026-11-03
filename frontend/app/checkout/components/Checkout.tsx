@@ -33,9 +33,24 @@ type PaymentMethod =
   | "cod"
   | "apple-pay";
 
+// UAE has seven emirates
+const UAE_EMIRATES = [
+  "Abu Dhabi",
+  "Dubai",
+  "Sharjah",
+  "Ajman",
+  "Umm Al Quwain",
+  "Ras Al Khaimah",
+  "Fujairah",
+];
+
+const UAE_COUNTRY = "United Arab Emirates";
+
 // builds the single address line shown in the UI and sent to OrderSummary
 const formatAddressLine = (a: IAddress) => {
-  const line = [a.address, a.city, a.state].filter(Boolean).join(", ");
+  const line = [a.address, a.city, a.state, UAE_COUNTRY]
+    .filter(Boolean)
+    .join(", ");
   return a.pincode ? `${line} - ${a.pincode}` : line;
 };
 
@@ -64,17 +79,20 @@ const getErrorMessage = (error: unknown) => {
   return err?.data?.message || "Something went wrong. Please try again.";
 };
 
-// same rules as backend Address.validation.ts -> error message or null
+// UAE rules -> error message or null
 const validateForm = (f: IAddressBody): string | null => {
   if (!f.name.trim()) return "Name is required";
 
-  const phoneDigits = f.phone.replace(/\D/g, "").slice(-10);
-  if (!/^[6-9]\d{9}$/.test(phoneDigits)) return "Invalid phone number";
+  // UAE mobile: +971 5X XXX XXXX (9 digits after the country code)
+  const digits = f.phone.replace(/\D/g, "");
+  const uaeNumber = digits.startsWith("971")
+    ? digits.slice(3)
+    : digits.replace(/^0/, "");
+  if (!/^5\d{8}$/.test(uaeNumber)) return "Enter a valid UAE mobile number";
 
   if (!f.address.trim()) return "Address is required";
   if (!f.city.trim()) return "City is required";
-  if (!f.state.trim()) return "State is required";
-  if (!/^\d{6}$/.test(f.pincode.trim())) return "Pincode must be 6 digits";
+  if (!UAE_EMIRATES.includes(f.state)) return "Please select a UAE emirate";
 
   return null;
 };
@@ -230,13 +248,13 @@ const Checkout = () => {
             <h1
               className="
                 font-serif
-                text-[20px]
+                text-[28px]
                 font-extrabold
                 text-black
 
-                sm:text-[24px]
+                sm:text-[32px]
 
-                lg:text-[28px]
+                lg:text-[38px]
 
                 dark:text-white
               "
@@ -247,10 +265,10 @@ const Checkout = () => {
             <p
               className="
                 mt-1
-                text-[9px]
+                text-[14px]
                 text-gray-500
 
-                sm:text-[10px]
+                sm:text-[15px]
 
                 dark:text-gray-400
               "
@@ -265,20 +283,20 @@ const Checkout = () => {
               flex
               items-center
               gap-1.5
-              text-[9px]
+              text-[14px]
               font-bold
               text-gray-600
               transition
 
               hover:text-black
 
-              sm:text-[10px]
+              sm:text-[15px]
 
               dark:text-gray-300
               dark:hover:text-white
             "
           >
-            <FiArrowLeft size={13} />
+            <FiArrowLeft size={15} />
             Back to Cart
           </Link>
         </div>
@@ -307,8 +325,8 @@ const Checkout = () => {
             <span
               className="
                 flex
-                h-7
-                w-7
+                h-8
+                w-8
                 shrink-0
                 items-center
                 justify-center
@@ -317,15 +335,15 @@ const Checkout = () => {
                 text-black
               "
             >
-              <FiCheck size={13} />
+              <FiCheck size={14} />
             </span>
 
             <div className="hidden min-[420px]:block">
-              <p className="text-[12px] font-serif font-bold text-black dark:text-white">
+              <p className="text-[17px] font-serif font-bold text-black dark:text-white">
                 Cart
               </p>
 
-              <p className="text-[10px] text-gray-900">Completed</p>
+              <p className="text-[15px] text-gray-900">Completed</p>
             </div>
           </div>
 
@@ -343,14 +361,14 @@ const Checkout = () => {
             <span
               className="
                 flex
-                h-7
-                w-7
+                h-8
+                w-8
                 shrink-0
                 items-center
                 justify-center
                 rounded-full
                 bg-[#ffd83d]
-                text-[9px]
+                text-[13px]
                 font-bold
                 text-black
               "
@@ -359,11 +377,11 @@ const Checkout = () => {
             </span>
 
             <div className="hidden min-[420px]:block">
-              <p className="text-[12px] font-serif font-bold text-black dark:text-white">
+              <p className="text-[17px] font-serif font-bold text-black dark:text-white">
                 Checkout
               </p>
 
-              <p className="text-[10px] text-gray-900">Shipping & Payment</p>
+              <p className="text-[15px] text-gray-900">Shipping & Payment</p>
             </div>
           </div>
 
@@ -381,14 +399,14 @@ const Checkout = () => {
             <span
               className="
                 flex
-                h-7
-                w-7
+                h-8
+                w-8
                 shrink-0
                 items-center
                 justify-center
                 rounded-full
                 bg-gray-100
-                text-[9px]
+                text-[13px]
                 font-bold
                 text-gray-400
 
@@ -399,11 +417,11 @@ const Checkout = () => {
             </span>
 
             <div className="hidden min-[420px]:block">
-              <p className="text-[12px] font-serif font-bold text-gray-400">
+              <p className="text-[17px] font-serif font-bold text-gray-400">
                 Complete
               </p>
 
-              <p className="text-[10px] text-gray-900">Order placed</p>
+              <p className="text-[15px] text-gray-900">Order placed</p>
             </div>
           </div>
         </div>
@@ -473,18 +491,18 @@ const Checkout = () => {
                       dark:text-[#ffd83d]
                     "
                   >
-                    <FiMapPin size={15} />
+                    <FiMapPin size={16} />
                   </div>
 
                   <div>
                     <h2
                       className="
                         font-serif
-                        text-[14px]
+                        text-[19px]
                         font-extrabold
                         text-black
 
-                        sm:text-[16px]
+                        sm:text-[21px]
 
                         dark:text-white
                       "
@@ -492,7 +510,7 @@ const Checkout = () => {
                       Shipping Address
                     </h2>
 
-                    <p className="mt-0.5 text-[10px] text-gray-900">
+                    <p className="mt-0.5 text-[15px] text-gray-900">
                       Choose your delivery address
                     </p>
                   </div>
@@ -514,7 +532,7 @@ const Checkout = () => {
                       bg-white
                       px-2.5
                       py-2
-                      text-[8px]
+                      text-[13px]
                       font-bold
                       text-gray-900
                       transition
@@ -527,7 +545,7 @@ const Checkout = () => {
                       dark:text-gray-300
                     "
                   >
-                    <FiPlus size={11} />
+                    <FiPlus size={12} />
 
                     <span className="hidden sm:inline">Different Address</span>
 
@@ -540,13 +558,13 @@ const Checkout = () => {
                 <div className="space-y-2.5">
                   {/* LOADING / ERROR / EMPTY STATES */}
                   {addressesLoading && (
-                    <p className="py-4 text-center text-[10px] text-gray-500 dark:text-gray-400">
+                    <p className="py-4 text-center text-[15px] text-gray-500 dark:text-gray-400">
                       Loading your addresses...
                     </p>
                   )}
 
                   {!addressesLoading && addressesError && (
-                    <p className="py-4 text-center text-[10px] text-red-500">
+                    <p className="py-4 text-center text-[15px] text-red-500">
                       Could not load your addresses. Please refresh the page.
                     </p>
                   )}
@@ -554,7 +572,7 @@ const Checkout = () => {
                   {!addressesLoading &&
                     !addressesError &&
                     addresses.length === 0 && (
-                      <p className="py-4 text-center text-[10px] text-gray-500 dark:text-gray-400">
+                      <p className="py-4 text-center text-[15px] text-gray-500 dark:text-gray-400">
                         You have no saved addresses yet. Add one to continue.
                       </p>
                     )}
@@ -623,7 +641,7 @@ const Checkout = () => {
                             `}
                         >
                           {active && (
-                            <FiCheck size={9} className="text-black" />
+                            <FiCheck size={10} className="text-black" />
                           )}
                         </span>
 
@@ -638,11 +656,11 @@ const Checkout = () => {
                           >
                             <h3
                               className="
-                                  text-[10px]
+                                  text-[15px]
                                   font-bold
                                   text-black
                                   font-serif
-                                  sm:text-[11px]
+                                  sm:text-[16px]
 
                                   dark:text-white
                                 "
@@ -656,7 +674,7 @@ const Checkout = () => {
                                   bg-[#fff4be]
                                   px-2
                                   py-0.5
-                                  text-[10px]
+                                  text-[13px]
                                   font-bold
                                   text-gray-900
 
@@ -674,7 +692,7 @@ const Checkout = () => {
                                     bg-green-50
                                     px-2
                                     py-0.5
-                                    text-[7px]
+                                    text-[11px]
                                     font-bold
                                     text-green-600
 
@@ -690,11 +708,11 @@ const Checkout = () => {
                             className="
                                 mt-1.5
                                 max-w-175
-                                text-[8px]
-                                leading-4
+                                text-[13px]
+                                leading-5
                                 text-gray-900
 
-                                sm:text-[10px]
+                                sm:text-[15px]
 
                                 dark:text-gray-400
                               "
@@ -705,7 +723,7 @@ const Checkout = () => {
                           <p
                             className="
                                 mt-1
-                                text-[10px]
+                                text-[15px]
                                 font-semibold
                                 text-gray-900
                                 font-serif
@@ -740,7 +758,7 @@ const Checkout = () => {
                             openEditForm(address);
                           }}
                         >
-                          <FiEdit2 size={11} />
+                          <FiEdit2 size={12} />
                         </span>
                       </button>
                     );
@@ -762,7 +780,7 @@ const Checkout = () => {
                       border-gray-300
                       px-3
                       py-3
-                      text-[12px]
+                      text-[16px]
                       font-bold
                       text-gray-900
                       transition
@@ -775,7 +793,7 @@ const Checkout = () => {
                       dark:hover:text-white
                     "
                   >
-                    <FiPlus size={11} />
+                    <FiPlus size={12} />
                     Add New Address
                   </button>
                 </div>
@@ -803,7 +821,7 @@ const Checkout = () => {
                     <div>
                       <p
                         className="
-                          text-[9px]
+                          text-[14px]
                           font-bold
                           text-black
 
@@ -813,7 +831,7 @@ const Checkout = () => {
                         {editingId ? "Edit Address" : "Add New Address"}
                       </p>
 
-                      <p className="mt-0.5 text-[7px] text-gray-400">
+                      <p className="mt-0.5 text-[12px] text-gray-400">
                         Enter shipping details
                       </p>
                     </div>
@@ -823,7 +841,7 @@ const Checkout = () => {
                       onClick={closeForm}
                       className="
                         cursor-pointer
-                        text-[8px]
+                        text-[13px]
                         font-bold
                         text-[#9a7600]
 
@@ -855,7 +873,7 @@ const Checkout = () => {
 
                     <CheckoutInput
                       label="Phone Number"
-                      placeholder="+91 98765 43210"
+                      placeholder="+971 50 123 4567"
                       type="tel"
                       name="phone"
                       value={formData.phone}
@@ -880,30 +898,108 @@ const Checkout = () => {
                       onChange={handleFormChange}
                     />
 
-                    <CheckoutInput
-                      label="State"
-                      placeholder="Enter state"
-                      name="state"
-                      value={formData.state}
-                      onChange={handleFormChange}
-                    />
+                    <div>
+                      <label
+                        className="
+                          mb-1.5
+                          block
+                          text-[15px]
+                          font-semibold
+                          text-gray-900
+                          font-serif
+                          dark:text-gray-300
+                        "
+                      >
+                        Emirate
+                      </label>
 
-                    <CheckoutInput
-                      label="Pincode"
-                      placeholder="6 digit pincode"
-                      name="pincode"
-                      value={formData.pincode}
-                      onChange={handleFormChange}
-                      inputMode="numeric"
-                      maxLength={6}
-                    />
+                      <select
+                        name="state"
+                        value={formData.state}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            state: e.target.value,
+                          }))
+                        }
+                        className="
+                          h-10
+                          w-full
+                          rounded-lg
+                          border
+                          border-gray-200
+                          bg-white
+                          px-3
+                          text-[14px]
+                          text-black
+                          outline-none
+                          transition
+
+                          focus:border-[#ffd83d]
+
+                          sm:h-11
+
+                          dark:border-gray-700
+                          dark:bg-[#202020]
+                          dark:text-white
+                        "
+                      >
+                        <option value="">Select emirate</option>
+                        {UAE_EMIRATES.map((emirate) => (
+                          <option key={emirate} value={emirate}>
+                            {emirate}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                     <div>
                       <label
                         className="
                           mb-1.5
                           block
-                          text-[10px]
+                          text-[15px]
+                          font-semibold
+                          text-gray-900
+                          font-serif
+                          dark:text-gray-300
+                        "
+                      >
+                        Country
+                      </label>
+
+                      <input
+                        type="text"
+                        value={UAE_COUNTRY}
+                        readOnly
+                        className="
+                          h-10
+                          w-full
+                          cursor-not-allowed
+                          rounded-lg
+                          border
+                          border-gray-200
+                          bg-gray-100
+                          px-3
+                          text-[14px]
+                          text-gray-600
+                          outline-none
+
+                          sm:h-11
+
+                          dark:border-gray-700
+                          dark:bg-[#181818]
+                          dark:text-gray-400
+                        "
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        className="
+                          mb-1.5
+                          block
+                          text-[15px]
                           font-semibold
                           text-gray-900
                           font-serif
@@ -926,7 +1022,7 @@ const Checkout = () => {
                               cursor-pointer
                               rounded-lg
                               border
-                              text-[9px]
+                              text-[14px]
                               font-bold
                               font-serif
                               transition
@@ -966,7 +1062,7 @@ const Checkout = () => {
                         className="
                           mb-1.5
                           block
-                          text-[10px]
+                          text-[15px]
                           font-semibold
                           text-gray-900
                           font-serif
@@ -990,7 +1086,7 @@ const Checkout = () => {
                           border-gray-200
                           bg-white
                           p-3
-                          text-[9px]
+                          text-[14px]
                           text-black
                           outline-none
 
@@ -1028,7 +1124,7 @@ const Checkout = () => {
                       className="h-3.5 w-3.5 accent-[#ffd83d]"
                     />
 
-                    <span className="text-[8px] text-gray-500 dark:text-gray-400">
+                    <span className="text-[13px] text-gray-500 dark:text-gray-400">
                       Set as my default address
                     </span>
                   </label>
@@ -1046,7 +1142,7 @@ const Checkout = () => {
                         border-gray-200
                         bg-white
                         px-4
-                        text-[9px]
+                        text-[14px]
                         font-bold
                         font-serif
                         text-gray-900
@@ -1074,7 +1170,7 @@ const Checkout = () => {
                         rounded-lg
                         bg-[#ffd83d]
                         px-5
-                        text-[9px]
+                        text-[14px]
                         font-bold
                         font-serif
                         text-black
@@ -1120,7 +1216,7 @@ const Checkout = () => {
               "
             >
               <SectionHeading
-                icon={<FiCreditCard size={15} />}
+                icon={<FiCreditCard size={16} />}
                 title="Payment Method"
                 subtitle="Choose your preferred payment option"
               />
@@ -1137,7 +1233,7 @@ const Checkout = () => {
                 <PaymentCard
                   active={paymentMethod === "card"}
                   onClick={() => setPaymentMethod("card")}
-                  icon={<FiCreditCard size={16} />}
+                  icon={<FiCreditCard size={17} />}
                   title="Credit / Debit Card"
                   subtitle="Visa, Mastercard & more"
                 />
@@ -1145,7 +1241,7 @@ const Checkout = () => {
                 <PaymentCard
                   active={paymentMethod === "upi"}
                   onClick={() => setPaymentMethod("upi")}
-                  icon={<FiSmartphone size={16} />}
+                  icon={<FiSmartphone size={17} />}
                   title="UPI"
                   subtitle="Pay using your UPI ID"
                 />
@@ -1156,7 +1252,7 @@ const Checkout = () => {
                   icon={
                     <span
                       className="
-                        text-[8px]
+                        text-[12px]
                         font-extrabold
                         text-[#2b59c3]
                       "
@@ -1174,7 +1270,7 @@ const Checkout = () => {
                   icon={
                     <span
                       className="
-                        text-[8px]
+                        text-[12px]
                         font-extrabold
                         text-black
                       "
@@ -1189,7 +1285,7 @@ const Checkout = () => {
                 <PaymentCard
                   active={paymentMethod === "cod"}
                   onClick={() => setPaymentMethod("cod")}
-                  icon={<FiPackage size={16} />}
+                  icon={<FiPackage size={17} />}
                   title="Cash on Delivery"
                   subtitle="Pay when order arrives"
                 />
@@ -1197,7 +1293,7 @@ const Checkout = () => {
                 <PaymentCard
                   active={paymentMethod === "apple-pay"}
                   onClick={() => setPaymentMethod("apple-pay")}
-                  icon={<span className="text-[8px] font-bold">Pay</span>}
+                  icon={<span className="text-[12px] font-bold">Pay</span>}
                   title="Apple Pay"
                   subtitle="Fast secure checkout"
                 />
@@ -1255,7 +1351,7 @@ const Checkout = () => {
                     dark:bg-[#202020]
                   "
                 >
-                  <label className="mb-1.5 block text-[8px] font-semibold text-gray-500">
+                  <label className="mb-1.5 block text-[13px] font-semibold text-gray-500">
                     UPI ID
                   </label>
 
@@ -1272,7 +1368,7 @@ const Checkout = () => {
                         border-gray-200
                         bg-white
                         px-3
-                        text-[9px]
+                        text-[14px]
                         outline-none
 
                         focus:border-[#ffd83d]
@@ -1292,7 +1388,7 @@ const Checkout = () => {
                         rounded-lg
                         bg-[#ffd83d]
                         px-4
-                        text-[8px]
+                        text-[13px]
                         font-bold
                         text-black
 
@@ -1387,7 +1483,7 @@ const CheckoutInput = ({
         className="
           mb-1.5
           block
-          text-[10px]
+          text-[15px]
           font-semibold
           text-gray-900
           font-serif    
@@ -1413,7 +1509,7 @@ const CheckoutInput = ({
           border-gray-200
           bg-white
           px-3
-          text-[9px]
+          text-[14px]
           text-black
           outline-none
           transition
@@ -1471,11 +1567,11 @@ const SectionHeading = ({
         <h2
           className="
             font-serif
-            text-[14px]
+            text-[19px]
             font-extrabold
             text-black
 
-            sm:text-[16px]
+            sm:text-[21px]
 
             dark:text-white
           "
@@ -1483,7 +1579,7 @@ const SectionHeading = ({
           {title}
         </h2>
 
-        <p className="mt-0.5 text-[10px] text-gray-900">{subtitle}</p>
+        <p className="mt-0.5 text-[15px] text-gray-900">{subtitle}</p>
       </div>
     </div>
   );
@@ -1567,11 +1663,11 @@ const PaymentCard = ({
           className="
             block
             truncate
-            text-[9px]
+            text-[14px]
             font-bold
             text-black
               font-serif
-            sm:text-[10px]
+            sm:text-[15px]
 
             dark:text-white
           "
@@ -1584,7 +1680,7 @@ const PaymentCard = ({
             mt-0.5
             block
             truncate
-            text-[10px]
+            text-[15px]
             text-gray-900
           "
         >
@@ -1618,7 +1714,7 @@ const PaymentCard = ({
           }
         `}
       >
-        {active && <FiCheck size={9} />}
+        {active && <FiCheck size={10} />}
       </span>
     </button>
   );
@@ -1652,13 +1748,13 @@ const PaymentInfo = ({ title, text }: { title: string; text: string }) => {
           shrink-0
           text-green-600
         "
-        size={14}
+        size={16}
       />
 
       <div>
         <p
           className="
-            text-[9px]
+            text-[14px]
             font-bold
             text-black
 
@@ -1671,8 +1767,8 @@ const PaymentInfo = ({ title, text }: { title: string; text: string }) => {
         <p
           className="
             mt-1
-            text-[8px]
-            leading-3.5
+            text-[13px]
+            leading-5
             text-gray-400
           "
         >

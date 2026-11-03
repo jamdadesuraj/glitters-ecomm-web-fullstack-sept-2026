@@ -15,13 +15,15 @@ export interface ISubCategoryRef {
 export interface ITopSaleBanner {
   _id: string
 
-  category: string | ICategoryRef
+  // current backend fields
+  offerBannerImg1: string
+  offerBannerImg2: string
+  offerBannerImg3: string
 
-  subCategory?: string | ISubCategoryRef | null
-
-  offerBannerImg: string
-
-  redirectUrl?: string
+  // clickable link for each banner (empty string = no link)
+  offerBannerLink1?: string
+  offerBannerLink2?: string
+  offerBannerLink3?: string
 
   status: 'active' | 'inactive'
 
@@ -29,6 +31,12 @@ export interface ITopSaleBanner {
 
   createdAt: string
   updatedAt: string
+
+  // legacy fields (not in the current backend model, kept so existing code still compiles)
+  category?: string | ICategoryRef
+  subCategory?: string | ISubCategoryRef | null
+  offerBannerImg?: string
+  redirectUrl?: string
 }
 
 interface topSaleBannerResponse {
@@ -47,13 +55,13 @@ export const topSaleBannerApi = createApi({
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState)?.auth?.token
 
-      console.log('TOKEN =>', token)
-
       if (token) {
         headers.set('authorization', `Bearer ${token}`)
       }
 
-      headers.set('Content-Type', 'application/json')
+      // Content-Type is not set here on purpose.
+      // For JSON bodies fetchBaseQuery sets it automatically, and for FormData
+      // the browser sets multipart/form-data with the correct boundary.
 
       return headers
     },
@@ -82,7 +90,7 @@ export const topSaleBannerApi = createApi({
       providesTags: (result, error, id) => [{ type: 'topSaleBanner', id }],
     }),
 
-    // create team api
+    // create banner
     createTopSaleBanner: builder.mutation<ITopSaleBanner, FormData>({
       query: (formData) => ({
         url: '/top-sale-banner',
@@ -95,7 +103,7 @@ export const topSaleBannerApi = createApi({
       invalidatesTags: ['topSaleBanner'],
     }),
 
-    // update team api
+    // update banner
     updateTopSaleBanner: builder.mutation<ITopSaleBanner, { id: string; data: FormData }>({
       query: ({ id, data }) => ({
         url: `/top-sale-banner/${id}`,
@@ -106,7 +114,7 @@ export const topSaleBannerApi = createApi({
       invalidatesTags: ['topSaleBanner'],
     }),
 
-    // delete team api
+    // delete banner
     deleteTopSaleBanner: builder.mutation<ITopSaleBanner, string>({
       query: (id) => ({
         url: `/top-sale-banner/${id}`,

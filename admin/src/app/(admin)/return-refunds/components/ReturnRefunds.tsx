@@ -88,8 +88,7 @@ const initialFormData: FormData = {
 // API <-> FORM MAPPING
 // =====================================================
 
-const toList = <T,>(value: unknown, map: (item: any) => T, empty: T): T[] =>
-  Array.isArray(value) && value.length > 0 ? value.map(map) : [empty]
+const toList = <T,>(value: unknown, map: (item: any) => T, empty: T): T[] => (Array.isArray(value) && value.length > 0 ? value.map(map) : [empty])
 
 const fromApi = (d: any): FormData => ({
   badgeTitle: d.badgeTitle || '',
@@ -101,11 +100,7 @@ const fromApi = (d: any): FormData => ({
   contactSupportBtnText: d.contactSupportBtnText || '',
   contactSupportBtnUrl: d.contactSupportBtnUrl || '',
 
-  features: toList(
-    d.features,
-    (i) => ({ icon: i?.icon || '', title: i?.title || '', description: i?.desc || '' }),
-    emptyFeature,
-  ),
+  features: toList(d.features, (i) => ({ icon: i?.icon || '', title: i?.title || '', description: i?.desc || '' }), emptyFeature),
 
   howItWorksTitle: d.howItWorksTitle || '',
   howItWorksDesc: d.howItWorksDesc || '',
@@ -126,11 +121,7 @@ const fromApi = (d: any): FormData => ({
 
   refundTimelineTitle: d.refundTimelineTitle || '',
   refundTimelineDesc: d.refundTimelineDesc || '',
-  refundTimeline: toList(
-    d.refundTimeline,
-    (i) => ({ stepNo: i?.stepNo || '', title: i?.title || '', description: i?.desc || '' }),
-    emptyTimeline,
-  ),
+  refundTimeline: toList(d.refundTimeline, (i) => ({ stepNo: i?.stepNo || '', title: i?.title || '', description: i?.desc || '' }), emptyTimeline),
 
   refundProcessingTitle: d.refundProcessingTitle || '',
   refundProcessingDesc: d.refundProcessingDesc || '',
@@ -221,12 +212,7 @@ const ReturnRefunds = () => {
   const patchItem = <K extends ListKey>(key: K, index: number, patch: Partial<ListItem<K>>) =>
     updateItem(key, index, { ...(formData[key][index] as object), ...patch } as ListItem<K>)
 
-  const addItem = <K extends ListKey>(
-    key: K,
-    empty: ListItem<K>,
-    errorMessage: string,
-    isComplete: (last: ListItem<K>) => boolean,
-  ) => {
+  const addItem = <K extends ListKey>(key: K, empty: ListItem<K>, errorMessage: string, isComplete: (last: ListItem<K>) => boolean) => {
     const list = formData[key] as ListItem<K>[]
     const last = list[list.length - 1]
 
@@ -260,7 +246,7 @@ const ReturnRefunds = () => {
         await updateReturnRefund({ _id: returnData._id, data: payload }).unwrap()
         toast.success('Returns & Refunds updated successfully')
       } else {
-         // @ts-ignore
+        // @ts-ignore
         await createReturnRefund(payload).unwrap()
         toast.success('Returns & Refunds created successfully')
       }
@@ -339,9 +325,7 @@ const ReturnRefunds = () => {
       <Section
         title="Features"
         addLabel="Add Feature"
-        onAdd={() =>
-          addItem('features', emptyFeature, 'Please complete current feature first', (l) => !!l.title.trim() && !!l.description.trim())
-        }>
+        onAdd={() => addItem('features', emptyFeature, 'Please complete current feature first', (l) => !!l.title.trim() && !!l.description.trim())}>
         {formData.features.map((item, index) => (
           <RepeatCard
             key={index}
@@ -389,12 +373,7 @@ const ReturnRefunds = () => {
                 <Field label="Title" value={item.title} onChange={(v) => patchItem('returnSteps', index, { title: v })} />
               </Col>
               <Col md={6}>
-                <Field
-                  label="Description"
-                  textarea
-                  value={item.description}
-                  onChange={(v) => patchItem('returnSteps', index, { description: v })}
-                />
+                <Field label="Description" textarea value={item.description} onChange={(v) => patchItem('returnSteps', index, { description: v })} />
               </Col>
             </Row>
           </RepeatCard>
@@ -444,12 +423,7 @@ const ReturnRefunds = () => {
         title="Refund Timeline"
         addLabel="Add Timeline"
         onAdd={() =>
-          addItem(
-            'refundTimeline',
-            emptyTimeline,
-            'Please complete current timeline item first',
-            (l) => !!l.title.trim() && !!l.description.trim(),
-          )
+          addItem('refundTimeline', emptyTimeline, 'Please complete current timeline item first', (l) => !!l.title.trim() && !!l.description.trim())
         }>
         {titleDesc('refundTimelineTitle', 'refundTimelineDesc')}
 
@@ -490,17 +464,7 @@ const ReturnRefunds = () => {
 // SMALL UI COMPONENTS
 // =====================================================
 
-const Section = ({
-  title,
-  addLabel,
-  onAdd,
-  children,
-}: {
-  title: string
-  addLabel?: string
-  onAdd?: () => void
-  children: React.ReactNode
-}) => (
+const Section = ({ title, addLabel, onAdd, children }: { title: string; addLabel?: string; onAdd?: () => void; children: React.ReactNode }) => (
   <Card className="mb-4">
     <CardHeader>
       <div className="d-flex justify-content-between align-items-center">
@@ -520,17 +484,7 @@ const Section = ({
   </Card>
 )
 
-const Field = ({
-  label,
-  value,
-  onChange,
-  textarea,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  textarea?: boolean
-}) => (
+const Field = ({ label, value, onChange, textarea }: { label: string; value: string; onChange: (value: string) => void; textarea?: boolean }) => (
   <div className="mb-3">
     <label className="form-label">{label}</label>
 

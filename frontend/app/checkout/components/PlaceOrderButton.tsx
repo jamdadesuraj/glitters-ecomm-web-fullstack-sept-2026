@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
-import { FiLoader, FiShoppingBag, FiX } from "react-icons/fi";
+import React, { useState } from "react";
+import { FiLoader, FiShoppingBag } from "react-icons/fi";
 import { toast } from "react-toastify";
 
 import { auth } from "@/firebase/config";
@@ -10,6 +10,7 @@ import { openAccountMenu } from "@/lib/authPopover";
 import {
   ICreateOrderBody,
   IRazorpayPayment,
+  PaymentMethod,
   useCancelPaymentMutation,
   useCreateOrderMutation,
   useCreateRazorpayPaymentMutation,
@@ -58,28 +59,6 @@ declare global {
 /* HELPERS */
 /* ====================================================== */
 
-type Gateway = "razorpay" | "tabby";
-
-const GATEWAYS: {
-  id: Gateway;
-  title: string;
-  subtitle: string;
-  badge: string;
-}[] = [
-  {
-    id: "razorpay",
-    title: "Razorpay",
-    subtitle: "Cards, UPI & wallets",
-    badge: "RZP",
-  },
-  {
-    id: "tabby",
-    title: "Tabby",
-    subtitle: "Buy now, pay later",
-    badge: "tabby",
-  },
-];
-
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
 
 // loads checkout.js once (resolves false if it cannot be loaded)
@@ -105,42 +84,33 @@ const getErrorMessage = (error: unknown) => {
   );
 };
 
+type Method = "cod" | "razorpay" | "tabby";
+
 /* ====================================================== */
 /* COMPONENT */
 /* ====================================================== */
 
 type PlaceOrderButtonProps = {
   shippingAddress?: ICreateOrderBody["shippingAddress"] | null;
+  paymentMethod?: PaymentMethod;
   disabled?: boolean;
 };
 
 const PlaceOrderButton: React.FC<PlaceOrderButtonProps> = ({
   shippingAddress,
+  paymentMethod = "card",
   disabled = false,
 }) => {
   const router = useRouter();
 
-  const [open, setOpen] = useState(false);
-  // gateway that is being started / is open right now
-  const [busy, setBusy] = useState<Gateway | null>(null);
+  // method currently being processed (null = idle)
+  const [busy, setBusy] = useState<Method | null>(null);
 
   const [createOrder] = useCreateOrderMutation();
   const [createRazorpayPayment] = useCreateRazorpayPaymentMutation();
   const [verifyRazorpayPayment] = useVerifyRazorpayPaymentMutation();
   const [createTabbyPayment] = useCreateTabbyPaymentMutation();
   const [cancelPayment] = useCancelPaymentMutation();
-
-  // close the popup with the Escape key
-  useEffect(() => {
-    if (!open) return;
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) setOpen(false);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, busy]);
 
   // frees the reserved stock again (cart is kept). Safe to call twice.
   const cancelOrder = async (orderId: string) => {
@@ -151,20 +121,15 @@ const PlaceOrderButton: React.FC<PlaceOrderButtonProps> = ({
     }
   };
 
-  /* ---------- Place Order click ---------- */
-  const handlePlaceOrder = () => {
-    if (!auth.currentUser) {
-      toast.info("Please log in to place your order");
-      openAccountMenu();
-      return;
-    }
+  /* ---------- CASH ON DELIVERY ---------- */
+  const payWithCod = async (address: ICreateOrderBody["shippingAddress"]) => {
+    const created = await createOrder({
+      shippingAddress: address,
+      paymentMethod: "cod",
+    }).unwrap();
 
-    if (!shippingAddress) {
-      toast.error("Please select a delivery address first");
-      return;
-    }
-
-    setOpen(true);
+    // order is placed; success page takes over (busy stays on while navigating)
+    router.replace(`/order-success?order=${created.data._id}`);
   };
 
   /* ---------- RAZORPAY ---------- */
@@ -276,119 +241,76 @@ const PlaceOrderButton: React.FC<PlaceOrderButtonProps> = ({
     }
   };
 
-  /* ---------- gateway chosen in the popup ---------- */
-  const startPayment = async (gateway: Gateway) => {
+  /* ---------- run the method selected on the checkout page ---------- */
+  const runPayment = async (
+    method: Method,
+    address: ICreateOrderBody["shippingAddress"],
+  ) => {
     if (busy) return;
 
-    if (!shippingAddress) {
-      toast.error("Please select a delivery address first");
-      setOpen(false);
-      return;
-    }
-
-    setBusy(gateway);
+    setBusy(method);
 
     try {
-      if (gateway === "razorpay") {
-        await payWithRazorpay(shippingAddress);
+      if (method === "cod") {
+        await payWithCod(address);
+      } else if (method === "razorpay") {
+        await payWithRazorpay(address);
       } else {
-        await payWithTabby(shippingAddress);
+        await payWithTabby(address);
       }
-      // success: busy stays on while the Razorpay window is open
-      // or while the browser is going to the Tabby page
+      // success: busy stays on while the page navigates or the Razorpay window is open
     } catch (error) {
       toast.error(getErrorMessage(error));
       setBusy(null);
     }
   };
 
+  /* ---------- Place Order click ---------- */
+  const handlePlaceOrder = () => {
+    if (!auth.currentUser) {
+      toast.info("Please log in to place your order");
+      openAccountMenu();
+      return;
+    }
+
+    if (!shippingAddress) {
+      toast.error("Please select a delivery address first");
+      return;
+    }
+
+    if (
+      paymentMethod === "cod" ||
+      paymentMethod === "razorpay" ||
+      paymentMethod === "tabby"
+    ) {
+      runPayment(paymentMethod, shippingAddress);
+      return;
+    }
+
+    toast.info(
+      "This payment method is not available yet. Please choose another.",
+    );
+  };
+
   return (
-    <>
-      {/* PLACE ORDER */}
-      <button
-        type="button"
-        onClick={handlePlaceOrder}
-        disabled={disabled}
-        className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] text-[11px] font-extrabold text-black transition-all hover:bg-[#ffcf12] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:h-12"
-      >
-        <FiShoppingBag size={14} /> Place Order
-      </button>
-
-      {/* CHOOSE PAYMENT GATEWAY */}
-      {open && (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-4"
-          onClick={() => {
-            if (!busy) setOpen(false);
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Choose how to pay"
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-[#181818]"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-serif text-[16px] font-extrabold text-black dark:text-white">
-                  Choose how to pay
-                </h3>
-                <p className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">
-                  You will be taken to a secure payment window
-                </p>
-              </div>
-
-              <button
-                type="button"
-                aria-label="Close"
-                disabled={!!busy}
-                onClick={() => setOpen(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-[#2a2a2a]"
-              >
-                <FiX size={16} />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-2.5">
-              {GATEWAYS.map((gateway) => {
-                const loading = busy === gateway.id;
-
-                return (
-                  <button
-                    key={gateway.id}
-                    type="button"
-                    disabled={!!busy}
-                    onClick={() => startPayment(gateway.id)}
-                    className="flex w-full items-center gap-3 rounded-xl border border-gray-200 p-3 text-left transition hover:border-[#ffd83d] hover:bg-[#fffbe8] disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:hover:bg-[#222]"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f3f3f4] text-[10px] font-extrabold text-blue-600 dark:bg-[#2a2a2a]">
-                      {gateway.badge}
-                    </span>
-
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-serif text-[12px] font-bold text-black dark:text-white">
-                        {gateway.title}
-                      </span>
-                      <span className="block text-[10px] text-gray-500 dark:text-gray-400">
-                        {gateway.subtitle}
-                      </span>
-                    </span>
-
-                    {loading && (
-                      <FiLoader
-                        size={16}
-                        className="shrink-0 animate-spin text-gray-500"
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+    <button
+      type="button"
+      onClick={handlePlaceOrder}
+      disabled={disabled || !!busy}
+      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#ffd83d] text-[11px] font-extrabold text-black transition-all hover:bg-[#ffcf12] hover:shadow-[0_6px_18px_rgba(255,216,61,0.28)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:h-12"
+    >
+      {busy ? (
+        <>
+          <FiLoader size={14} className="animate-spin" />
+          Processing...
+        </>
+      ) : (
+        <>
+          <FiShoppingBag size={14} />
+          Place Order
+        </>
       )}
-    </>
+    </button>
   );
 };
 

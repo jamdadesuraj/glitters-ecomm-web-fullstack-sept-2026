@@ -229,7 +229,7 @@ const Returns = () => {
                 )}
 
                 {doc.shortDesc && (
-                  <p className="mt-2 max-w-162.5 text-[12px] leading-5 text-gray-500 dark:text-gray-400">
+                  <p className="mt-2 max-w-162.5 text-[14px] leading-5 text-dark-900 dark:text-dark-900">
                     {doc.shortDesc}
                   </p>
                 )}
@@ -499,13 +499,13 @@ const Returns = () => {
 
                     <div>
                       {doc.refundTimelineTitle && (
-                        <h2 className="font-serif text-[13px] font-extrabold text-black dark:text-white">
+                        <h2 className="font-serif text-[14px] font-extrabold text-black dark:text-white">
                           {doc.refundTimelineTitle}
                         </h2>
                       )}
 
                       {doc.refundTimelineDesc && (
-                        <p className="mt-0.5 text-[11px] text-gray-400">
+                        <p className="mt-0.5 text-[14px] text-dark-900">
                           {doc.refundTimelineDesc}
                         </p>
                       )}
@@ -528,13 +528,13 @@ const Returns = () => {
                   {(doc.refundProcessingTitle || doc.refundProcessingDesc) && (
                     <div className="mt-4 rounded-xl bg-[#f8f8f8] p-3 dark:bg-[#202020]">
                       {doc.refundProcessingTitle && (
-                        <p className="text-[12px] font-bold text-black dark:text-white">
+                        <p className="text-[14px] font-bold text-black dark:text-white">
                           {doc.refundProcessingTitle}
                         </p>
                       )}
 
                       {doc.refundProcessingDesc && (
-                        <p className="mt-1 text-[11px] leading-4 text-gray-400">
+                        <p className="mt-1 text-[14px] leading-4 text-dark-900">
                           {doc.refundProcessingDesc}
                         </p>
                       )}
@@ -648,7 +648,7 @@ const ItemsSection = ({
           </h2>
         )}
 
-        {desc && <p className="mt-0.5 text-[12px] text-gray-400">{desc}</p>}
+        {desc && <p className="mt-0.5 text-[14px] text-dark-900">{desc}</p>}
       </div>
     </div>
 
@@ -661,10 +661,10 @@ const ItemsSection = ({
               className="mt-0.5 shrink-0 text-green-600"
             />
           ) : (
-            <FiXCircle size={12} className="mt-0.5 shrink-0 text-gray-400" />
+            <FiXCircle size={12} className="mt-0.5 shrink-0 text-dark-900" />
           )}
 
-          <span className="text-[12px] leading-4 text-gray-500 dark:text-gray-400">
+          <span className="text-[14px] leading-4 text-dark-900 dark:text-dark-900">
             {text}
           </span>
         </div>
@@ -689,11 +689,11 @@ const InfoCard = ({
   <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-[#181818]">
     <div className={`${ICON_BOX} h-8 w-8`}>{icon}</div>
 
-    <h3 className="mt-2.5 font-serif text-[12px] font-bold text-black dark:text-white">
+    <h3 className="mt-2.5 font-serif text-[14px] font-bold text-black dark:text-white">
       {title}
     </h3>
 
-    {text && <p className="mt-1 text-[11px] leading-4 text-gray-400">{text}</p>}
+    {text && <p className="mt-1 text-[14px] leading-4 text-gray-900">{text}</p>}
   </div>
 );
 
@@ -713,7 +713,7 @@ const StepCard = ({
   text: string;
 }) => (
   <div className="relative rounded-xl border border-gray-200 bg-[#fafafa] p-3 sm:p-4 dark:border-gray-700 dark:bg-[#202020]">
-    <span className="absolute right-3 top-3 text-[12px] font-extrabold text-gray-400 dark:text-gray-700">
+    <span className="absolute right-3 top-3 text-[14px] font-extrabold text-dark-900 dark:text-dark-900">
       {number}
     </span>
 
@@ -721,12 +721,12 @@ const StepCard = ({
       {icon}
     </div>
 
-    <h3 className="mt-3 font-serif text-[12px] font-bold text-black dark:text-white">
+    <h3 className="mt-3 font-serif text-[14px] font-bold text-black dark:text-white">
       {title}
     </h3>
 
     {text && (
-      <p className="mt-1 text-[11px] leading-4 text-gray-900 dark:text-gray-400">
+      <p className="mt-1 text-[14px] leading-4 text-dark-900 dark:text-dark-900">
         {text}
       </p>
     )}
@@ -794,7 +794,7 @@ const TimelineItem = ({
       </p>
 
       {text && (
-        <p className="mt-0.5 text-[11px] leading-4 text-gray-400">{text}</p>
+        <p className="mt-0.5 text-[14px] leading-4 text-gray-900">{text}</p>
       )}
     </div>
   </div>

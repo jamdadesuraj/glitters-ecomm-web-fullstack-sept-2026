@@ -1,29 +1,16 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-export interface ICategoryRef {
-  _id: string;
-  categoryName?: string;
-  slug?: string;
-}
-export interface ISubCategoryRef {
-  _id: string;
-  subCategoryName?: string;
-  slug?: string;
-}
-
 export interface ITopSaleBanner {
-  offerBannerImg3: string;
-  offerBannerImg2: string;
-  offerBannerImg1: string;
   _id: string;
 
-  category: string | ICategoryRef;
+  offerBannerImg1: string;
+  offerBannerImg2: string;
+  offerBannerImg3: string;
 
-  subCategory?: string | ISubCategoryRef | null;
-
-  offerBannerImg: string;
-
-  redirectUrl?: string;
+  // clickable link per banner (empty string = no link)
+  offerBannerLink1?: string;
+  offerBannerLink2?: string;
+  offerBannerLink3?: string;
 
   status: "active" | "inactive";
 
@@ -73,7 +60,7 @@ export const topSaleBannerApi = createApi({
       providesTags: (result, error, id) => [{ type: "topSaleBanner", id }],
     }),
 
-    // create team api
+    // create banner
     createTopSaleBanner: builder.mutation<ITopSaleBanner, FormData>({
       query: (formData) => ({
         url: "/top-sale-banner",
@@ -87,7 +74,7 @@ export const topSaleBannerApi = createApi({
       invalidatesTags: ["topSaleBanner"],
     }),
 
-    // update team api
+    // update banner
     updateTopSaleBanner: builder.mutation<
       ITopSaleBanner,
       { id: string; data: FormData }
@@ -102,7 +89,7 @@ export const topSaleBannerApi = createApi({
       invalidatesTags: ["topSaleBanner"],
     }),
 
-    // delete team api
+    // delete banner
     deleteTopSaleBanner: builder.mutation<ITopSaleBanner, string>({
       query: (id) => ({
         url: `/top-sale-banner/${id}`,

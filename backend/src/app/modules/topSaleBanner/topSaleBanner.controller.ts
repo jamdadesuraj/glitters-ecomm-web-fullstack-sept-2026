@@ -13,7 +13,8 @@ export const createTopSaleBanner = async (
   next: NextFunction,
 ) => {
   try {
-    const { status } = req.body;
+    const { status, offerBannerLink1, offerBannerLink2, offerBannerLink3 } =
+      req.body;
 
     // ============================================
     // FILES
@@ -65,6 +66,10 @@ export const createTopSaleBanner = async (
       offerBannerImg1,
       offerBannerImg2,
       offerBannerImg3,
+
+      offerBannerLink1: offerBannerLink1 || "",
+      offerBannerLink2: offerBannerLink2 || "",
+      offerBannerLink3: offerBannerLink3 || "",
 
       status: status || "active",
 
@@ -192,6 +197,20 @@ export const updateTopSaleBanner = async (
       updateData.offerBannerImg3 = offerBannerImg3;
     }
 
+    // optional link updates (only when sent, empty string clears the link)
+
+    if (req.body.offerBannerLink1 !== undefined) {
+      updateData.offerBannerLink1 = req.body.offerBannerLink1;
+    }
+
+    if (req.body.offerBannerLink2 !== undefined) {
+      updateData.offerBannerLink2 = req.body.offerBannerLink2;
+    }
+
+    if (req.body.offerBannerLink3 !== undefined) {
+      updateData.offerBannerLink3 = req.body.offerBannerLink3;
+    }
+
     // optional status update
 
     if (req.body.status !== undefined) {
@@ -243,6 +262,7 @@ export const updateTopSaleBanner = async (
     next(error);
   }
 };
+
 export const deleteTopSaleBanner = async (
   req: Request,
   res: Response,

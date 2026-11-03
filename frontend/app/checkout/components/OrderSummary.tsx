@@ -1,6 +1,7 @@
 "use client";
 
 import { useGetAddToCartQuery } from "@/store/addToCartApi";
+import { PaymentMethod } from "@/store/ordersApi";
 import PlaceOrderButton from "./PlaceOrderButton";
 import Image from "next/image";
 import Link from "next/link";
@@ -427,10 +428,13 @@ type OrderSummaryProps = {
     state?: string;
     pincode?: string;
   } | null;
-  paymentMethod?: string;
+  paymentMethod?: PaymentMethod;
 };
 
-const OrderSummary: React.FC<OrderSummaryProps> = ({ shippingAddress }) => {
+const OrderSummary: React.FC<OrderSummaryProps> = ({
+  shippingAddress,
+  paymentMethod,
+}) => {
   const { data, isLoading, isError } = useGetAddToCartQuery();
 
   // skip lines whose product is missing / not populated (they show "AED 0")
@@ -772,6 +776,7 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({ shippingAddress }) => {
             {/* PLACE ORDER */}
             <PlaceOrderButton
               shippingAddress={shippingAddress}
+              paymentMethod={paymentMethod}
               disabled={cartItems.length === 0}
             />
 

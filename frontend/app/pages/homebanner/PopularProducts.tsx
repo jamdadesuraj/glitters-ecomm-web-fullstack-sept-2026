@@ -26,6 +26,9 @@ const useSlidesToShow = () => {
   return count;
 };
 
+// internal paths use next/link, full URLs open in a new tab
+const isExternal = (url: string) => /^https?:\/\//.test(url);
+
 const PopularProducts = () => {
   const {
     data: products = [],
@@ -60,6 +63,10 @@ const PopularProducts = () => {
 
   const firstBanner = topSaleBanner?.[0]?.offerBannerImg1 || "";
   const secondBanner = topSaleBanner?.[0]?.offerBannerImg2 || "";
+
+  // redirect links from the API (empty string = no link)
+  const firstBannerLink = topSaleBanner?.[0]?.offerBannerLink1 || "";
+  const secondBannerLink = topSaleBanner?.[0]?.offerBannerLink2 || "";
 
   // fractional slidesToShow (1.5) must not be infinite
   const isFractional = !Number.isInteger(slidesToShow);
@@ -171,39 +178,97 @@ const PopularProducts = () => {
           {/* DESKTOP RIGHT BANNER */}
           {firstBanner && (
             <div className="hidden h-full xl:block">
-              <Link
-                href="/product-list"
-                className="relative block h-full min-h-full w-full overflow-hidden rounded-2xl bg-gray-100"
-              >
-                <Image
-                  src={firstBanner}
-                  alt="Right Offer Banner"
-                  fill
-                  className="object-fill"
-                  sizes="220px"
-                />
-              </Link>
+              {firstBannerLink ? (
+                isExternal(firstBannerLink) ? (
+                  <a
+                    href={firstBannerLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative block h-full min-h-full w-full overflow-hidden rounded-2xl bg-gray-100"
+                  >
+                    <Image
+                      src={firstBanner}
+                      alt="Right Offer Banner"
+                      fill
+                      className="object-fill"
+                      sizes="220px"
+                    />
+                  </a>
+                ) : (
+                  <Link
+                    href={firstBannerLink}
+                    className="relative block h-full min-h-full w-full overflow-hidden rounded-2xl bg-gray-100"
+                  >
+                    <Image
+                      src={firstBanner}
+                      alt="Right Offer Banner"
+                      fill
+                      className="object-fill"
+                      sizes="220px"
+                    />
+                  </Link>
+                )
+              ) : (
+                <div className="relative block h-full min-h-full w-full overflow-hidden rounded-2xl bg-gray-100">
+                  <Image
+                    src={firstBanner}
+                    alt="Right Offer Banner"
+                    fill
+                    className="object-fill"
+                    sizes="220px"
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
 
-     {/* MOBILE / TABLET BANNER (hidden on xl, where the right-side banner shows) */}
-{secondBanner && (
-  <div className="mt-4 xl:hidden">
-    <Link
-      href="/product-list"
-      className="relative block aspect-3/1 w-full overflow-hidden rounded-xl bg-gray-100 dark:bg-neutral-800"
-    >
-      <Image
-        src={secondBanner}
-        alt="Offer Banner"
-        fill
-        className="object-cover object-center"
-        sizes="(max-width: 1279px) 100vw, 0px"
-      />
-    </Link>
-  </div>
-)}
+        {/* MOBILE / TABLET BANNER (hidden on xl, where the right-side banner shows) */}
+        {secondBanner && (
+          <div className="mt-4 xl:hidden">
+            {secondBannerLink ? (
+              isExternal(secondBannerLink) ? (
+                <a
+                  href={secondBannerLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative block aspect-3/1 w-full overflow-hidden rounded-xl bg-gray-100 dark:bg-neutral-800"
+                >
+                  <Image
+                    src={secondBanner}
+                    alt="Offer Banner"
+                    fill
+                    className="object-cover object-center"
+                    sizes="(max-width: 1279px) 100vw, 0px"
+                  />
+                </a>
+              ) : (
+                <Link
+                  href={secondBannerLink}
+                  className="relative block aspect-3/1 w-full overflow-hidden rounded-xl bg-gray-100 dark:bg-neutral-800"
+                >
+                  <Image
+                    src={secondBanner}
+                    alt="Offer Banner"
+                    fill
+                    className="object-cover object-center"
+                    sizes="(max-width: 1279px) 100vw, 0px"
+                  />
+                </Link>
+              )
+            ) : (
+              <div className="relative block aspect-3/1 w-full overflow-hidden rounded-xl bg-gray-100 dark:bg-neutral-800">
+                <Image
+                  src={secondBanner}
+                  alt="Offer Banner"
+                  fill
+                  className="object-cover object-center"
+                  sizes="(max-width: 1279px) 100vw, 0px"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

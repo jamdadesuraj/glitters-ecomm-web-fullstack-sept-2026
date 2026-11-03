@@ -611,7 +611,7 @@ export default function WishlistPage() {
             </p>
 
             <ThemeBtnOne
-              url="/products"
+              url="/"
               text="Start Shopping"
               icon={<FiShoppingBag size={14} />}
               className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#ffd83d] px-5 text-xs font-extrabold text-black transition hover:bg-[#ffcf12] sm:h-11"

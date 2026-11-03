@@ -16,6 +16,8 @@ import { useCreateTopSaleBannerMutation, useGetTopSaleBannerQuery, useUpdateTopS
 
 type BannerField = 'offerBannerImg1' | 'offerBannerImg2' | 'offerBannerImg3'
 
+type LinkField = 'offerBannerLink1' | 'offerBannerLink2' | 'offerBannerLink3'
+
 type BannerFiles = {
   offerBannerImg1: File | null
   offerBannerImg2: File | null
@@ -26,6 +28,19 @@ type BannerPreviews = {
   offerBannerImg1: string
   offerBannerImg2: string
   offerBannerImg3: string
+}
+
+type BannerLinks = {
+  offerBannerLink1: string
+  offerBannerLink2: string
+  offerBannerLink3: string
+}
+
+// maps each image field to its link field
+const LINK_FOR: Record<BannerField, LinkField> = {
+  offerBannerImg1: 'offerBannerLink1',
+  offerBannerImg2: 'offerBannerLink2',
+  offerBannerImg3: 'offerBannerLink3',
 }
 
 // ============================================
@@ -102,6 +117,16 @@ const TopSaleBanner = () => {
   })
 
   // ============================================
+  // LINK STATE
+  // ============================================
+
+  const [links, setLinks] = useState<BannerLinks>({
+    offerBannerLink1: '',
+    offerBannerLink2: '',
+    offerBannerLink3: '',
+  })
+
+  // ============================================
   // LOAD EXISTING DATA FOR UPDATE
   // ============================================
 
@@ -113,6 +138,12 @@ const TopSaleBanner = () => {
         offerBannerImg3: '',
       })
 
+      setLinks({
+        offerBannerLink1: '',
+        offerBannerLink2: '',
+        offerBannerLink3: '',
+      })
+
       return
     }
 
@@ -122,6 +153,12 @@ const TopSaleBanner = () => {
       offerBannerImg2: topSaleData?.offerBannerImg2 || '',
 
       offerBannerImg3: topSaleData?.offerBannerImg3 || '',
+    })
+
+    setLinks({
+      offerBannerLink1: topSaleData?.offerBannerLink1 || '',
+      offerBannerLink2: topSaleData?.offerBannerLink2 || '',
+      offerBannerLink3: topSaleData?.offerBannerLink3 || '',
     })
 
     setFiles({
@@ -278,8 +315,13 @@ const TopSaleBanner = () => {
     // UPDATE VALIDATION
     // ============================================
 
-    if (topSaleData?._id && !files.offerBannerImg1 && !files.offerBannerImg2 && !files.offerBannerImg3) {
-      toast.info('Please select at least one banner to update')
+    const linksChanged =
+      links.offerBannerLink1 !== (topSaleData?.offerBannerLink1 || '') ||
+      links.offerBannerLink2 !== (topSaleData?.offerBannerLink2 || '') ||
+      links.offerBannerLink3 !== (topSaleData?.offerBannerLink3 || '')
+
+    if (topSaleData?._id && !files.offerBannerImg1 && !files.offerBannerImg2 && !files.offerBannerImg3 && !linksChanged) {
+      toast.info('Please change at least one banner or link to update')
       return
     }
 
@@ -301,6 +343,14 @@ const TopSaleBanner = () => {
       if (files.offerBannerImg3) {
         form.append('offerBannerImg3', files.offerBannerImg3)
       }
+
+      // ============================================
+      // LINKS (sent as text fields)
+      // ============================================
+
+      form.append('offerBannerLink1', links.offerBannerLink1.trim())
+      form.append('offerBannerLink2', links.offerBannerLink2.trim())
+      form.append('offerBannerLink3', links.offerBannerLink3.trim())
 
       // ============================================
       // UPDATE
@@ -356,6 +406,90 @@ const TopSaleBanner = () => {
     return <div className="alert alert-danger">Unable to load Top Sale Banners.</div>
   }
 
+  // ============================================
+  // REUSABLE BANNER BLOCK
+  // ============================================
+
+  const renderBanner = (field: BannerField, label: string) => {
+    const linkField = LINK_FOR[field]
+
+    return (
+      <Col xl={4} lg={4} md={6} sm={12}>
+        <div className="h-100">
+          <label className="form-label fw-semibold">
+            {label}
+            {!topSaleData?._id && <span className="text-danger ms-1">*</span>}
+          </label>
+
+          <input
+            id={field}
+            type="file"
+            name={field}
+            className="form-control"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            onChange={handleFileChange}
+          />
+
+          {previews[field] ? (
+            <div className="mt-3">
+              <div className="border rounded p-2 bg-light">
+                <Image
+                  src={previews[field]}
+                  alt={label}
+                  width={600}
+                  height={300}
+                  unoptimized
+                  style={{
+                    width: '100%',
+                    height: '200px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                  }}
+                />
+              </div>
+
+              {files[field] && (
+                <div className="d-flex justify-content-between align-items-center mt-2">
+                  <small className="text-muted text-truncate">{files[field]?.name}</small>
+
+                  <button type="button" className="btn btn-sm btn-link text-danger text-decoration-none" onClick={() => handleRemoveImage(field)}>
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              className="border rounded bg-light mt-3 d-flex align-items-center justify-content-center text-muted"
+              style={{
+                height: '200px',
+              }}>
+              No Banner
+            </div>
+          )}
+
+          {/* LINK FIELD */}
+          <div className="mt-3">
+            <label className="form-label fw-semibold">Redirect Link (optional)</label>
+
+            <input
+              type="url"
+              className="form-control"
+              placeholder="https://example.com/offer"
+              value={links[linkField]}
+              onChange={(e) =>
+                setLinks((prev) => ({
+                  ...prev,
+                  [linkField]: e.target.value,
+                }))
+              }
+            />
+          </div>
+        </div>
+      </Col>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       <Card>
@@ -375,185 +509,9 @@ const TopSaleBanner = () => {
 
         <CardBody>
           <Row className="g-4">
-            {/* ========================================
-                BANNER 1
-            ======================================== */}
-
-            <Col xl={4} lg={4} md={6} sm={12}>
-              <div className="h-100">
-                <label className="form-label fw-semibold">Banner 1{!topSaleData?._id && <span className="text-danger ms-1">*</span>}</label>
-
-                <input
-                  id="offerBannerImg1"
-                  type="file"
-                  name="offerBannerImg1"
-                  className="form-control"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={handleFileChange}
-                />
-
-                {previews.offerBannerImg1 ? (
-                  <div className="mt-3">
-                    <div className="border rounded p-2 bg-light">
-                      <Image
-                        src={previews.offerBannerImg1}
-                        alt="Banner 1"
-                        width={600}
-                        height={300}
-                        unoptimized
-                        style={{
-                          width: '100%',
-                          height: '200px',
-                          objectFit: 'cover',
-                          borderRadius: '8px',
-                        }}
-                      />
-                    </div>
-
-                    {files.offerBannerImg1 && (
-                      <div className="d-flex justify-content-between align-items-center mt-2">
-                        <small className="text-muted text-truncate">{files.offerBannerImg1.name}</small>
-
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-link text-danger text-decoration-none"
-                          onClick={() => handleRemoveImage('offerBannerImg1')}>
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    className="border rounded bg-light mt-3 d-flex align-items-center justify-content-center text-muted"
-                    style={{
-                      height: '200px',
-                    }}>
-                    No Banner
-                  </div>
-                )}
-              </div>
-            </Col>
-
-            {/* ========================================
-                BANNER 2
-            ======================================== */}
-
-            <Col xl={4} lg={4} md={6} sm={12}>
-              <div className="h-100">
-                <label className="form-label fw-semibold">Banner 2 (1500 × 500 px){!topSaleData?._id && <span className="text-danger ms-1">*</span>}</label>
-
-                <input
-                  id="offerBannerImg2"
-                  type="file"
-                  name="offerBannerImg2"
-                  className="form-control"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={handleFileChange}
-                />
-
-                {previews.offerBannerImg2 ? (
-                  <div className="mt-3">
-                    <div className="border rounded p-2 bg-light">
-                      <Image
-                        src={previews.offerBannerImg2}
-                        alt="Banner 2"
-                        width={600}
-                        height={300}
-                        unoptimized
-                        style={{
-                          width: '100%',
-                          height: '200px',
-                          objectFit: 'cover',
-                          borderRadius: '8px',
-                        }}
-                      />
-                    </div>
-
-                    {files.offerBannerImg2 && (
-                      <div className="d-flex justify-content-between align-items-center mt-2">
-                        <small className="text-muted text-truncate">{files.offerBannerImg2.name}</small>
-
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-link text-danger text-decoration-none"
-                          onClick={() => handleRemoveImage('offerBannerImg2')}>
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    className="border rounded bg-light mt-3 d-flex align-items-center justify-content-center text-muted"
-                    style={{
-                      height: '200px',
-                    }}>
-                    No Banner
-                  </div>
-                )}
-              </div>
-            </Col>
-
-            {/* ========================================
-                BANNER 3
-            ======================================== */}
-
-            <Col xl={4} lg={4} md={6} sm={12}>
-              <div className="h-100">
-                <label className="form-label fw-semibold">Banner 3 (1500 × 500 px){!topSaleData?._id && <span className="text-danger ms-1">*</span>}</label>
-
-                <input
-                  id="offerBannerImg3"
-                  type="file"
-                  name="offerBannerImg3"
-                  className="form-control"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={handleFileChange}
-                />
-
-                {previews.offerBannerImg3 ? (
-                  <div className="mt-3">
-                    <div className="border rounded p-2 bg-light">
-                      <Image
-                        src={previews.offerBannerImg3}
-                        alt="Banner 3"
-                        width={600}
-                        height={300}
-                        unoptimized
-                        style={{
-                          width: '100%',
-                          height: '200px',
-                          objectFit: 'cover',
-                          borderRadius: '8px',
-                        }}
-                      />
-                    </div>
-
-                    {files.offerBannerImg3 && (
-                      <div className="d-flex justify-content-between align-items-center mt-2">
-                        <small className="text-muted text-truncate">{files.offerBannerImg3.name}</small>
-
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-link text-danger text-decoration-none"
-                          onClick={() => handleRemoveImage('offerBannerImg3')}>
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    className="border rounded bg-light mt-3 d-flex align-items-center justify-content-center text-muted"
-                    style={{
-                      height: '200px',
-                    }}>
-                    No Banner
-                  </div>
-                )}
-              </div>
-            </Col>
+            {renderBanner('offerBannerImg1', 'Banner 1')}
+            {renderBanner('offerBannerImg2', 'Banner 2 (1500 × 500 px)')}
+            {renderBanner('offerBannerImg3', 'Banner 3 (1500 × 500 px)')}
           </Row>
 
           {/* ============================================
