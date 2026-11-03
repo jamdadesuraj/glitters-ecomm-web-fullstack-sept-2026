@@ -10,7 +10,7 @@ const Footer = () => {
             © Copyrights {new Date().getFullYear()}. All rights reserved. Design & Development by&nbsp;
             <IconifyIcon icon="iconamoon:heart-duotone" className="fs-18 align-middle text-danger" />{' '}
             <a className="fw-bold footer-text" target="_blank">
-              Ecomm Admin
+              Glitters Admin
             </a>
           </Col>
         </Row>

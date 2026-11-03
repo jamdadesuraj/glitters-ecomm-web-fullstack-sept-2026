@@ -39,7 +39,7 @@ import { couponApi } from './couponApi'
 import { appBannerApi } from './appBannerApi'
 import { appSettingApi } from './appSettingsApi'
 import { generalSettingsApi } from './generalSettingsApi'
-
+import { dashboardApi } from './dashboardApi'
 export const store = configureStore({
   reducer: {
     auth: authSlice,
@@ -87,6 +87,7 @@ export const store = configureStore({
 
     [settingApi.reducerPath]: settingApi.reducer,
     [generalSettingsApi.reducerPath]: generalSettingsApi.reducer,
+    [dashboardApi.reducerPath]: dashboardApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(
@@ -133,6 +134,7 @@ export const store = configureStore({
       settingApi.middleware,
       seoPagesApi.middleware,
       generalSettingsApi.middleware,
+      dashboardApi.middleware,
     ),
 })
 

@@ -2,7 +2,6 @@ import logoDark from '@/assets/images/logo.webp'
 import AppProvidersWrapper from '@/components/wrappers/AppProvidersWrapper'
 import type { Metadata } from 'next'
 import { Play } from 'next/font/google'
-import Image from 'next/image'
 import NextTopLoader from 'nextjs-toploader'
 import '@/assets/scss/app.scss'
 import { DEFAULT_PAGE_TITLE } from '@/context/constants'
@@ -15,12 +14,35 @@ const play = Play({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: {
-    template: 'Ecomm Admin',
-    default: DEFAULT_PAGE_TITLE,
-  },
-  description: 'Ecomm Admin',
+// one helper for favicon + splash logo (Next dedupes identical fetches in a render)
+async function getSiteSettings(): Promise<{ logo?: string; favicon?: string }> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings`, {
+      next: { revalidate: 60 },
+    })
+    const json = await res.json()
+    return json?.data?.[0] ?? {}
+  } catch {
+    return {} // backend unreachable: fall back to static assets
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { favicon: dynamicFavicon } = await getSiteSettings()
+  const favicon = dynamicFavicon || '/favicon.ico'
+
+  return {
+    title: {
+      template: 'Ecomm Admin',
+      default: DEFAULT_PAGE_TITLE,
+    },
+    description: 'Ecomm Admin',
+    icons: {
+      icon: favicon,
+      shortcut: favicon,
+      apple: favicon,
+    },
+  }
 }
 
 const splashScreenStyles = `
@@ -54,11 +76,14 @@ const splashScreenStyles = `
 }
 `
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const { logo } = await getSiteSettings()
+  const splashLogo = logo || logoDark.src
+
   return (
     <html lang="en">
       <head>
@@ -66,7 +91,9 @@ export default function RootLayout({
       </head>
       <body className={play.className}>
         <div id="splash-screen">
-          <Image alt="Logo" width={112} height={24} src={logoDark} style={{ height: '7%', width: 'auto' }} priority />
+          {/* plain <img> so any Cloudinary URL works without next.config image domains */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="Logo" src={splashLogo} style={{ height: '7%', width: 'auto' }} />
         </div>
         <NextTopLoader color="#ffd83d" showSpinner={false} />
         <div id="__next_splash">

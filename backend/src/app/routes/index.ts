@@ -51,6 +51,7 @@ import { orderRouter } from "../modules/orders/order.route";
 import { adminAuthRouter } from "../modules/admin/adminRoute";
 import { paymentRouter } from "../modules/payment/payment.route";
 import { shippingRouter } from "../modules/shipping/shipping.route";
+import { dashboardRouter } from "../modules/dashboard/dashboard.route";
 
 const router = Router();
 const moduleRoutes = [
@@ -217,6 +218,7 @@ const moduleRoutes = [
   { path: "/payments", route: paymentRouter },
   { path: "/shipping", route: shippingRouter },
   { path: "/admin-auth", route: adminAuthRouter },
+  { path: "/dashboard", route: dashboardRouter },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
