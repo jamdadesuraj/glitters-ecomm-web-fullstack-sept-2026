@@ -194,14 +194,14 @@ const HomeBanner = () => {
                 <div
                   className="
                     relative
-                    h-50
+                    h-60
                     w-full
                     overflow-hidden
                     bg-[#f4f4f4]
 
-                    sm:h-60
+                    sm:h-80
                     md:h-70
-                    lg:h-90
+                    lg:h-100
                     xl:h-150
 
                     dark:bg-[#181818]

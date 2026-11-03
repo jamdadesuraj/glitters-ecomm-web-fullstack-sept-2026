@@ -155,7 +155,7 @@ const AboutUs = () => {
 
   const about = React.useMemo(() => extractAboutUs(data), [data]);
 
- if (isLoading) return <AboutUsSkeleton />;
+  if (isLoading) return <AboutUsSkeleton />;
 
   if (isError || !about) {
     return (
@@ -315,7 +315,7 @@ const AboutUs = () => {
                 <ThemeBtnOne
                   text="Start Shopping"
                   icon={<FiShoppingBag />}
-                  url="/products"
+                  url="/product-list"
                   className={YELLOW_BTN}
                 />
 
@@ -546,7 +546,7 @@ const AboutUs = () => {
           </div>
 
           <ThemeBtnOne
-            url="/products"
+            url="/product-list"
             text="Shop Now"
             icon={<FiShoppingBag size={11} />}
             className={`${YELLOW_BTN} shrink-0`}

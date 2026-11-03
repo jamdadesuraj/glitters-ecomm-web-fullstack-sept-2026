@@ -527,9 +527,9 @@ const Products = () => {
 
                           <div className="product-price-area mb-3">
                             <div className="d-flex align-items-end flex-wrap gap-2">
-                              <span className="product-current-price">₹{price.toLocaleString('en-IN')}</span>
+                              <span className="product-current-price">AED {price.toLocaleString('en-IN')}</span>
 
-                              {delPrice > price && <del className="product-old-price">₹{delPrice.toLocaleString('en-IN')}</del>}
+                              {delPrice > price && <del className="product-old-price">AED {delPrice.toLocaleString('en-IN')}</del>}
 
                               {discount > 0 && <span className="product-off-text">{discount}% OFF</span>}
                             </div>

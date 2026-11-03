@@ -86,19 +86,33 @@ const OfferBanner = () => {
           <Slider key={slidesToShow} {...settings} className="offer-slider">
             {offers.map((offer) => (
               <div key={offer._id} className="px-1.5">
-                <Link
-                  href="/product-list"
-                  className={`group relative block ${BANNER_ASPECT} w-full overflow-hidden rounded-xl border border-gray-200 bg-[#f7f7f7] transition-all duration-300 hover:border-gray-300 hover:shadow-[0_5px_18px_rgba(0,0,0,0.08)] dark:border-gray-700 dark:bg-[#1b1b1b]`}
-                >
-                  <Image
-                    src={offer.offerBannerImg}
-                    alt={`Offer Banner ${offer._id}`}
-                    fill
-                    priority={false}
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.01]"
-                  />
-                </Link>
+                {offer.redirectUrl ? (
+                  <Link
+                    href={offer.redirectUrl}
+                    className={`group relative block ${BANNER_ASPECT} w-full overflow-hidden rounded-xl border border-gray-200 bg-[#f7f7f7] transition-all duration-300 hover:border-gray-300 hover:shadow-[0_5px_18px_rgba(0,0,0,0.08)] dark:border-gray-700 dark:bg-[#1b1b1b]`}
+                  >
+                    <Image
+                      src={offer.offerBannerImg}
+                      alt={`Offer Banner ${offer._id}`}
+                      fill
+                      priority={false}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.01]"
+                    />
+                  </Link>
+                ) : (
+                  <div
+                    className={`relative block ${BANNER_ASPECT} w-full overflow-hidden rounded-xl border border-gray-200 bg-[#f7f7f7] dark:border-gray-700 dark:bg-[#1b1b1b]`}
+                  >
+                    <Image
+                      src={offer.offerBannerImg}
+                      alt={`Offer Banner ${offer._id}`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover object-center"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </Slider>

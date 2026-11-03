@@ -251,7 +251,7 @@ export const MENU_ITEMS: MenuItemType[] = [
   },
   {
     key: 'store-locator',
-    label: 'Store Locator',
+    label: 'Store Locations',
     icon: 'solar:map-point-bold-duotone',
     url: '/store-locator',
   },

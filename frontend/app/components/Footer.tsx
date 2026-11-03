@@ -56,7 +56,7 @@ const ABOUT_LINKS: [string, string][] = [
   ["About Us", "/about"],
   ["Blog", "/blog"],
   ["Careers", "/careers"],
-  ["Store Locator", "/stores"],
+  ["Store Locations", "/stores"],
   ["Privacy Policy", "/privacy-policy"],
   ["Terms & Conditions", "/terms-conditions"],
 ];

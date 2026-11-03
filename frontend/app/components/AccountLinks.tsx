@@ -22,7 +22,7 @@ type Props = {
 const links = [
   { label: "My Account", href: "/my-account", icon: FiUser },
   { label: "My Orders", href: "/my-orders", icon: FiShoppingBag },
-  { label: "My Wishlist", href: "/my-wishlist", icon: FiHeart },
+  { label: "My Wishlist", href: "/wishlist", icon: FiHeart },
 ];
 
 const AccountLinks = ({ user, onClose }: Props) => {

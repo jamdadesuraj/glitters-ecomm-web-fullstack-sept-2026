@@ -243,109 +243,57 @@ const BlogCard = ({ blog }: { blog: BlogItem }) => {
     <Link
       href={`/blog/${blog._id}`}
       className="
-        group
-        flex
-        min-h-20.5
-        w-77.5
-        shrink-0
-        overflow-hidden
-        rounded-xl
-        border
-        border-[#ededed]
-        bg-white
-        p-1
-        transition-all
-        duration-300
-        hover:border-[#ffe178]
-        hover:shadow-[0_6px_20px_rgba(0,0,0,0.05)]
-        sm:w-90
-        md:w-100
-        lg:w-auto
-        dark:border-gray-800
-        dark:bg-[#171717]
-      "
+    group flex min-h-25 w-77.5 shrink-0
+    items-center gap-2 overflow-hidden rounded-xl
+    border border-[#ededed] bg-white p-1.5
+    transition-all duration-300
+    hover:border-[#ffe178]
+    hover:shadow-[0_6px_20px_rgba(0,0,0,0.05)]
+    sm:w-90 md:w-100 lg:w-auto
+    dark:border-gray-800 dark:bg-[#171717]
+  "
     >
       {/* IMAGE */}
       <div
         className="
-          relative
-          h-18.5
-          w-25
-          shrink-0
-          overflow-hidden
-          rounded-lg
-          bg-[#f5f5f5]
-          sm:w-27.5
-        "
+    relative h-20.5 w-25 shrink-0
+    overflow-hidden rounded-lg bg-[#f5f5f5]
+    sm:w-27.5
+  "
       >
         <Image
           src={blog.image}
           alt={blog.title}
           fill
           sizes="110px"
-          className="
-            object-cover
-            object-center
-            transition-transform
-            duration-500
-            group-hover:scale-105
-          "
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
       </div>
 
       {/* CONTENT */}
-      <div
-        className="
-          flex
-          min-w-0
-          flex-1
-          flex-col
-          justify-center
-          px-3
-          py-1
-        "
-      >
-        {/* DATE */}
-        <span
-          className="
-            text-[8px]
-            font-medium
-            text-gray-400
-            sm:text-[9px]
-          "
-        >
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-1">
+        <span className="text-[10px] leading-tight font-medium text-gray-900 sm:text-[12px]">
           {formatDate(blog.createdAt)}
         </span>
 
-        {/* TITLE */}
         <h3
           className="
-            mt-1
-            line-clamp-1
-            font-serif
-            text-[10px]
-            font-extrabold
-            leading-3.5
-            text-[#1c1c1c]
-            transition
-            group-hover:text-[#b58b00]
-            sm:text-[12px]
-            dark:text-white
-          "
+      line-clamp-2 text-[12px] leading-4
+      font-bold text-[#1c1c1c]
+      transition group-hover:text-[#b58b00]
+      sm:text-[14px] sm:leading-4.5
+      dark:text-white
+    "
         >
           {blog.title}
         </h3>
 
-        {/* DESCRIPTION */}
         <p
           className="
-            mt-1
-            line-clamp-1
-            text-[8px]
-            leading-3.25
-            text-gray-500
-            sm:text-[9px]
-          "
+      line-clamp-1 text-[10px] leading-3.5
+      text-gray-600 sm:text-[12px]
+      dark:text-gray-400
+    "
         >
           {description}
         </p>

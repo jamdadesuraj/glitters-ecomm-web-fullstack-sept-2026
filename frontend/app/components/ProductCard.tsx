@@ -325,10 +325,10 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <h3
             title={name}
             className="
-              mt-1.5 line-clamp-2 min-h-8 font-serif text-[10px] font-bold
+              mt-1.5 line-clamp-2  font-serif text-[10px] font-bold
               leading-4 tracking-wide text-[#202020] hover:text-[#b58b00]
               min-[380px]:text-[11px]
-              sm:mt-2 sm:min-h-10 sm:text-[13px] sm:leading-5
+              sm:mt-2 sm:min-h-1 sm:text-[13px] sm:leading-5
               dark:text-white
             "
           >

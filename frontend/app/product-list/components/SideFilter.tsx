@@ -517,53 +517,6 @@ const SideFilter = ({ filters, onChange, scopeProducts }: SideFilterProps) => {
           )}
         </div>
       </Section>
-
-      {/* AVAILABILITY */}
-      <Section title="Availability" last>
-        <div className="space-y-3 px-4 pb-4">
-          <label
-            htmlFor="in-stock"
-            className="flex cursor-pointer items-center justify-between gap-3"
-          >
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
-                In Stock
-              </p>
-              <p className="mt-0.5 text-[9px] text-gray-400">
-                Available products only
-              </p>
-            </div>
-            <input
-              id="in-stock"
-              type="checkbox"
-              checked={filters.inStock}
-              onChange={(e) => update({ inStock: e.target.checked })}
-              className="h-4 w-4 shrink-0 cursor-pointer accent-[#ffd83d]"
-            />
-          </label>
-
-          <label
-            htmlFor="on-sale"
-            className="flex cursor-pointer items-center justify-between gap-3"
-          >
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
-                On Sale
-              </p>
-              <p className="mt-0.5 text-[9px] text-gray-400">
-                Discounted items
-              </p>
-            </div>
-            <input
-              id="on-sale"
-              type="checkbox"
-              checked={filters.onSale}
-              onChange={(e) => update({ onSale: e.target.checked })}
-              className="h-4 w-4 shrink-0 cursor-pointer accent-[#ffd83d]"
-            />
-          </label>
-        </div>
-      </Section>
     </aside>
   );
 };

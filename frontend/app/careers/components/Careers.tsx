@@ -234,7 +234,7 @@ const Careers = () => {
 
   /* ---------- STATES ---------- */
 
-if (careerLoading || jobsLoading) return <CareersSkeleton />;
+  if (careerLoading || jobsLoading) return <CareersSkeleton />;
 
   if (careerError || !career) {
     return (
@@ -488,7 +488,7 @@ if (careerLoading || jobsLoading) return <CareersSkeleton />;
 
           <ThemeBtnOne
             text="Send Your Resume"
-            url="mailto:careers@example.com"
+            url="mailto:info@glittersuae.com"
             icon={<FiArrowRight size={11} />}
             className={`${YELLOW_BTN} shrink-0`}
           />

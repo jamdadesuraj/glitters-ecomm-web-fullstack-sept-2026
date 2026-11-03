@@ -3,12 +3,12 @@ import PageTItle from '@/components/PageTItle'
 import { Metadata } from 'next'
 import StoreLocator from './components/StoreLocator'
 
-export const metadata: Metadata = { title: 'Store Locator' }
+export const metadata: Metadata = { title: 'Store Locations' }
 
 const StoreLocatorPage = () => {
   return (
     <>
-      <PageTItle title="Store Locator" />
+      <PageTItle title="Store Locations" />
       <StoreLocator />
     </>
   )

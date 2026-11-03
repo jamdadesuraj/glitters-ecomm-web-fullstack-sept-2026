@@ -80,7 +80,6 @@ const TopHeader = () => {
 
       height: "28px",
       padding: "0 4px",
-     
     }),
 
     input: (base) => ({
@@ -277,7 +276,7 @@ const TopHeader = () => {
               value={location}
               onChange={handleLocation}
               options={locationOptions}
-              placeholder="Store Locator"
+              placeholder="Store Locations"
               isSearchable
               isClearable={false}
               menuPortalTarget={
