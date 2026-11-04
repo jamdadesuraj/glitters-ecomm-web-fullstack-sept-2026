@@ -22,12 +22,7 @@ app.use(express.json());
 // CORS configuration for production
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:3002",
-      "https://metarox-systems-web-mern.vercel.app",
-    ],
+    origin: ["http://31.97.207.6:5000", "http://31.97.207.6:5001"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
     allowedHeaders: [
       "Content-Type",
