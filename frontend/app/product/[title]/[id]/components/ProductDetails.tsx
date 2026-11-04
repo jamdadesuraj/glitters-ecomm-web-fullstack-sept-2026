@@ -92,7 +92,7 @@ const ProductDetails = () => {
         {/* =====================================================
             PRODUCT TABS
         ====================================================== */}
-        <div className="mt-8 sm:mt-10 lg:mt-14">
+        <div className="mt-8 pb-28 sm:mt-10 lg:mt-14 lg:pb-0">
           <ProductTabs product={productResponse} />
         </div>
       </div>
